@@ -76,40 +76,13 @@ const BabylonWorld: React.FC = () => {
     // Wheel handler: temporarily disabled — scroll wheel will not change camera pitch.
     // Re-enable later by restoring the onWheel handler and registration if desired.
 
-
-    // Small overlay to hint to the user to click to lock pointer and toggle inversion
-    const overlay = document.createElement("div");
-    const updateOverlay = () => {
-      overlay.innerText = `Click to lock pointer — Esc to release`;
-    };
-    updateOverlay();
-    overlay.style.position = "fixed";
-    overlay.style.left = "50%";
-    overlay.style.transform = "translateX(-50%)";
-    overlay.style.bottom = "12px";
-    overlay.style.padding = "6px 10px";
-    overlay.style.background = "rgba(0,0,0,0.6)";
-    overlay.style.color = "white";
-    overlay.style.fontSize = "12px";
-    overlay.style.borderRadius = "6px";
-    overlay.style.pointerEvents = "none";
-    document.body.appendChild(overlay);
-
-    const onPointerLockChange = () => {
-      if (document.pointerLockElement === canvasRef.current) {
-        // hide overlay while locked
-        overlay.style.opacity = "0";
-      } else {
-        overlay.style.opacity = "1";
-      }
-    };
+    // No pointer-lock overlay handling (overlay removed).
 
     const requestLock = () => {
       canvasRef.current?.requestPointerLock?.();
     };
 
     canvasRef.current?.addEventListener("click", requestLock);
-    document.addEventListener("pointerlockchange", onPointerLockChange);
     document.addEventListener("mousemove", onMouseMove);
 
     // ensure we remove the listeners in cleanup below (we'll reference the names there)
@@ -250,10 +223,7 @@ const BabylonWorld: React.FC = () => {
     return () => {
       // remove pointer-lock related listeners and overlay
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
-      try { document.removeEventListener("pointerlockchange", onPointerLockChange as any); } catch {}
       try { document.removeEventListener("mousemove", onMouseMove as any); } catch {}
-
-      try { document.body.removeChild(overlay); } catch {}
 
       scene.dispose();
       engine.dispose();
