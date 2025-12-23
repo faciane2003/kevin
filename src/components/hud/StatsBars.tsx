@@ -1,22 +1,25 @@
 // File: src/components/hud/StatsBars.tsx
 import React from "react";
 import "./HUD.css";
+import { useHUD } from "./HUDContext";
+
+const StatBar: React.FC<{ label: string; value: number; colorClass: string }> = ({ label, value, colorClass }) => {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div className={`stat-bar ${colorClass}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+      <span className="stat-label">{label} — {Math.round(pct)}%</span>
+      <div className="bar-fill" style={{ width: `${pct}%` }} />
+    </div>
+  );
+};
 
 const StatsBars: React.FC = () => {
+  const { health, mana, xp } = useHUD();
   return (
     <div className="stats-bars">
-      <div className="stat-bar health">
-        <span className="stat-label">Health</span>
-        <div className="bar-fill" style={{ width: "70%" }}></div>
-      </div>
-      <div className="stat-bar mana">
-        <span className="stat-label">Mana</span>
-        <div className="bar-fill" style={{ width: "50%" }}></div>
-      </div>
-      <div className="stat-bar xp">
-        <span className="stat-label">XP</span>
-        <div className="bar-fill" style={{ width: "30%" }}></div>
-      </div>
+      <StatBar label="Health" value={health} colorClass="health" />
+      <StatBar label="Mana" value={mana} colorClass="mana" />
+      <StatBar label="XP" value={xp} colorClass="xp" />
     </div>
   );
 };

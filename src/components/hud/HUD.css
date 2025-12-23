@@ -1,86 +1,31 @@
-/* File: src/components/hud/HUD.css */
+/* HUD container */
+.hud-container { position: absolute; inset: 0; pointer-events: none; z-index: 9999; }
 
-.hud-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none; /* lets clicks go through the HUD except on buttons */
-  z-index: 9999; /* make sure HUD is on top of canvas */
-}
+/* Stats Bars */
+.stats-bars { position: absolute; right: 20px; bottom: 20px; display:flex; flex-direction:column; gap:8px; pointer-events:auto; }
+.stat-bar { width: 220px; height:28px; background: rgba(10,10,10,0.75); border-radius:8px; overflow:hidden; position:relative; box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
+.stat-label { position:absolute; left:10px; top:4px; font-size:13px; color:#fff; z-index:2; text-shadow: 0 1px 1px rgba(0,0,0,0.6); }
+.bar-fill { height:100%; width:0; transition: width 350ms cubic-bezier(.2,.9,.2,1); z-index:1; }
 
-/* Stats Bars - bottom right */
-.stats-bars {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: auto;
-}
+/* colors */
+.stat-bar.health .bar-fill { background: linear-gradient(90deg,#ff6b6b,#ff2e2e); }
+.stat-bar.mana .bar-fill { background: linear-gradient(90deg,#6b9bff,#2e5bff); }
+.stat-bar.xp .bar-fill { background: linear-gradient(90deg,#ffd26b,#ffb42e); }
 
-.stat-bar {
-  width: 200px;
-  height: 24px;
-  background: #222;
-  border-radius: 6px;
-  overflow: hidden;
-  position: relative;
-}
+/* Menu Tabs */
+.menu-tabs { position:absolute; left:20px; bottom:20px; display:flex; gap:10px; pointer-events:auto; }
+.menu-tab-button{ padding:8px 12px; border-radius:8px; background:rgba(20,20,20,0.85); color:#fff; border:none; cursor:pointer; font-weight:600; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+.menu-tab-button.active{ background: linear-gradient(180deg,#3a3a3a,#2b2b2b); transform: translateY(-2px); }
 
-.stat-label {
-  position: absolute;
-  left: 8px;
-  top: 2px;
-  color: white;
-  font-size: 12px;
-  z-index: 2;
-}
+/* Hotbar */
+.hotbar { position:absolute; left:50%; transform:translateX(-50%); bottom:22px; display:flex; gap:8px; pointer-events:auto; }
+.hotbar-slot { width:48px; height:48px; background:rgba(10,10,10,0.8); border-radius:8px; border:1px solid rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:center; position:relative; cursor:pointer; }
+.hotbar-slot img{ width:36px; height:36px; object-fit:contain; }
+.hotbar-slot.active { box-shadow: 0 0 10px rgba(255,255,255,0.08), 0 6px 20px rgba(0,0,0,0.6); transform: scale(1.04); }
+.cooldown-overlay{ position:absolute; left:0; bottom:0; height:4px; background: rgba(0,0,0,0.4); transition: width 200ms linear; }
 
-.bar-fill {
-  height: 100%;
-  background: red;
-  width: 0%;
-  transition: width 0.3s;
-  z-index: 1;
-}
-
-.stat-bar.health .bar-fill {
-  background: linear-gradient(to right, #ff4c4c, #ff0000);
-}
-
-.stat-bar.mana .bar-fill {
-  background: linear-gradient(to right, #4c4cff, #0000ff);
-}
-
-.stat-bar.xp .bar-fill {
-  background: linear-gradient(to right, #ffd700, #ffb700);
-}
-
-/* Menu Tabs - bottom left */
-.menu-tabs {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  pointer-events: auto;
-}
-
-.menu-tab-button {
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: rgba(30,30,30,0.9);
-  color: white;
-  border: none;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.menu-tab-button:hover {
-  background: rgba(60,60,60,0.95);
+/* Accessibility, small view */
+@media (max-width:600px) {
+  .stat-bar { width: 160px; height:22px; }
+  .hotbar-slot { width:40px; height:40px; }
 }
