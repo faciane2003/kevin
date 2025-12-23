@@ -1,68 +1,58 @@
+// File: src/world/BabylonWorld.tsx
+
 import React, { useEffect, useRef } from "react";
 import {
   Engine,
   Scene,
+  FreeCamera,
   Vector3,
-  UniversalCamera,
   HemisphericLight,
   MeshBuilder,
   StandardMaterial,
   Color3,
-  SceneLoader,
+  Color4,
 } from "@babylonjs/core";
 
 const BabylonWorld: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const canvas = canvasRef.current;
-    const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
 
-    // Camera (first-person)
-    const camera = new UniversalCamera("camera", new Vector3(0, 2, -10), scene);
-    camera.attachControl(canvas, true);
-    camera.speed = 0.2;
-    camera.inertia = 0.1;
+    // Camera
+    const camera = new FreeCamera("fpsCamera", new Vector3(0, 2, -5), scene);
+    camera.attachControl(canvasRef.current, true);
+    camera.speed = 0.5; // movement speed
 
     // Light
-    const light = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), scene);
+    const light = new HemisphericLight("light1", new Vector3(0, 1, 0), scene);
     light.intensity = 0.9;
 
     // Ground
-    const ground = MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, scene);
+    const ground = MeshBuilder.CreateGround("ground", { width: 200, height: 200 }, scene);
     const groundMat = new StandardMaterial("groundMat", scene);
-    groundMat.diffuseColor = new Color3(0.1, 0.7, 0.1); // green grass
+    groundMat.diffuseColor = new Color3(0.3, 0.8, 0.3); // green grass
     ground.material = groundMat;
 
-    // Mountains (simple boxes as placeholder)
-    for (let i = 0; i < 5; i++) {
-      const mountain = MeshBuilder.CreateBox(
-        `mountain${i}`,
-        { width: 5, height: 3 + Math.random() * 3, depth: 5 },
-        scene
-      );
-      mountain.position = new Vector3(
-        Math.random() * 40 - 20,
-        (3 + Math.random() * 3) / 2,
-        Math.random() * 40 - 20
-      );
-      const mat = new StandardMaterial(`mountMat${i}`, scene);
-      mat.diffuseColor = new Color3(0.5, 0.5, 0.5); // grey
-      mountain.material = mat;
-    }
+    // Mountains (simple boxes)
+    const mountainMat = new StandardMaterial("mountainMat", scene);
+    mountainMat.diffuseColor = new Color3(0.5, 0.5, 0.5);
 
-    // Skybox (simple blue)
-    const skybox = MeshBuilder.CreateBox("skyBox", { size: 500 }, scene);
-    const skyboxMaterial = new StandardMaterial("skyMat", scene);
-    skyboxMaterial.backFaceCulling = false;
-    skyboxMaterial.diffuseColor = new Color3(0.53, 0.81, 0.98); // light blue
-    skyboxMaterial.specularColor = new Color3(0, 0, 0);
-    skybox.material = skyboxMaterial;
+    const mountain1 = MeshBuilder.CreateBox("mountain1", { width: 20, height: 15, depth: 20 }, scene);
+    mountain1.position = new Vector3(30, 7.5, 50);
+    mountain1.material = mountainMat;
 
-    // Enable WASD movement for camera
+    const mountain2 = MeshBuilder.CreateBox("mountain2", { width: 30, height: 20, depth: 30 }, scene);
+    mountain2.position = new Vector3(-40, 10, 80);
+    mountain2.material = mountainMat;
+
+    // Sky color
+    scene.clearColor = new Color4(0.53, 0.81, 0.92, 1); // light blue sky
+
+    // Enable first-person controls with WASD
     camera.keysUp.push(87); // W
     camera.keysDown.push(83); // S
     camera.keysLeft.push(65); // A
@@ -73,7 +63,6 @@ const BabylonWorld: React.FC = () => {
       scene.render();
     });
 
-    // Handle resize
     window.addEventListener("resize", () => {
       engine.resize();
     });
@@ -83,7 +72,7 @@ const BabylonWorld: React.FC = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />;
+  return <canvas ref={canvasRef} style={{ width: "100vw", height: "100vh", display: "block" }} />;
 };
 
 export default BabylonWorld;

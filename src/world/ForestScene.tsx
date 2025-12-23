@@ -1,70 +1,58 @@
 // File: src/world/ForestScene.tsx
-import React, { useEffect, useRef } from "react";
-import {
-  Engine,
-  Scene,
-  Vector3,
-  MeshBuilder,
-  StandardMaterial,
-  Color3,
-  Texture,
-  HemisphericLight,
-  FreeCamera,
-} from "@babylonjs/core";
-import "@babylonjs/loaders";
+import { Engine, Scene, MeshBuilder, UniversalCamera, HemisphericLight, ActionManager, ExecuteCodeAction, Vector3 } from '@babylonjs/core';
+import { useEffect, useRef } from 'react';
 
-const ForestScene: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+export default function ForestScene() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const canvas = canvasRef.current;
-    const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
 
-    // First-person camera
-    const camera = new FreeCamera("fpCamera", new Vector3(0, 1.6, -5), scene); // eye height 1.6
-    camera.attachControl(canvas, true);
-    camera.speed = 0.2;
+    const camera = new UniversalCamera("camera", new Vector3(0, 2, -10), scene);
+    camera.attachControl(canvasRef.current, true);
 
-    // Light
-    const light = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), scene);
-    light.intensity = 0.9;
+    const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
 
-    // Ground
     const ground = MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, scene);
-    const groundMat = new StandardMaterial("groundMat", scene);
-    const grassTexture = new Texture("https://assets.babylonjs.com/environments/grass.jpg", scene);
-    groundMat.diffuseTexture = grassTexture;
-    ground.material = groundMat;
+    const sphere = MeshBuilder.CreateSphere("sphere", { diameter: 1 }, scene);
+    sphere.position.y = 1;
 
-    // Player mesh (optional visual)
-    const player = MeshBuilder.CreateBox("player", { height: 2, width: 1, depth: 1 }, scene);
-    player.position.y = 1;
-    player.isVisible = false; // hide since we're in 1st person
+    const inputMap: Record<string, boolean> = {};
+    scene.actionManager = new ActionManager(scene);
 
-    // Ground interaction example
-    ground.actionManager = new BABYLON.ActionManager(scene as any);
-    ground.actionManager.registerAction(
-      new BABYLON.ExecuteCodeAction(
-        { trigger: BABYLON.ActionManager.OnPickTrigger },
-        (evt: any) => {
-          console.log("Ground clicked", evt);
-        }
-      )
+    scene.actionManager.registerAction(
+      new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, evt => {
+        inputMap[evt.sourceEvent.key] = true;
+      })
+    );
+    scene.actionManager.registerAction(
+      new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, evt => {
+        inputMap[evt.sourceEvent.key] = false;
+      })
     );
 
-    engine.runRenderLoop(() => scene.render());
+    scene.onBeforeRenderObservable.add(() => {
+      if (inputMap["w"]) sphere.position.z += 0.1;
+      if (inputMap["s"]) sphere.position.z -= 0.1;
+      if (inputMap["a"]) sphere.position.x -= 0.1;
+      if (inputMap["d"]) sphere.position.x += 0.1;
 
-    window.addEventListener("resize", () => engine.resize());
+      camera.position.x = sphere.position.x;
+      camera.position.z = sphere.position.z - 5;
+      camera.position.y = sphere.position.y + 2;
+    });
+
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener('resize', () => engine.resize());
 
     return () => {
+      scene.dispose();
       engine.dispose();
     };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ width: "100%", height: "100vh", display: "block" }} />;
-};
-
-export default ForestScene;
+  return <canvas ref={canvasRef} style={{ width: '100vw', height: '100vh' }} />;
+}
