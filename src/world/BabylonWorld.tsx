@@ -1,6 +1,9 @@
 // File: src/world/BabylonWorld.tsx
 import React, { useEffect, useRef } from "react";
 import * as BABYLON from "@babylonjs/core";
+import "@babylonjs/loaders";
+import "@babylonjs/inspector";
+import "@babylonjs/serializers";
 
 const BabylonWorld: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -9,71 +12,66 @@ const BabylonWorld: React.FC = () => {
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const engine = new BABYLON.Engine(canvas, true);
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
     const scene = new BABYLON.Scene(engine);
 
-    // Sky color
-    scene.clearColor = new BABYLON.Color3(0.53, 0.81, 0.98);
-
     // Camera
-    const camera = new BABYLON.UniversalCamera(
-      "camera",
-      new BABYLON.Vector3(0, 2, -5),
-      scene
-    );
+    const camera = new BABYLON.UniversalCamera("Camera", new BABYLON.Vector3(0, 2, -10), scene);
     camera.attachControl(canvas, true);
-
-    // Keyboard controls
-    camera.keysUp.push(87); // W
-    camera.keysDown.push(83); // S
-    camera.keysLeft.push(65); // A
-    camera.keysRight.push(68); // D
     camera.speed = 0.2;
 
     // Light
-    const light = new BABYLON.HemisphericLight(
-      "hemiLight",
-      new BABYLON.Vector3(0, 1, 0),
-      scene
-    );
-    light.intensity = 0.9;
+    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
 
     // Ground
-    const ground = BABYLON.MeshBuilder.CreateGround(
-      "ground",
-      { width: 100, height: 100 },
-      scene
-    );
-    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.7, 0.2);
-    ground.material = groundMat;
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, scene);
+    const groundMaterial = new BABYLON.StandardMaterial("groundMat", scene);
+    groundMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.8, 0.2); // grass green
+    ground.material = groundMaterial;
 
-    // Mountains
-    const mountainMaterial = new BABYLON.StandardMaterial(
-      "mountainMat",
-      scene
-    );
-    mountainMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    // Skybox (simple gradient)
+    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 1000.0 }, scene);
+    const skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMaterial", scene);
+    skyboxMaterial.backFaceCulling = false;
+    skyboxMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.7, 1); // blue sky
+    skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+    skybox.material = skyboxMaterial;
 
-    const mountain1 = BABYLON.MeshBuilder.CreateBox(
-      "mountain1",
-      { width: 10, height: 8, depth: 6 },
-      scene
-    );
-    mountain1.position = new BABYLON.Vector3(15, 4, 20);
-    mountain1.material = mountainMaterial;
+    // Mountains (simple grey boxes as placeholder)
+    for (let i = 0; i < 10; i++) {
+      const mountain = BABYLON.MeshBuilder.CreateBox(`mountain${i}`, { width: 5, height: 10, depth: 5 }, scene);
+      mountain.position = new BABYLON.Vector3(Math.random() * 50 - 25, 5, Math.random() * 50 - 25);
+      const mountainMat = new BABYLON.StandardMaterial(`mountMat${i}`, scene);
+      mountainMat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+      mountain.material = mountainMat;
+    }
 
-    const mountain2 = BABYLON.MeshBuilder.CreateBox(
-      "mountain2",
-      { width: 8, height: 6, depth: 10 },
-      scene
-    );
-    mountain2.position = new BABYLON.Vector3(-20, 3, 30);
-    mountain2.material = mountainMaterial;
+    // Character (placeholder)
+    const player = BABYLON.MeshBuilder.CreateSphere("player", { diameter: 1 }, scene);
+    player.position.y = 1;
 
-    engine.runRenderLoop(() => {
-      scene.render();
+    // Movement
+    const inputMap: { [key: string]: boolean } = {};
+    scene.actionManager = new BABYLON.ActionManager(scene);
+
+    scene.onKeyboardObservable.add((kbInfo) => {
+      const code = kbInfo.event.key.toLowerCase();
+      if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN) {
+        inputMap[code] = true;
+      } else if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYUP) {
+        inputMap[code] = false;
+      }
     });
+
+    scene.onBeforeRenderObservable.add(() => {
+      const delta = 0.1;
+      if (inputMap["w"]) player.position.z += delta;
+      if (inputMap["s"]) player.position.z -= delta;
+      if (inputMap["a"]) player.position.x -= delta;
+      if (inputMap["d"]) player.position.x += delta;
+    });
+
+    engine.runRenderLoop(() => scene.render());
 
     window.addEventListener("resize", () => engine.resize());
 
@@ -83,7 +81,7 @@ const BabylonWorld: React.FC = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ width: "100%", height: "100vh" }} />;
+  return <canvas ref={canvasRef} />;
 };
 
 export default BabylonWorld;
