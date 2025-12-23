@@ -2,27 +2,20 @@
 import React from "react";
 import "./HUD.css";
 
-interface StatsBarsProps {
-  health?: number;
-  mana?: number;
-  xp?: number;
-}
-
-const StatsBars: React.FC<StatsBarsProps> = ({
-  health = 80,
-  mana = 50,
-  xp = 20,
-}) => {
+const StatsBars: React.FC = () => {
   return (
     <div className="stats-bars">
-      <div className="bar health">
-        <div className="fill" style={{ width: `${health}%` }} />
+      <div className="stat-bar health">
+        <span className="stat-label">Health</span>
+        <div className="bar-fill" style={{ width: "70%" }}></div>
       </div>
-      <div className="bar mana">
-        <div className="fill" style={{ width: `${mana}%` }} />
+      <div className="stat-bar mana">
+        <span className="stat-label">Mana</span>
+        <div className="bar-fill" style={{ width: "50%" }}></div>
       </div>
-      <div className="bar xp">
-        <div className="fill" style={{ width: `${xp}%` }} />
+      <div className="stat-bar xp">
+        <span className="stat-label">XP</span>
+        <div className="bar-fill" style={{ width: "30%" }}></div>
       </div>
     </div>
   );

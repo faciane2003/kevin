@@ -3,17 +3,19 @@ import React, { useEffect, useRef } from "react";
 import {
   Engine,
   Scene,
+  ArcRotateCamera,
   Vector3,
   HemisphericLight,
   MeshBuilder,
   StandardMaterial,
   Color3,
-  Color4,
-  FreeCamera,
+  KeyboardEventTypes,
+  ActionManager,
+  ExecuteCodeAction,
 } from "@babylonjs/core";
 
 const BabylonWorld: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -21,60 +23,65 @@ const BabylonWorld: React.FC = () => {
     const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
 
-    // First-person camera
-    const camera = new FreeCamera("fpsCamera", new Vector3(0, 2, -10), scene);
+    // Camera
+    const camera = new ArcRotateCamera(
+      "camera",
+      Math.PI / 2,
+      Math.PI / 4,
+      10,
+      new Vector3(0, 1, 0),
+      scene
+    );
     camera.attachControl(canvasRef.current, true);
-    camera.speed = 0.2;
 
-    // Lights
-    const light = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), scene);
-    light.intensity = 0.9;
+    // Light
+    const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
 
-    // Ground (grass)
-    const ground = MeshBuilder.CreateGround("ground", { width: 200, height: 200 }, scene);
+    // Ground
+    const ground = MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
     const groundMat = new StandardMaterial("groundMat", scene);
-    groundMat.diffuseColor = new Color3(0.3, 0.8, 0.3);
+    groundMat.diffuseColor = new Color3(0.3, 0.8, 0.3); // green grass
     ground.material = groundMat;
 
-    // Mountains (gray boxes for simplicity)
+    // Mountains (simple boxes for now)
     const mountainMat = new StandardMaterial("mountainMat", scene);
-    mountainMat.diffuseColor = new Color3(0.5, 0.5, 0.5);
+    mountainMat.diffuseColor = new Color3(0.5, 0.5, 0.5); // gray mountains
+    const mountain = MeshBuilder.CreateBox("mountain", { width: 50, height: 20, depth: 10 }, scene);
+    mountain.position = new Vector3(0, 10, -40);
+    mountain.material = mountainMat;
 
-    for (let i = 0; i < 5; i++) {
-      const mountain = MeshBuilder.CreateBox(`mountain${i}`, { width: 20, height: 10, depth: 20 }, scene);
-      mountain.position = new Vector3(-50 + i * 25, 5, 50 + i * -30);
-      mountain.material = mountainMat;
-    }
+    // Player sphere
+    const player = MeshBuilder.CreateSphere("player", { diameter: 1 }, scene);
+    player.position = new Vector3(0, 1, 0);
+    const playerMat = new StandardMaterial("playerMat", scene);
+    playerMat.diffuseColor = new Color3(1, 0, 0); // red
+    player.material = playerMat;
 
-    // Sky (simple blue)
-    scene.clearColor = new Color4(0.53, 0.81, 0.98, 1); // light blue sky
+    // WASD movement
+    const inputMap: { [key: string]: boolean } = {};
+    scene.actionManager = new ActionManager(scene);
 
-    // Handle WASD movement
-    const keys = {
-      w: false,
-      a: false,
-      s: false,
-      d: false,
-    };
+    scene.actionManager.registerAction(
+      new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (evt) => {
+        inputMap[evt.sourceEvent.key.toLowerCase()] = true;
+      })
+    );
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase();
-      if (keys.hasOwnProperty(k)) keys[k as keyof typeof keys] = true;
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase();
-      if (keys.hasOwnProperty(k)) keys[k as keyof typeof keys] = false;
-    };
+    scene.actionManager.registerAction(
+      new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (evt) => {
+        inputMap[evt.sourceEvent.key.toLowerCase()] = false;
+      })
+    );
 
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-
+    const speed = 0.2;
     scene.onBeforeRenderObservable.add(() => {
-      const speed = 0.2;
-      if (keys.w) camera.position.addInPlace(camera.getDirection(Vector3.Forward()).scale(speed));
-      if (keys.s) camera.position.addInPlace(camera.getDirection(Vector3.Forward()).scale(-speed));
-      if (keys.a) camera.position.addInPlace(camera.getDirection(Vector3.Right()).scale(-speed));
-      if (keys.d) camera.position.addInPlace(camera.getDirection(Vector3.Right()).scale(speed));
+      if (inputMap["w"]) player.position.z -= speed;
+      if (inputMap["s"]) player.position.z += speed;
+      if (inputMap["a"]) player.position.x -= speed;
+      if (inputMap["d"]) player.position.x += speed;
+
+      // Move camera to follow player
+      camera.target = player.position;
     });
 
     engine.runRenderLoop(() => {
@@ -86,9 +93,8 @@ const BabylonWorld: React.FC = () => {
     });
 
     return () => {
+      scene.dispose();
       engine.dispose();
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
     };
   }, []);
 

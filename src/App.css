@@ -2,12 +2,7 @@
 .app-container {
   width: 100vw;
   height: 100vh;
+  position: relative; /* needed for HUD overlay */
   overflow: hidden;
-  position: relative;
-}
-
-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
+  background: #000;
 }

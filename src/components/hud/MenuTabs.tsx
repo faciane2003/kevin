@@ -8,7 +8,7 @@ const MenuTabs: React.FC = () => {
   return (
     <div className="menu-tabs">
       {tabs.map((tab) => (
-        <button key={tab}>{tab}</button>
+        <button key={tab} className="menu-tab-button">{tab}</button>
       ))}
     </div>
   );

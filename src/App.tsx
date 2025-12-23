@@ -1,15 +1,16 @@
+// File: src/App.tsx
 import React from "react";
-import HUD from "./components/hud/HUD";
 import BabylonWorld from "./world/BabylonWorld";
-import "./App.css"; // Make sure this import points to the CSS file
+import HUD from "./components/hud/HUD";
+import "./App.css";
 
-const App: React.FC = () => {
+function App() {
   return (
     <div className="app-container">
       <BabylonWorld />
       <HUD />
     </div>
   );
-};
+}
 
 export default App;
