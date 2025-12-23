@@ -12,6 +12,7 @@ import {
   MeshBuilder,
   StandardMaterial,
   Color3,
+  DynamicTexture,
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
@@ -126,11 +127,88 @@ const BabylonWorld: React.FC = () => {
     sun.position = new Vector3(120, 120, -180);
     sun.isPickable = false;
 
+    const createGrassTexture = (name: string) => {
+      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
+      const ctx = tex.getContext();
+      const size = tex.getSize();
+
+      // Base grass tones
+      ctx.fillStyle = "#3f7b3b";
+      ctx.fillRect(0, 0, size.width, size.height);
+
+      // Layered noise for variation
+      for (let i = 0; i < 16000; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const shade = Math.random();
+        const g = Math.floor(85 + shade * 80);
+        const r = Math.floor(40 + shade * 40);
+        const b = Math.floor(30 + shade * 35);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      // Soft directional blades
+      ctx.strokeStyle = "rgba(200, 230, 190, 0.12)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 1400; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const len = 4 + Math.random() * 10;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (Math.random() * 2 - 1), y + len);
+        ctx.stroke();
+      }
+
+      tex.update();
+      return tex;
+    };
+
+    const createDirtTexture = (name: string) => {
+      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
+      const ctx = tex.getContext();
+      const size = tex.getSize();
+
+      // Base dirt tones
+      ctx.fillStyle = "#6b5a46";
+      ctx.fillRect(0, 0, size.width, size.height);
+
+      // Speckled variation
+      for (let i = 0; i < 18000; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const shade = Math.random();
+        const r = Math.floor(80 + shade * 60);
+        const g = Math.floor(60 + shade * 50);
+        const b = Math.floor(45 + shade * 40);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      // Subtle darker clumps
+      ctx.fillStyle = "rgba(40, 30, 20, 0.18)";
+      for (let i = 0; i < 900; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const w = 10 + Math.random() * 80;
+        const h = 6 + Math.random() * 30;
+        ctx.fillRect(x, y, w, h);
+      }
+
+      tex.update();
+      return tex;
+    };
+
     // Ground (large)
     const ground = MeshBuilder.CreateGround("ground", { width: 800, height: 800 }, scene);
     const groundMat = new StandardMaterial("groundMat", scene);
-    groundMat.diffuseColor = new Color3(0.22, 0.7, 0.28); // grass-like green
-    groundMat.specularColor = new Color3(0, 0, 0);
+    const groundDirtTex = createDirtTexture("groundDirtTex");
+    groundDirtTex.uScale = 24;
+    groundDirtTex.vScale = 24;
+    groundMat.diffuseTexture = groundDirtTex;
+    groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
+    groundMat.ambientColor = new Color3(0.25, 0.35, 0.22);
     ground.material = groundMat;
 
     // Distant mountains (simple shapes)
@@ -179,9 +257,69 @@ const BabylonWorld: React.FC = () => {
     scene.fogColor = new Color3(0.82, 0.91, 1.0);
 
     // Procedural buildings (simple boxes with varied heights)
-    const buildingMat = new StandardMaterial("buildingMat", scene);
-    buildingMat.diffuseColor = new Color3(0.72, 0.72, 0.75);
-    buildingMat.specularColor = new Color3(0.02, 0.02, 0.02);
+    const createBuildingMaterial = (
+      name: string,
+      baseColor: string,
+      trimColor: string,
+      windowOn: string,
+      windowOff: string
+    ) => {
+      const mat = new StandardMaterial(name, scene);
+      const tex = new DynamicTexture(`${name}_tex`, { width: 512, height: 512 }, scene, false);
+      const ctx = tex.getContext();
+      const size = tex.getSize();
+
+      // Base facade with subtle vertical gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, size.height);
+      grad.addColorStop(0, baseColor);
+      grad.addColorStop(1, "#6f6f6f");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size.width, size.height);
+
+      // Trim bands
+      ctx.fillStyle = trimColor;
+      for (let y = 0; y < size.height; y += 96) {
+        ctx.fillRect(0, y + 72, size.width, 6);
+      }
+
+      // Window grid
+      const winW = 18;
+      const winH = 26;
+      const gapX = 10;
+      const gapY = 14;
+      for (let y = 20; y < size.height - winH - 10; y += winH + gapY) {
+        for (let x = 16; x < size.width - winW - 10; x += winW + gapX) {
+          const lit = Math.random() > 0.55;
+          ctx.fillStyle = lit ? windowOn : windowOff;
+          ctx.fillRect(x, y, winW, winH);
+        }
+      }
+
+      // Light grime/noise pass
+      ctx.fillStyle = "rgba(0,0,0,0.06)";
+      for (let i = 0; i < 220; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const w = 20 + Math.random() * 60;
+        ctx.fillRect(x, y, w, 2);
+      }
+
+      tex.update();
+      tex.uScale = 1.0;
+      tex.vScale = 2.4;
+
+      mat.diffuseTexture = tex;
+      mat.specularColor = new Color3(0.04, 0.04, 0.04);
+      mat.ambientColor = new Color3(0.2, 0.2, 0.2);
+      return mat;
+    };
+
+    const buildingMats = [
+      createBuildingMaterial("buildingMat_concrete", "#b6b6b6", "#9a9a9a", "#ffd9a8", "#262626"),
+      createBuildingMaterial("buildingMat_sand", "#c7b49a", "#a8927a", "#ffe3b5", "#2a2a2a"),
+      createBuildingMaterial("buildingMat_brick", "#b07a6c", "#8a5d52", "#ffd2a1", "#292421"),
+      createBuildingMaterial("buildingMat_modern", "#9aa7b5", "#7a8794", "#d9ecff", "#1f2328"),
+    ];
 
     for (let i = 0; i < 40; i++) {
       const w = 8 + Math.random() * 20;
@@ -189,13 +327,17 @@ const BabylonWorld: React.FC = () => {
       const h = 10 + Math.random() * 60;
       const b = MeshBuilder.CreateBox(`building_${i}`, { width: w, depth: d, height: h }, scene);
       b.position = new Vector3((Math.random() - 0.5) * 700, h / 2, (Math.random() - 0.5) * 700 - 200);
-      b.material = buildingMat;
+      b.rotation.y = Math.random() * Math.PI * 2;
+      b.material = buildingMats[Math.floor(Math.random() * buildingMats.length)];
       b.isPickable = false;
     }
 
     // Groundcover: grass via instanced planes (low-overhead)
     const grassMat = new StandardMaterial("grassMat", scene);
-    grassMat.diffuseTexture = new Texture('/src/assets/textures/grass.jpg', scene);
+    const tuftGrassTex = createGrassTexture("tuftGrassTex");
+    tuftGrassTex.uScale = 3;
+    tuftGrassTex.vScale = 3;
+    grassMat.diffuseTexture = tuftGrassTex;
     grassMat.backFaceCulling = false;
     const baseGrass = MeshBuilder.CreatePlane('grassBase', { size: 1 }, scene);
     baseGrass.material = grassMat;
