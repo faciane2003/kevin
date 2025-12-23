@@ -20,6 +20,10 @@ export default function ForestScene() {
     const sphere = MeshBuilder.CreateSphere("sphere", { diameter: 1 }, scene);
     sphere.position.y = 1;
 
+    light.intensity = 0.8;
+    ground.receiveShadows = true;
+
+
     const inputMap: Record<string, boolean> = {};
     scene.actionManager = new ActionManager(scene);
 
