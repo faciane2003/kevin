@@ -599,7 +599,7 @@ const BabylonWorld: React.FC = () => {
           const tnode = node as TransformNode;
           tnode.parent = root;
           if ((tnode as any).position) tnode.position = new Vector3(0, 0, 0);
-          if ((tnode as any).scaling) tnode.scaling = new Vector3(3.2, 3.2, 3.2);
+          if ((tnode as any).scaling) tnode.scaling = new Vector3(1.9, 1.9, 1.9);
         });
         const lampLight = new PointLight(`lamp_light_${idx}`, new Vector3(pos.x, 8, pos.z), scene);
         lampLight.intensity = 0.6;
