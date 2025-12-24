@@ -213,6 +213,7 @@ const BabylonWorld: React.FC = () => {
 
     chatPanel.appendChild(chatLog);
     chatPanel.appendChild(chatInput);
+    chatPanel.style.display = "none";
     document.body.appendChild(chatPanel);
 
     if (socket) {
