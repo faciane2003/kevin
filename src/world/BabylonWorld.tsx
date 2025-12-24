@@ -232,10 +232,15 @@ const BabylonWorld: React.FC = () => {
       return tex;
     };
 
-    const createNeonSignTexture = (name: string, label: string, glow: string) => {
+    const createNeonSignTexture = (name: string, label: string, glow: string, flipX = false) => {
       const tex = new DynamicTexture(name, { width: 512, height: 256 }, scene, false);
       const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
+      ctx.save();
+      if (flipX) {
+        ctx.translate(size.width, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.fillStyle = "rgba(5,8,16,1)";
       ctx.fillRect(0, 0, size.width, size.height);
       ctx.fillStyle = glow;
@@ -251,6 +256,7 @@ const BabylonWorld: React.FC = () => {
       lines.forEach((line, index) => {
         ctx.fillText(line, size.width / 2, startY + index * lineHeight);
       });
+      ctx.restore();
       tex.update();
       return tex;
     };
@@ -623,7 +629,8 @@ const BabylonWorld: React.FC = () => {
       width: number,
       height: number,
       color: Color3,
-      namePrefix: string
+      namePrefix: string,
+      zOffset: number
     ) => {
       const bulbMat = new StandardMaterial(`${namePrefix}_bulbMat`, scene);
       bulbMat.emissiveColor = color;
@@ -639,30 +646,35 @@ const BabylonWorld: React.FC = () => {
         const top = MeshBuilder.CreateSphere(`${namePrefix}_bulb_top_${idx}`, { diameter: 1.1 }, scene);
         top.material = bulbMat;
         top.parent = sign;
-        top.position = new Vector3(x, halfH, 0.6);
+        top.position = new Vector3(x, halfH, zOffset);
         const bottom = MeshBuilder.CreateSphere(`${namePrefix}_bulb_bottom_${idx}`, { diameter: 1.1 }, scene);
         bottom.material = bulbMat;
         bottom.parent = sign;
-        bottom.position = new Vector3(x, -halfH, 0.6);
+        bottom.position = new Vector3(x, -halfH, zOffset);
         idx += 1;
       }
       for (let y = -halfH + spacing; y <= halfH - spacing; y += spacing) {
         const left = MeshBuilder.CreateSphere(`${namePrefix}_bulb_left_${idx}`, { diameter: 1.1 }, scene);
         left.material = bulbMat;
         left.parent = sign;
-        left.position = new Vector3(-halfW, y, 0.6);
+        left.position = new Vector3(-halfW, y, zOffset);
         const right = MeshBuilder.CreateSphere(`${namePrefix}_bulb_right_${idx}`, { diameter: 1.1 }, scene);
         right.material = bulbMat;
         right.parent = sign;
-        right.position = new Vector3(halfW, y, 0.6);
+        right.position = new Vector3(halfW, y, zOffset);
         idx += 1;
       }
     };
     const signMatA = new StandardMaterial("signMatA", scene);
-    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome!\nJacuzzi City Awaits!", "#6af6ff");
+    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome to Jacuzzi City!", "#6af6ff");
     signMatA.emissiveColor = new Color3(0.4, 0.8, 1.0);
     signMatA.disableLighting = true;
     signMatA.backFaceCulling = false;
+    const signMatABack = new StandardMaterial("signMatA_back", scene);
+    signMatABack.emissiveTexture = createNeonSignTexture("signTexA_back", "Welcome to Jacuzzi City!", "#6af6ff", true);
+    signMatABack.emissiveColor = new Color3(0.4, 0.8, 1.0);
+    signMatABack.disableLighting = true;
+    signMatABack.backFaceCulling = false;
     const signPoleA = MeshBuilder.CreateCylinder("billboard_pole_a", { height: 26, diameter: 1.6 }, scene);
     signPoleA.position = new Vector3(-120, 13, 20);
     signPoleA.material = metalMat;
@@ -673,17 +685,25 @@ const BabylonWorld: React.FC = () => {
     signA.rotation = new Vector3(0, Math.PI / 6, 0);
     signA.material = signMatA;
     signA.parent = signAGroup;
+    signA.position.z = 0.12;
     const signA_back = MeshBuilder.CreatePlane("billboard_a_back", { width: 50, height: 18 }, scene);
     signA_back.rotation = new Vector3(0, Math.PI / 6 + Math.PI, 0);
-    signA_back.material = signMatA;
+    signA_back.material = signMatABack;
     signA_back.parent = signAGroup;
-    addBillboardBulbs(signAGroup, 50, 18, new Color3(0.4, 0.9, 1.0), "signA");
+    signA_back.position.z = -0.12;
+    addBillboardBulbs(signA, 50, 18, new Color3(1.0, 0.7, 0.2), "signA_front", 0.6);
+    addBillboardBulbs(signA_back, 50, 18, new Color3(1.0, 0.7, 0.2), "signA_back", 0.6);
 
     const signMatB = new StandardMaterial("signMatB", scene);
-    signMatB.emissiveTexture = createNeonSignTexture("signTexB", "Welcome!\nJacuzzi City Awaits!", "#ff6bd6");
+    signMatB.emissiveTexture = createNeonSignTexture("signTexB", "Welcome to Jacuzzi City!", "#ff6bd6");
     signMatB.emissiveColor = new Color3(1.0, 0.35, 0.8);
     signMatB.disableLighting = true;
     signMatB.backFaceCulling = false;
+    const signMatBBack = new StandardMaterial("signMatB_back", scene);
+    signMatBBack.emissiveTexture = createNeonSignTexture("signTexB_back", "Welcome to Jacuzzi City!", "#ff6bd6", true);
+    signMatBBack.emissiveColor = new Color3(1.0, 0.35, 0.8);
+    signMatBBack.disableLighting = true;
+    signMatBBack.backFaceCulling = false;
     const signPoleB = MeshBuilder.CreateCylinder("billboard_pole_b", { height: 24, diameter: 1.6 }, scene);
     signPoleB.position = new Vector3(140, 12, 10);
     signPoleB.material = metalMat;
@@ -694,11 +714,14 @@ const BabylonWorld: React.FC = () => {
     signB.rotation = new Vector3(0, -Math.PI / 5, 0);
     signB.material = signMatB;
     signB.parent = signBGroup;
+    signB.position.z = 0.12;
     const signB_back = MeshBuilder.CreatePlane("billboard_b_back", { width: 46, height: 16 }, scene);
     signB_back.rotation = new Vector3(0, -Math.PI / 5 + Math.PI, 0);
-    signB_back.material = signMatB;
+    signB_back.material = signMatBBack;
     signB_back.parent = signBGroup;
-    addBillboardBulbs(signBGroup, 46, 16, new Color3(1.0, 0.4, 0.9), "signB");
+    signB_back.position.z = -0.12;
+    addBillboardBulbs(signB, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_front", 0.6);
+    addBillboardBulbs(signB_back, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_back", 0.6);
 
     // Holo kiosks
     for (let i = 0; i < 5; i++) {
