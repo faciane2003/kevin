@@ -1,6 +1,8 @@
 // File: src/components/hud/HUD.tsx
 import React, { useEffect, useState } from "react";
 import { HUDProvider, useHUD } from "./HUDContext";
+import MenuTabs from "./MenuTabs";
+import JournalPanel from "./JournalPanel";
 import LightControlPanel from "./LightControlPanel";
 import "./HUD.css";
 
@@ -245,7 +247,9 @@ const HUDInner: React.FC = () => {
 
   return (
     <div className="hud-container" aria-hidden={false}>
-      {/* HUD bars and menu tabs hidden per request */}
+      {/* Stats bars hidden per request */}
+      <MenuTabs />
+      <JournalPanel />
       <DialoguePanel npcId={activeNpc} onClose={() => setActiveNpc(null)} />
       <LightControlPanel />
       {/* Hotbar removed from UI per request */}

@@ -3,7 +3,14 @@ import React from "react";
 import "./HUD.css";
 import { useHUD } from "./HUDContext";
 
-const TABS = ["Quests", "Journal", "Map", "Items", "Magic"];
+const TABS = ["Quests", "Journal", "Map", "Items", "Magic"] as const;
+const TAB_ICONS: Record<(typeof TABS)[number], string> = {
+  Quests: "/icons/quests.png",
+  Journal: "/icons/journal.png",
+  Map: "/icons/map.png",
+  Items: "/icons/items.png",
+  Magic: "/icons/magic.png",
+};
 
 const MenuTabs: React.FC = () => {
   const { activeTab, setActiveTab } = useHUD();
@@ -20,8 +27,9 @@ const MenuTabs: React.FC = () => {
             tabIndex={0}
             className={`menu-tab-button ${active ? "active" : ""}`}
             onClick={() => setActiveTab(active ? null : t)}
+            title={t}
           >
-            {t}
+            <img src={TAB_ICONS[t]} alt={t} className="menu-tab-icon" />
           </button>
         );
       })}

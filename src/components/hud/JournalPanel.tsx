@@ -78,17 +78,6 @@ const JournalPanel: React.FC = () => {
             <p key={line}>{line}</p>
           ))}
         </div>
-        <div className="journal-tabs">
-          {Object.keys(TAB_CONTENT).map((tab) => (
-            <button
-              key={tab}
-              className={`journal-tab ${tab === activeTab ? "active" : ""}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );

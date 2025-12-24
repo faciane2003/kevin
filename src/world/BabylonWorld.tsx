@@ -91,6 +91,84 @@ const BabylonWorld: React.FC = () => {
       } catch {}
     }
 
+    let lookZone: HTMLDivElement | null = null;
+    let lookPointerActive = false;
+    let lastLookX = 0;
+    let lastLookY = 0;
+    const lookSensitivity = 0.004;
+    const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
+    if (isTouchDevice) {
+      lookZone = document.createElement("div");
+      lookZone.style.position = "fixed";
+      lookZone.style.right = "0";
+      lookZone.style.top = "0";
+      lookZone.style.width = "30vw";
+      lookZone.style.height = "100vh";
+      lookZone.style.borderLeft = "none";
+      lookZone.style.border = "none";
+      lookZone.style.background = "transparent";
+      lookZone.style.boxShadow = "none";
+      lookZone.style.outline = "none";
+      lookZone.style.userSelect = "none";
+      lookZone.style.zIndex = "18";
+      lookZone.style.pointerEvents = "auto";
+      lookZone.style.touchAction = "none";
+      lookZone.style.display = "flex";
+      lookZone.style.flexDirection = "column";
+      lookZone.style.alignItems = "flex-end";
+      lookZone.style.justifyContent = "flex-start";
+      lookZone.style.paddingTop = "66vh";
+      lookZone.style.paddingRight = "16px";
+      lookZone.style.color = "#38e26f";
+      lookZone.style.fontFamily = "Consolas, Menlo, monospace";
+      lookZone.style.fontSize = "18px";
+      lookZone.style.textShadow = "0 2px 0 rgba(0,0,0,0.6), 0 0 12px rgba(56,226,111,0.7)";
+
+      const lookUp = document.createElement("div");
+      lookUp.textContent = "▲";
+      lookUp.style.fontSize = "12px";
+
+      const lookLabel = document.createElement("div");
+      lookLabel.textContent = "Look";
+      lookLabel.style.fontSize = "18px";
+
+      const lookDown = document.createElement("div");
+      lookDown.textContent = "▼";
+      lookDown.style.fontSize = "12px";
+
+      lookZone.appendChild(lookUp);
+      lookZone.appendChild(lookLabel);
+      lookZone.appendChild(lookDown);
+      document.body.appendChild(lookZone);
+
+      lookZone.addEventListener("pointerdown", (evt) => {
+        lookPointerActive = true;
+        lastLookX = evt.clientX;
+        lastLookY = evt.clientY;
+        lookZone?.setPointerCapture(evt.pointerId);
+      });
+
+      lookZone.addEventListener("pointermove", (evt) => {
+        if (!lookPointerActive) return;
+        const dx = evt.clientX - lastLookX;
+        const dy = evt.clientY - lastLookY;
+        lastLookX = evt.clientX;
+        lastLookY = evt.clientY;
+        camera.rotation.y += dx * lookSensitivity;
+        camera.rotation.x = clampPitch(camera.rotation.x + dy * lookSensitivity);
+      });
+
+      const endLook = (evt: PointerEvent) => {
+        if (!lookPointerActive) return;
+        lookPointerActive = false;
+        try { lookZone?.releasePointerCapture(evt.pointerId); } catch {}
+      };
+
+      lookZone.addEventListener("pointerup", endLook);
+      lookZone.addEventListener("pointercancel", endLook);
+      lookZone.addEventListener("pointerleave", endLook);
+    }
+
     // Try to remove default camera inputs to avoid double-handling. The
     // exact property paths can vary between Babylon versions so guard with try/catch.
     try {
@@ -1417,6 +1495,7 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { window.removeEventListener("keydown", onChatFocusKey); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
+      try { if (lookZone) document.body.removeChild(lookZone); } catch {}
       try { document.body.removeChild(chatPanel); } catch {}
       try { socket?.close(); } catch {}
       remotePlayers.forEach((entry) => entry.mesh.dispose());
