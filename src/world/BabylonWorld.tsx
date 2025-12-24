@@ -15,6 +15,7 @@ import {
   Color4,
   Texture,
   DynamicTexture,
+  TransformNode,
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
@@ -188,8 +189,9 @@ const BabylonWorld: React.FC = () => {
     // Moon (emissive sphere with texture)
     const moon = MeshBuilder.CreateSphere("moon", { diameter: 120, segments: 24 }, scene);
     const moonMat = new StandardMaterial("moonMat", scene);
-    moonMat.emissiveTexture = new Texture("/textures/moon.jpg", scene);
-    moonMat.emissiveColor = new Color3(1.2, 1.2, 1.25);
+    moonMat.diffuseTexture = new Texture("/textures/moon.jpg", scene);
+    moonMat.emissiveTexture = moonMat.diffuseTexture;
+    moonMat.emissiveColor = new Color3(1.3, 1.3, 1.4);
     moonMat.specularColor = new Color3(0, 0, 0);
     moonMat.disableLighting = true;
     moon.material = moonMat;
@@ -516,7 +518,7 @@ const BabylonWorld: React.FC = () => {
     ];
     for (let i = 0; i < 12; i++) {
       const def = pickupDefs[i % pickupDefs.length];
-      const base = new Mesh(`pickup_${def.id}_${i}`, scene);
+      const base = new TransformNode(`pickup_${def.id}_${i}`, scene);
       base.position = new Vector3(-60 + i * 12, 3.5, -10 + (i % 3) * 10);
 
       const badge = MeshBuilder.CreatePlane(`pickup_badge_${def.id}_${i}`, { size: 4 }, scene);
@@ -558,7 +560,6 @@ const BabylonWorld: React.FC = () => {
         m.isPickable = true;
         m.metadata = { type: "pickup", item: def.id };
       });
-      base.isPickable = true;
       base.metadata = { type: "pickup", item: def.id };
       pickups.push({ mesh: base, baseY: base.position.y, phase: Math.random() * Math.PI * 2 });
     }
