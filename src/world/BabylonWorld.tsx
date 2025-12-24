@@ -61,47 +61,16 @@ const BabylonWorld: React.FC = () => {
     debugOverlay.style.pointerEvents = "none";
     debugOverlay.style.zIndex = "20";
     document.body.appendChild(debugOverlay);
-    const debugCopyButton = document.createElement("button");
-    debugCopyButton.textContent = "Copy Debug";
-    debugCopyButton.style.position = "fixed";
-    debugCopyButton.style.top = "12px";
-    debugCopyButton.style.right = "12px";
-    debugCopyButton.style.transform = "translateY(100%)";
-    debugCopyButton.style.marginTop = "8px";
-    debugCopyButton.style.padding = "6px 10px";
-    debugCopyButton.style.background = "rgba(6,8,14,0.85)";
-    debugCopyButton.style.border = "1px solid rgba(120, 140, 180, 0.4)";
-    debugCopyButton.style.borderRadius = "6px";
-    debugCopyButton.style.color = "#e6f3ff";
-    debugCopyButton.style.fontFamily = "Consolas, Menlo, monospace";
-    debugCopyButton.style.fontSize = "12px";
-    debugCopyButton.style.cursor = "pointer";
-    debugCopyButton.style.zIndex = "20";
-    debugCopyButton.addEventListener("click", async () => {
-      const text = debugOverlay.textContent || "";
-      try {
-        await navigator.clipboard.writeText(text);
-        debugCopyButton.textContent = "Copied";
-        setTimeout(() => { debugCopyButton.textContent = "Copy Debug"; }, 1200);
-      } catch {
-        const temp = document.createElement("textarea");
-        temp.value = text;
-        document.body.appendChild(temp);
-        temp.select();
-        try { document.execCommand("copy"); } catch {}
-        document.body.removeChild(temp);
-        debugCopyButton.textContent = "Copied";
-        setTimeout(() => { debugCopyButton.textContent = "Copy Debug"; }, 1200);
-      }
-    });
-    document.body.appendChild(debugCopyButton);
-    let showDebugOverlay = true;
+    debugOverlay.style.display = "none";
+    let showDebugOverlay = false;
     const onToggleDebugOverlay = (evt: KeyboardEvent) => {
       if (evt.key.toLowerCase() !== "p") return;
       showDebugOverlay = !showDebugOverlay;
       debugOverlay.style.display = showDebugOverlay ? "block" : "none";
     };
     window.addEventListener("keydown", onToggleDebugOverlay);
+
+    const buildingTilingState = { u: 1, v: 2.5 };
 
 
     const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -243,7 +212,7 @@ const BabylonWorld: React.FC = () => {
         ctx.translate(size.width, 0);
         ctx.scale(-1, 1);
       }
-      ctx.fillStyle = "rgba(5,8,16,1)";
+      ctx.fillStyle = "rgba(0,0,0,1)";
       ctx.fillRect(0, 0, size.width, size.height);
       ctx.fillStyle = glow;
       ctx.font = "bold 40px Arial";
@@ -444,8 +413,10 @@ const BabylonWorld: React.FC = () => {
     ) => {
       const mat = new StandardMaterial(name, scene);
       const facade = new Texture(facadeUrl, scene);
-      facade.uScale = 3;
-      facade.vScale = 6;
+      facade.wrapU = Texture.WRAP_ADDRESSMODE;
+      facade.wrapV = Texture.WRAP_ADDRESSMODE;
+      facade.uScale = 6;
+      facade.vScale = 10;
 
       const winTex = new DynamicTexture(`${name}_windows`, { width: 512, height: 512 }, scene, false);
       const ctx = winTex.getContext();
@@ -499,6 +470,15 @@ const BabylonWorld: React.FC = () => {
       zRoads.some((zr) => Math.abs(z - zr) < roadHalfWidth + roadBuffer) ||
       xRoads.some((xr) => Math.abs(x - xr) < crossHalfWidth + roadBuffer);
 
+    const applyBuildingTiling = () => {
+      buildingMats.forEach((mat) => {
+        const tex = mat.diffuseTexture as Texture | null;
+        if (!tex) return;
+        tex.uScale = buildingTilingState.u;
+        tex.vScale = buildingTilingState.v;
+      });
+    };
+
     const rebuildBuildings = (seed: number, count: number) => {
       buildingMeshes.forEach((mesh) => mesh.dispose());
       buildingMeshes = [];
@@ -530,6 +510,7 @@ const BabylonWorld: React.FC = () => {
         b.isPickable = false;
         buildingMeshes.push(b);
       }
+      applyBuildingTiling();
     };
 
     const buildingSeedState = { value: 18 };
@@ -620,10 +601,12 @@ const BabylonWorld: React.FC = () => {
         top.material = bulbMat;
         top.parent = sign;
         top.position = new Vector3(x, halfH, zOffset);
+        glowLayer.addExcludedMesh(top);
         const bottom = MeshBuilder.CreateSphere(`${namePrefix}_bulb_bottom_${idx}`, { diameter: 1.1 }, scene);
         bottom.material = bulbMat;
         bottom.parent = sign;
         bottom.position = new Vector3(x, -halfH, zOffset);
+        glowLayer.addExcludedMesh(bottom);
         idx += 1;
       }
       for (let y = -halfH + spacing; y <= halfH - spacing; y += spacing) {
@@ -631,23 +614,22 @@ const BabylonWorld: React.FC = () => {
         left.material = bulbMat;
         left.parent = sign;
         left.position = new Vector3(-halfW, y, zOffset);
+        glowLayer.addExcludedMesh(left);
         const right = MeshBuilder.CreateSphere(`${namePrefix}_bulb_right_${idx}`, { diameter: 1.1 }, scene);
         right.material = bulbMat;
         right.parent = sign;
         right.position = new Vector3(halfW, y, zOffset);
+        glowLayer.addExcludedMesh(right);
         idx += 1;
       }
     };
+    const signTexA = createNeonSignTexture("signTexA", "Welcome to Jacuzzi City!", "#6af6ff", true);
     const signMatA = new StandardMaterial("signMatA", scene);
-    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome to Jacuzzi City!", "#6af6ff");
-    signMatA.emissiveColor = new Color3(0.4, 0.8, 1.0);
-    signMatA.disableLighting = true;
+    signMatA.diffuseTexture = signTexA;
+    signMatA.diffuseColor = new Color3(1, 1, 1);
+    signMatA.emissiveColor = new Color3(0, 0, 0);
+    signMatA.disableLighting = false;
     signMatA.backFaceCulling = false;
-    const signMatABack = new StandardMaterial("signMatA_back", scene);
-    signMatABack.emissiveTexture = createNeonSignTexture("signTexA_back", "Welcome to Jacuzzi City!", "#6af6ff", true);
-    signMatABack.emissiveColor = new Color3(0.4, 0.8, 1.0);
-    signMatABack.disableLighting = true;
-    signMatABack.backFaceCulling = false;
     const signPoleA = MeshBuilder.CreateCylinder("billboard_pole_a", { height: 26, diameter: 1.6 }, scene);
     signPoleA.position = new Vector3(-120, 13, 20);
     signPoleA.material = metalMat;
@@ -657,33 +639,33 @@ const BabylonWorld: React.FC = () => {
     const signA = MeshBuilder.CreatePlane("billboard_a", { width: 50, height: 18 }, scene);
     signA.rotation = new Vector3(0, Math.PI / 6, 0);
     signA.material = signMatA;
+    glowLayer.addExcludedMesh(signA);
     signA.parent = signAGroup;
     signA.position.z = 0.12;
     const signA_back = MeshBuilder.CreatePlane("billboard_a_back", { width: 50, height: 18 }, scene);
     signA_back.rotation = new Vector3(0, Math.PI / 6 + Math.PI, 0);
-    signA_back.material = signMatABack;
+    signA_back.material = signMatA;
+    glowLayer.addExcludedMesh(signA_back);
     signA_back.parent = signAGroup;
     signA_back.position.z = -0.12;
     const signA_black = MeshBuilder.CreatePlane("billboard_a_black", { width: 50, height: 18 }, scene);
     signA_black.material = metalMat;
+    glowLayer.addExcludedMesh(signA_black);
     signA_black.parent = signAGroup;
     signA_black.rotation = new Vector3(0, Math.PI / 6 + Math.PI, 0);
     signA_black.position.z = -0.16;
     addBillboardBulbs(signA, 50, 18, new Color3(1.0, 0.7, 0.2), "signA_front", 0.6);
     addBillboardBulbs(signA_back, 50, 18, new Color3(1.0, 0.7, 0.2), "signA_back", 0.6);
 
+    const signTexB = createNeonSignTexture("signTexB", "Welcome to Jacuzzi City!", "#ff6bd6", true);
     const signMatB = new StandardMaterial("signMatB", scene);
-    signMatB.emissiveTexture = createNeonSignTexture("signTexB", "Welcome to Jacuzzi City!", "#ff6bd6");
-    signMatB.emissiveColor = new Color3(1.0, 0.35, 0.8);
-    signMatB.disableLighting = true;
+    signMatB.diffuseTexture = signTexB;
+    signMatB.diffuseColor = new Color3(1, 1, 1);
+    signMatB.emissiveColor = new Color3(0, 0, 0);
+    signMatB.disableLighting = false;
     signMatB.backFaceCulling = false;
-    const signMatBBack = new StandardMaterial("signMatB_back", scene);
-    signMatBBack.emissiveTexture = createNeonSignTexture("signTexB_back", "Welcome to Jacuzzi City!", "#ff6bd6", true);
-    signMatBBack.emissiveColor = new Color3(1.0, 0.35, 0.8);
-    signMatBBack.disableLighting = true;
-    signMatBBack.backFaceCulling = false;
     const signPoleB = MeshBuilder.CreateCylinder("billboard_pole_b", { height: 24, diameter: 1.6 }, scene);
-    signPoleB.position = new Vector3(140, 12, 10);
+    signPoleB.position = new Vector3(180, 12, 10);
     signPoleB.material = metalMat;
     const signBGroup = new TransformNode("billboard_b_group", scene);
     signBGroup.parent = signPoleB;
@@ -691,15 +673,18 @@ const BabylonWorld: React.FC = () => {
     const signB = MeshBuilder.CreatePlane("billboard_b", { width: 46, height: 16 }, scene);
     signB.rotation = new Vector3(0, -Math.PI / 5, 0);
     signB.material = signMatB;
+    glowLayer.addExcludedMesh(signB);
     signB.parent = signBGroup;
     signB.position.z = 0.12;
     const signB_back = MeshBuilder.CreatePlane("billboard_b_back", { width: 46, height: 16 }, scene);
     signB_back.rotation = new Vector3(0, -Math.PI / 5 + Math.PI, 0);
-    signB_back.material = signMatBBack;
+    signB_back.material = signMatB;
+    glowLayer.addExcludedMesh(signB_back);
     signB_back.parent = signBGroup;
     signB_back.position.z = -0.12;
     const signB_black = MeshBuilder.CreatePlane("billboard_b_black", { width: 46, height: 16 }, scene);
     signB_black.material = metalMat;
+    glowLayer.addExcludedMesh(signB_black);
     signB_black.parent = signBGroup;
     signB_black.rotation = new Vector3(0, -Math.PI / 5 + Math.PI, 0);
     signB_black.position.z = -0.16;
@@ -726,7 +711,7 @@ const BabylonWorld: React.FC = () => {
     }
 
     // Crates
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 80; i++) {
       const crate = MeshBuilder.CreateBox(`crate_${i}`, { size: 3 }, scene);
       crate.position = new Vector3(-60 + (i % 4) * 6, 1.5, 80 + Math.floor(i / 4) * 6);
       crate.material = metalMat;
@@ -939,15 +924,16 @@ const BabylonWorld: React.FC = () => {
     // Groundcover disabled for neon city vibe
 
     // People (glb pedestrians) - circular waypoint movement
-    type Pedestrian = { root: TransformNode; angle: number; radius: number; center: Vector3; speed: number };
+    type Pedestrian = { root: any; angle: number; radius: number; center: Vector3; speed: number };
     const people: Pedestrian[] = [];
     for (let i = 0; i < 28; i++) {
-      const root = new TransformNode(`person_${i}`, scene);
+      const root = MeshBuilder.CreateCylinder(`person_${i}`, { height: 3, diameter: 1.2 }, scene);
       const center = new Vector3((Math.random() - 0.5) * 420, 0, (Math.random() - 0.5) * 420 - 80);
       const radius = 6 + Math.random() * 26;
       const angle = Math.random() * Math.PI * 2;
       const speed = 0.5 + Math.random() * 0.9;
       root.position = center.clone();
+      root.visibility = 0;
       people.push({ root, angle, radius, center, speed });
     }
 
@@ -1043,26 +1029,27 @@ const BabylonWorld: React.FC = () => {
     }
 
     // Cars (glb) driving along a loop
-    const cars: { root: TransformNode; speed: number; segment: number; t: number; path: Vector3[] }[] = [];
+    const cars: { root: any; speed: number; segment: number; t: number; path: Vector3[] }[] = [];
     const carPath = [
-      new Vector3(-320, 0.3, -180),
-      new Vector3(320, 0.3, -180),
-      new Vector3(320, 0.3, 140),
-      new Vector3(-320, 0.3, 140),
+      new Vector3(-320, 0.05, -180),
+      new Vector3(320, 0.05, -180),
+      new Vector3(320, 0.05, 140),
+      new Vector3(-320, 0.05, 140),
     ];
     for (let i = 0; i < 8; i++) {
-      const root = new TransformNode(`car_${i}`, scene);
+      const root = MeshBuilder.CreateBox(`car_${i}`, { width: 2.4, height: 1.2, depth: 4.6 }, scene);
+      root.visibility = 0;
       cars.push({ root, speed: 14 + Math.random() * 10, segment: i % carPath.length, t: Math.random(), path: carPath });
     }
 
     const loadCars = async () => {
-      const container = await SceneLoader.LoadAssetContainerAsync("", "/models/CesiumMilkTruck.glb", scene);
+      const container = await SceneLoader.LoadAssetContainerAsync("", "/models/car1.glb", scene);
       cars.forEach((car, idx) => {
         const inst = container.instantiateModelsToScene((name) => `${car.root.name}_${name}_${idx}`);
         inst.rootNodes.forEach((node) => {
           const tnode = node as TransformNode;
           tnode.parent = car.root;
-          if ((tnode as any).position) tnode.position = new Vector3(0, -0.5, 0);
+          if ((tnode as any).position) tnode.position = new Vector3(0, -0.9, 0);
           if ((tnode as any).scaling) tnode.scaling = new Vector3(1.2, 1.2, 1.2);
         });
       });
@@ -1136,7 +1123,7 @@ const BabylonWorld: React.FC = () => {
         const pos = Vector3.Lerp(a, b, car.t);
         car.root.position.copyFrom(pos);
         const dir = b.subtract(a);
-        car.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+        car.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI - Math.PI / 2;
       });
 
       pickups.forEach((p) => {
@@ -1168,6 +1155,7 @@ const BabylonWorld: React.FC = () => {
       debugOverlay.textContent =
         `pos: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})\n` +
         `target: (${target.x.toFixed(2)}, ${target.y.toFixed(2)}, ${target.z.toFixed(2)})`;
+
     });
 
     // First-person camera height above ground
@@ -1208,7 +1196,7 @@ const BabylonWorld: React.FC = () => {
     let lastHeading = 0;
 
     // Movement: W/S move forward/back relative to camera view, A/D strafe left/right
-    const moveSpeed = 12; // world units per second (tune as needed)
+    const moveSpeed = 24; // world units per second (tune as needed)
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
       // forward vector: camera look direction flattened to XZ plane
@@ -1227,7 +1215,7 @@ const BabylonWorld: React.FC = () => {
 
       if (move.lengthSquared() > 0) {
         move.normalize();
-        const speed = moveSpeed * (inputMap["shift"] ? 2 : 1);
+        const speed = moveSpeed * (inputMap["shift"] ? 4 : 1);
         move.scaleInPlace(speed * dt);
       }
 
@@ -1284,7 +1272,6 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
-      try { document.body.removeChild(debugCopyButton); } catch {}
       scene.dispose();
       engine.dispose();
     };

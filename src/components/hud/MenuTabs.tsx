@@ -3,7 +3,7 @@ import React from "react";
 import "./HUD.css";
 import { useHUD } from "./HUDContext";
 
-const TABS = ["Quests", "Journal", "Map", "Spells", "Items", "Magic"];
+const TABS = ["Quests", "Journal", "Map", "Items", "Magic"];
 
 const MenuTabs: React.FC = () => {
   const { activeTab, setActiveTab } = useHUD();
