@@ -6,7 +6,6 @@ import {
   UniversalCamera,
   Vector3,
   Ray,
-  Texture,
   HemisphericLight,
   PointLight,
   MeshBuilder,
@@ -26,7 +25,7 @@ const BabylonWorld: React.FC = () => {
 
     const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
-    scene.clearColor = new Color4(0.7, 0.85, 0.98, 1);
+    scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
 
     // First-person camera
     const camera = new UniversalCamera("camera", new Vector3(0, 2, 0), scene);
@@ -60,128 +59,73 @@ const BabylonWorld: React.FC = () => {
 
     // Mouse look handled by default camera controls.
 
-    // Ambient light and sun
+    // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0.6;
-    const sunLight = new PointLight("sunLight", new Vector3(50, 120, -80), scene);
-    sunLight.intensity = 1.2;
+    hemi.intensity = 0.25;
+    hemi.diffuse = new Color3(0.2, 0.45, 0.9);
+    hemi.groundColor = new Color3(0.05, 0.05, 0.1);
+
+    const neonLightA = new PointLight("neonLightA", new Vector3(120, 30, 40), scene);
+    neonLightA.diffuse = new Color3(0.1, 0.9, 1.0);
+    neonLightA.specular = new Color3(0.1, 0.9, 1.0);
+    neonLightA.intensity = 1.1;
+
+    const neonLightB = new PointLight("neonLightB", new Vector3(-140, 28, 60), scene);
+    neonLightB.diffuse = new Color3(1.0, 0.2, 0.8);
+    neonLightB.specular = new Color3(1.0, 0.2, 0.8);
+    neonLightB.intensity = 1.0;
 
     const createSkyTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
       const ctx = tex.getContext();
       const size = tex.getSize();
       const grad = ctx.createLinearGradient(0, 0, 0, size.height);
-      grad.addColorStop(0, "#7fb8ff");
-      grad.addColorStop(0.6, "#a9d6ff");
-      grad.addColorStop(1, "#d7efff");
+      grad.addColorStop(0, "#0a0d1a");
+      grad.addColorStop(0.45, "#0b1124");
+      grad.addColorStop(1, "#0f1b36");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, size.width, size.height);
-      for (let i = 0; i < 300; i++) {
+
+      // Star field
+      for (let i = 0; i < 900; i++) {
         const x = Math.random() * size.width;
-        const y = Math.random() * size.height * 0.7;
-        const r = 1 + Math.random() * 2.5;
-        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        const y = Math.random() * size.height * 0.75;
+        const r = Math.random() * 1.6;
+        const a = 0.2 + Math.random() * 0.8;
+        ctx.fillStyle = `rgba(220,240,255,${a})`;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // Neon haze near horizon
+      const haze = ctx.createLinearGradient(0, size.height * 0.6, 0, size.height);
+      haze.addColorStop(0, "rgba(70,120,255,0)");
+      haze.addColorStop(1, "rgba(40,80,200,0.45)");
+      ctx.fillStyle = haze;
+      ctx.fillRect(0, size.height * 0.6, size.width, size.height * 0.4);
       tex.update();
       return tex;
     };
 
-    // Sky (large inverted sphere) - disabled for visibility debugging
+    // Sky (large inverted sphere)
     const sky = MeshBuilder.CreateSphere("sky", { diameter: 2000, segments: 16 }, scene);
     const skyMat = new StandardMaterial("skyMat", scene);
     skyMat.backFaceCulling = false;
-    skyMat.diffuseTexture = createSkyTexture("skyTex");
+    skyMat.emissiveTexture = createSkyTexture("skyTex");
+    skyMat.diffuseColor = new Color3(0, 0, 0);
     skyMat.specularColor = new Color3(0, 0, 0);
+    skyMat.disableLighting = true;
     sky.material = skyMat;
     sky.isPickable = false;
-    sky.setEnabled(false);
-
-    // Sun (emissive sphere)
-    const sun = MeshBuilder.CreateSphere("sun", { diameter: 18 }, scene);
-    const sunMat = new StandardMaterial("sunMat", scene);
-    sunMat.emissiveColor = new Color3(1, 0.95, 0.6);
-    sun.material = sunMat;
-    sun.position = new Vector3(120, 120, -180);
-    sun.isPickable = false;
-
-    const createGrassTexture = (name: string) => {
-      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext();
-      const size = tex.getSize();
-
-      // Base grass tones
-      ctx.fillStyle = "#3f7b3b";
-      ctx.fillRect(0, 0, size.width, size.height);
-
-      // Layered noise for variation
-      for (let i = 0; i < 16000; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const shade = Math.random();
-        const g = Math.floor(85 + shade * 80);
-        const r = Math.floor(40 + shade * 40);
-        const b = Math.floor(30 + shade * 35);
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-        ctx.fillRect(x, y, 2, 2);
-      }
-
-      // Soft directional blades
-      ctx.strokeStyle = "rgba(200, 230, 190, 0.12)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 1400; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const len = 4 + Math.random() * 10;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + (Math.random() * 2 - 1), y + len);
-        ctx.stroke();
-      }
-
-      tex.update();
-      return tex;
-    };
-
-    const createRockTexture = (name: string) => {
-      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext();
-      const size = tex.getSize();
-
-      ctx.fillStyle = "#6e6e6e";
-      ctx.fillRect(0, 0, size.width, size.height);
-
-      for (let i = 0; i < 14000; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const shade = Math.random();
-        const v = Math.floor(90 + shade * 90);
-        ctx.fillStyle = `rgb(${v},${v},${v})`;
-        ctx.fillRect(x, y, 2, 2);
-      }
-
-      ctx.fillStyle = "rgba(40,40,40,0.3)";
-      for (let i = 0; i < 1200; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const w = 10 + Math.random() * 80;
-        const h = 6 + Math.random() * 40;
-        ctx.fillRect(x, y, w, h);
-      }
-
-      tex.update();
-      return tex;
-    };
 
     const createDirtTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
       const ctx = tex.getContext();
       const size = tex.getSize();
 
-      // Base dirt tones
-      ctx.fillStyle = "#6b5a46";
+      // Base asphalt tones
+      ctx.fillStyle = "#181a22";
       ctx.fillRect(0, 0, size.width, size.height);
 
       // Speckled variation
@@ -189,21 +133,26 @@ const BabylonWorld: React.FC = () => {
         const x = Math.random() * size.width;
         const y = Math.random() * size.height;
         const shade = Math.random();
-        const r = Math.floor(80 + shade * 60);
-        const g = Math.floor(60 + shade * 50);
-        const b = Math.floor(45 + shade * 40);
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        const v = Math.floor(30 + shade * 40);
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
         ctx.fillRect(x, y, 2, 2);
       }
 
-      // Subtle darker clumps
-      ctx.fillStyle = "rgba(40, 30, 20, 0.18)";
-      for (let i = 0; i < 900; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const w = 10 + Math.random() * 80;
-        const h = 6 + Math.random() * 30;
-        ctx.fillRect(x, y, w, h);
+      // Neon grid accents
+      ctx.strokeStyle = "rgba(0, 220, 255, 0.12)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < size.width; x += 80) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, size.height);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "rgba(255, 60, 200, 0.08)";
+      for (let y = 0; y < size.height; y += 80) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(size.width, y);
+        ctx.stroke();
       }
 
       tex.update();
@@ -217,85 +166,18 @@ const BabylonWorld: React.FC = () => {
     groundDirtTex.uScale = 24;
     groundDirtTex.vScale = 24;
     groundMat.diffuseTexture = groundDirtTex;
-    groundMat.specularColor = new Color3(0.02, 0.02, 0.02);
-    groundMat.ambientColor = new Color3(0.25, 0.35, 0.22);
+    groundMat.specularColor = new Color3(0.05, 0.05, 0.08);
+    groundMat.ambientColor = new Color3(0.1, 0.12, 0.2);
+    groundMat.emissiveColor = new Color3(0.02, 0.04, 0.08);
     ground.material = groundMat;
 
-    // Distant mountains (simple shapes)
-    const mountainMat = new StandardMaterial("mountainMat", scene);
-    const rockTex = createRockTexture("mountainRockTex");
-    rockTex.uScale = 2;
-    rockTex.vScale = 2;
-    mountainMat.diffuseTexture = rockTex;
-    mountainMat.specularColor = new Color3(0.02, 0.02, 0.02);
-    const mountainTints = [
-      new Color3(0.62, 0.62, 0.62),
-      new Color3(0.55, 0.6, 0.58),
-      new Color3(0.58, 0.54, 0.5),
-      new Color3(0.5, 0.56, 0.62),
-    ];
-    const makeMountainMat = (name: string, tint: Color3) => {
-      const mat = mountainMat.clone(name) as StandardMaterial;
-      mat.diffuseColor = tint;
-      return mat;
-    };
-
-    const mountain1 = MeshBuilder.CreateBox(
-      "mountain1",
-      { width: 200, height: 45, depth: 40 },
-      scene
-    );
-    mountain1.position = new Vector3(-150, 35, 300);
-    mountain1.rotation = new Vector3(0, 0.2, 0);
-    mountain1.material = makeMountainMat("mountainMat_1", mountainTints[0]);
-
-    const mountain2 = MeshBuilder.CreateBox(
-      "mountain2",
-      { width: 180, height: 40, depth: 40 },
-      scene
-    );
-    mountain2.position = new Vector3(180, 30, 320);
-    mountain2.rotation = new Vector3(0, -0.15, 0);
-    mountain2.material = makeMountainMat("mountainMat_2", mountainTints[1]);
-
-    const mountain3 = MeshBuilder.CreateBox(
-      "mountain3",
-      { width: 160, height: 38, depth: 40 },
-      scene
-    );
-    mountain3.position = new Vector3(20, 26, 340);
-    mountain3.rotation = new Vector3(0, 0.05, 0);
-    mountain3.material = makeMountainMat("mountainMat_3", mountainTints[2]);
-
-    // 3D clouds - clustered spheres
-    const cloudMat = new StandardMaterial("cloudMat", scene);
-    cloudMat.diffuseColor = new Color3(1, 1, 1);
-    cloudMat.emissiveColor = new Color3(0.9, 0.9, 0.9);
-    cloudMat.alpha = 0.75;
-    cloudMat.specularColor = new Color3(0, 0, 0);
-
-    const createCloudCluster = (name: string, center: Vector3) => {
-      const count = 6 + Math.floor(Math.random() * 6);
-      for (let i = 0; i < count; i++) {
-        const puff = MeshBuilder.CreateSphere(`${name}_puff_${i}`, { diameter: 18 + Math.random() * 22, segments: 8 }, scene);
-        puff.position = new Vector3(
-          center.x + (Math.random() - 0.5) * 40,
-          center.y + (Math.random() - 0.5) * 10,
-          center.z + (Math.random() - 0.5) * 40
-        );
-        puff.material = cloudMat;
-        puff.isPickable = false;
-      }
-    };
-
-    for (let i = 0; i < 6; i++) {
-      const center = new Vector3((i - 3) * 140 + (Math.random() * 50 - 25), 130 + Math.random() * 30, -120 + Math.random() * 200);
-      createCloudCluster(`cloud_${i}`, center);
-    }
+    // Distant mountains removed for now
 
     // Sky texture already applied above.
-    // Fog disabled for visibility debugging
-    scene.fogMode = Scene.FOGMODE_NONE;
+    // Neon haze for atmosphere
+    scene.fogMode = Scene.FOGMODE_EXP;
+    scene.fogDensity = 0.0022;
+    scene.fogColor = new Color3(0.05, 0.08, 0.16);
 
     // Procedural buildings (simple boxes with varied heights)
     const createBuildingMaterial = (
@@ -303,7 +185,8 @@ const BabylonWorld: React.FC = () => {
       baseColor: string,
       trimColor: string,
       windowOn: string,
-      windowOff: string
+      windowOff: string,
+      emissiveTint: Color3
     ) => {
       const mat = new StandardMaterial(name, scene);
       const tex = new DynamicTexture(`${name}_tex`, { width: 512, height: 512 }, scene, false);
@@ -350,16 +233,18 @@ const BabylonWorld: React.FC = () => {
       tex.vScale = 2.4;
 
       mat.diffuseTexture = tex;
+      mat.emissiveTexture = tex;
+      mat.emissiveColor = emissiveTint;
       mat.specularColor = new Color3(0.04, 0.04, 0.04);
-      mat.ambientColor = new Color3(0.2, 0.2, 0.2);
+      mat.ambientColor = new Color3(0.08, 0.1, 0.14);
       return mat;
     };
 
     const buildingMats = [
-      createBuildingMaterial("buildingMat_concrete", "#b6b6b6", "#9a9a9a", "#ffd9a8", "#262626"),
-      createBuildingMaterial("buildingMat_sand", "#c7b49a", "#a8927a", "#ffe3b5", "#2a2a2a"),
-      createBuildingMaterial("buildingMat_brick", "#b07a6c", "#8a5d52", "#ffd2a1", "#292421"),
-      createBuildingMaterial("buildingMat_modern", "#9aa7b5", "#7a8794", "#d9ecff", "#1f2328"),
+      createBuildingMaterial("buildingMat_concrete", "#1a1f2b", "#242b3a", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.9, 1.0)),
+      createBuildingMaterial("buildingMat_sand", "#1b1c26", "#252632", "#ff7ad9", "#0a0b10", new Color3(1.0, 0.25, 0.8)),
+      createBuildingMaterial("buildingMat_brick", "#151824", "#222536", "#7cffb0", "#080a10", new Color3(0.3, 1.0, 0.6)),
+      createBuildingMaterial("buildingMat_modern", "#12151f", "#1f2433", "#bba0ff", "#0a0d12", new Color3(0.6, 0.4, 1.0)),
     ];
 
     for (let i = 0; i < 40; i++) {
@@ -373,30 +258,7 @@ const BabylonWorld: React.FC = () => {
       b.isPickable = false;
     }
 
-    // Groundcover: grass via instanced planes (low-overhead)
-    const grassMat = new StandardMaterial("grassMat", scene);
-    const tuftGrassTex = createGrassTexture("tuftGrassTex");
-    tuftGrassTex.uScale = 3;
-    tuftGrassTex.vScale = 3;
-    grassMat.diffuseTexture = tuftGrassTex;
-    grassMat.backFaceCulling = false;
-    const baseGrass = MeshBuilder.CreatePlane('grassBase', { size: 1 }, scene);
-    baseGrass.material = grassMat;
-    baseGrass.billboardMode = 7; // always face camera
-    baseGrass.isPickable = false;
-    baseGrass.rotation = new Vector3(Math.PI / 2, 0, 0);
-    baseGrass.position.y = 0.5;
-
-    for (let x = -300; x <= 300; x += 3) {
-      for (let z = -300; z <= 300; z += 3) {
-        if (Math.random() < 0.12) {
-          const inst = baseGrass.createInstance(`g_${x}_${z}`);
-          inst.position = new Vector3(x + (Math.random() - 0.5) * 1.8, 0.5, z + (Math.random() - 0.5) * 1.8);
-          inst.scaling = new Vector3(0.8 + Math.random() * 1.2, 0.8 + Math.random() * 1.2, 1);
-        }
-      }
-    }
-    baseGrass.setEnabled(false);
+    // Groundcover disabled for neon city vibe
 
     // People (simple walking NPCs) - circular waypoint movement
     type NPC = { mesh: any; angle: number; radius: number; center: Vector3; speed: number };
@@ -429,17 +291,6 @@ const BabylonWorld: React.FC = () => {
       birds.push({ mesh: b, angle, radius, center, speed, height });
     }
 
-    // Light shafts (fake volumetric) - additive billboards near sun
-    const shaftMat = new StandardMaterial('shaftMat', scene);
-    shaftMat.emissiveColor = new Color3(1, 0.95, 0.8);
-    shaftMat.alpha = 0.18;
-    shaftMat.backFaceCulling = false;
-    const shaft = MeshBuilder.CreatePlane('shaft', { width: 160, height: 600 }, scene);
-    shaft.material = shaftMat;
-    shaft.position = new Vector3(90, 80, -140);
-    shaft.billboardMode = 7;
-    shaft.isPickable = false;
-
     // Animation updates: people and birds
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
@@ -458,25 +309,6 @@ const BabylonWorld: React.FC = () => {
         b.mesh.position.set(bx, b.height + Math.sin(b.angle * 2) * 2.0, bz);
       });
     });
-
-    // Simple trees (trunk + canopy)
-    const trunkMat = new StandardMaterial("trunkMat", scene);
-    trunkMat.diffuseColor = new Color3(0.42, 0.26, 0.13);
-
-    const leafMat = new StandardMaterial("leafMat", scene);
-    leafMat.diffuseColor = new Color3(0.12, 0.6, 0.16);
-
-    for (let x = -300; x <= 300; x += 60) {
-      if (Math.abs(x) < 40) continue; // leave center area clear
-      const z = -50 + (Math.random() - 0.5) * 120;
-      const trunk = MeshBuilder.CreateCylinder(`trunk_${x}`, { diameterTop: 0.8, diameterBottom: 1.2, height: 6 }, scene);
-      trunk.position = new Vector3(x + Math.random() * 16, 3, z);
-      trunk.material = trunkMat;
-
-      const canopy = MeshBuilder.CreateSphere(`canopy_${x}`, { diameter: 8 }, scene);
-      canopy.position = new Vector3(trunk.position.x, 7, trunk.position.z);
-      canopy.material = leafMat;
-    }
 
     // First-person camera height above ground
     const eyeHeight = 2;
