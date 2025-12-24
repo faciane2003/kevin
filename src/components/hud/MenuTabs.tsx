@@ -30,6 +30,7 @@ const MenuTabs: React.FC = () => {
             title={t}
           >
             <img src={TAB_ICONS[t]} alt={t} className="menu-tab-icon" />
+            <span className="menu-tab-tooltip">{t}</span>
           </button>
         );
       })}

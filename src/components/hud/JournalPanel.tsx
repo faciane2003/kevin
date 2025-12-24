@@ -67,6 +67,11 @@ const JournalPanel: React.FC = () => {
   return (
     <div className="journal-overlay" role="dialog" aria-label={`${activeTab} Journal`}>
       <div className="journal-panel">
+        <div className="hud-sparkles hud-sparkles-back" aria-hidden="true">
+          {Array.from({ length: 12 }).map((_, idx) => (
+            <span key={`back-${idx}`} className="hud-sparkle" />
+          ))}
+        </div>
         <div className="journal-header">
           <span className="journal-title">{content.title}</span>
           <button className="journal-close" onClick={() => setActiveTab(null)} aria-label="Close journal">
@@ -76,6 +81,11 @@ const JournalPanel: React.FC = () => {
         <div className="journal-body">
           {content.body.map((line) => (
             <p key={line}>{line}</p>
+          ))}
+        </div>
+        <div className="hud-sparkles hud-sparkles-front" aria-hidden="true">
+          {Array.from({ length: 12 }).map((_, idx) => (
+            <span key={`front-${idx}`} className="hud-sparkle" />
           ))}
         </div>
       </div>
