@@ -248,9 +248,7 @@ const HUDInner: React.FC = () => {
 
   return (
     <div className="hud-container" aria-hidden={false}>
-      <StatsBars />
-      <MenuTabs />
-      <JournalPanel />
+      {/* HUD bars and menu tabs hidden per request */}
       <DialoguePanel npcId={activeNpc} onClose={() => setActiveNpc(null)} />
       <LightControlPanel />
       {/* Hotbar removed from UI per request */}

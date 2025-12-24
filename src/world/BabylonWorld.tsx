@@ -155,7 +155,7 @@ const BabylonWorld: React.FC = () => {
     const chatPanel = document.createElement("div");
     chatPanel.style.position = "fixed";
     chatPanel.style.left = "12px";
-    chatPanel.style.bottom = "12px";
+    chatPanel.style.bottom = "120px";
     chatPanel.style.width = "260px";
     chatPanel.style.background = "rgba(0,0,0,0.6)";
     chatPanel.style.color = "#e6f3ff";
