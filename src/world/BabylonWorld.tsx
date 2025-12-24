@@ -64,12 +64,34 @@ const BabylonWorld: React.FC = () => {
     const sunLight = new PointLight("sunLight", new Vector3(50, 120, -80), scene);
     sunLight.intensity = 1.2;
 
+    const createSkyTexture = (name: string) => {
+      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
+      const ctx = tex.getContext();
+      const size = tex.getSize();
+      const grad = ctx.createLinearGradient(0, 0, 0, size.height);
+      grad.addColorStop(0, "#7fb8ff");
+      grad.addColorStop(0.6, "#a9d6ff");
+      grad.addColorStop(1, "#d7efff");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size.width, size.height);
+      for (let i = 0; i < 300; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height * 0.7;
+        const r = 1 + Math.random() * 2.5;
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      tex.update();
+      return tex;
+    };
+
     // Sky (large inverted sphere)
     const sky = MeshBuilder.CreateSphere("sky", { diameter: 2000, segments: 16 }, scene);
     const skyMat = new StandardMaterial("skyMat", scene);
     skyMat.backFaceCulling = false;
-    // Soft gradient sky color
-    skyMat.diffuseColor = new Color3(0.53, 0.81, 0.98); // sky blue
+    skyMat.diffuseTexture = createSkyTexture("skyTex");
     skyMat.specularColor = new Color3(0, 0, 0);
     sky.material = skyMat;
     sky.isPickable = false;
@@ -188,24 +210,33 @@ const BabylonWorld: React.FC = () => {
     mountain2.rotation = new Vector3(0, -0.15, 0);
     mountain2.material = mountainMat;
 
-    // Clouds - simple planes with transparency
+    // 3D clouds - clustered spheres
     const cloudMat = new StandardMaterial("cloudMat", scene);
     cloudMat.diffuseColor = new Color3(1, 1, 1);
-    cloudMat.alpha = 0.85;
+    cloudMat.emissiveColor = new Color3(0.9, 0.9, 0.9);
+    cloudMat.alpha = 0.75;
     cloudMat.specularColor = new Color3(0, 0, 0);
 
-    for (let i = 0; i < 8; i++) {
-      const cloud = MeshBuilder.CreatePlane(`cloud_${i}`, { size: 60 }, scene);
-      cloud.rotation = new Vector3(0, 0, 0);
-      cloud.position = new Vector3((i - 4) * 80 + (Math.random() * 40 - 20), 120 + Math.random() * 20, -100 + Math.random() * 200);
-      cloud.material = cloudMat;
-      cloud.billboardMode = 7; // face camera
-      cloud.isPickable = false;
+    const createCloudCluster = (name: string, center: Vector3) => {
+      const count = 6 + Math.floor(Math.random() * 6);
+      for (let i = 0; i < count; i++) {
+        const puff = MeshBuilder.CreateSphere(`${name}_puff_${i}`, { diameter: 18 + Math.random() * 22, segments: 8 }, scene);
+        puff.position = new Vector3(
+          center.x + (Math.random() - 0.5) * 40,
+          center.y + (Math.random() - 0.5) * 10,
+          center.z + (Math.random() - 0.5) * 40
+        );
+        puff.material = cloudMat;
+        puff.isPickable = false;
+      }
+    };
+
+    for (let i = 0; i < 6; i++) {
+      const center = new Vector3((i - 3) * 140 + (Math.random() * 50 - 25), 130 + Math.random() * 30, -120 + Math.random() * 200);
+      createCloudCluster(`cloud_${i}`, center);
     }
 
-    // Use a textured sky for more realism (uses existing asset)
-    skyMat.diffuseTexture = new Texture('/src/assets/textures/sky.jpg', scene);
-    skyMat.specularColor = new Color3(0, 0, 0);
+    // Sky texture already applied above.
     // Soft exponential fog tuned for large outdoor scenes
     scene.fogMode = Scene.FOGMODE_EXP;
     scene.fogDensity = 0.0009;
@@ -417,7 +448,7 @@ const BabylonWorld: React.FC = () => {
     );
 
     // Movement: W/S move forward/back relative to camera view, A/D strafe left/right
-    const moveSpeed = 6; // world units per second (tune as needed)
+    const moveSpeed = 12; // world units per second (tune as needed)
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
       // forward vector: camera look direction flattened to XZ plane
@@ -436,7 +467,8 @@ const BabylonWorld: React.FC = () => {
 
       if (move.lengthSquared() > 0) {
         move.normalize();
-        move.scaleInPlace(moveSpeed * dt);
+        const speed = moveSpeed * (inputMap["shift"] ? 2 : 1);
+        move.scaleInPlace(speed * dt);
       }
 
       // Try to move while preventing going below the ground. We raycast down at the proposed
