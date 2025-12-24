@@ -79,27 +79,27 @@ const BabylonWorld: React.FC = () => {
 
     // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0.5;
+    hemi.intensity = 0;
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
     hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
     const neonLightA = new PointLight("neonLightA", new Vector3(120, 30, 40), scene);
     neonLightA.diffuse = new Color3(0.1, 0.9, 1.0);
     neonLightA.specular = new Color3(0.1, 0.9, 1.0);
-    neonLightA.intensity = 1.25;
+    neonLightA.intensity = 1.7;
 
     const neonLightB = new PointLight("neonLightB", new Vector3(-140, 28, 60), scene);
     neonLightB.diffuse = new Color3(1.0, 0.2, 0.8);
     neonLightB.specular = new Color3(1.0, 0.2, 0.8);
-    neonLightB.intensity = 1.2;
+    neonLightB.intensity = 1.1;
 
     const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.8;
+    ambientLight.intensity = 0.45;
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
     const createSkyTexture = (name: string) => {
-      const tex = new DynamicTexture(name, { width: 4096, height: 4096 }, scene, false);
+      const tex = new DynamicTexture(name, { width: 6144, height: 6144 }, scene, false);
       const ctx = tex.getContext() as any;
       const size = tex.getSize();
 
@@ -112,7 +112,7 @@ const BabylonWorld: React.FC = () => {
       ctx.fillRect(0, 0, size.width, size.height);
 
       // Subtle noise field for sky depth
-      for (let i = 0; i < 12000; i++) {
+      for (let i = 0; i < 18000; i++) {
         const x = Math.random() * size.width;
         const y = Math.random() * size.height;
         const a = Math.random() * 0.05;
@@ -121,7 +121,7 @@ const BabylonWorld: React.FC = () => {
       }
 
       // Dense star field with varied sizes and subtle color
-      for (let i = 0; i < 12000; i++) {
+      for (let i = 0; i < 26000; i++) {
         const x = Math.random() * size.width;
         const y = Math.random() * size.height * 0.85;
         const r = Math.random() * 1.2 + 0.2;
@@ -133,43 +133,50 @@ const BabylonWorld: React.FC = () => {
         ctx.fill();
       }
 
-      // Few bright stars with glow
-      for (let i = 0; i < 60; i++) {
+      // Milky way band (tilted)
+      for (let i = 0; i < 280; i++) {
         const x = Math.random() * size.width;
-        const y = Math.random() * size.height * 0.7;
-        const glow = ctx.createRadialGradient(x, y, 1, x, y, 12 + Math.random() * 14);
-        glow.addColorStop(0, "rgba(255,255,255,0.9)");
-        glow.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, 16, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Milky way band
-      for (let i = 0; i < 200; i++) {
-        const x = Math.random() * size.width;
-        const y = size.height * 0.25 + Math.random() * size.height * 0.35;
-        const glow = ctx.createRadialGradient(x, y, 10, x, y, 240 + Math.random() * 200);
-        glow.addColorStop(0, "rgba(200,220,255,0.08)");
+        const y = size.height * 0.2 + Math.random() * size.height * 0.5;
+        const tilt = (x / size.width - 0.5) * size.height * 0.2;
+        const glow = ctx.createRadialGradient(x, y + tilt, 10, x, y + tilt, 320 + Math.random() * 260);
+        glow.addColorStop(0, "rgba(200,220,255,0.09)");
         glow.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(x, y, 260, 0, Math.PI * 2);
+        ctx.arc(x, y + tilt, 340, 0, Math.PI * 2);
         ctx.fill();
       }
 
       // Subtle nebula haze
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 14; i++) {
         const x = Math.random() * size.width;
         const y = Math.random() * size.height * 0.7;
-        const neb = ctx.createRadialGradient(x, y, 10, x, y, 260 + Math.random() * 260);
-        const col = Math.random() > 0.5 ? "80,120,255" : "180,80,255";
-        neb.addColorStop(0, `rgba(${col},0.1)`);
+        const neb = ctx.createRadialGradient(x, y, 10, x, y, 320 + Math.random() * 320);
+        const col = Math.random() > 0.5 ? "70,120,255" : "200,90,255";
+        neb.addColorStop(0, `rgba(${col},0.12)`);
         neb.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = neb;
         ctx.beginPath();
-        ctx.arc(x, y, 260, 0, Math.PI * 2);
+        ctx.arc(x, y, 340, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Planets (soft discs with glow)
+      const planetColors = ["rgba(120,180,255,0.7)", "rgba(255,200,150,0.65)", "rgba(190,140,255,0.6)"];
+      for (let i = 0; i < 3; i++) {
+        const x = size.width * (0.15 + Math.random() * 0.7);
+        const y = size.height * (0.1 + Math.random() * 0.35);
+        const radius = 40 + Math.random() * 80;
+        const glow = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius * 2.2);
+        glow.addColorStop(0, planetColors[i % planetColors.length]);
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = planetColors[i % planetColors.length].replace("0.7", "0.9").replace("0.65", "0.85").replace("0.6", "0.8");
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -209,21 +216,44 @@ const BabylonWorld: React.FC = () => {
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 0.6;
+    moonLight.intensity = 0.85;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
     const createHeightMapUrl = () => {
-      const tex = new DynamicTexture("heightMap", { width: 256, height: 256 }, scene, false);
+      const tex = new DynamicTexture("heightMap", { width: 512, height: 512 }, scene, false);
       const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
-      ctx.fillStyle = "rgb(128,128,128)";
+      ctx.fillStyle = "rgb(120,120,120)";
       ctx.fillRect(0, 0, size.width, size.height);
-      for (let i = 0; i < 60; i++) {
+      // Large rolling hills
+      for (let i = 0; i < 24; i++) {
         const x = Math.random() * size.width;
         const y = Math.random() * size.height;
-        const r = 40 + Math.random() * 140;
+        const r = 160 + Math.random() * 220;
         const light = Math.random() > 0.5;
-        ctx.fillStyle = light ? "rgba(200,200,200,0.18)" : "rgba(60,60,60,0.18)";
+        ctx.fillStyle = light ? "rgba(220,220,220,0.22)" : "rgba(40,40,40,0.22)";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Mid-frequency terrain detail
+      for (let i = 0; i < 140; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const r = 40 + Math.random() * 120;
+        const light = Math.random() > 0.5;
+        ctx.fillStyle = light ? "rgba(200,200,200,0.16)" : "rgba(60,60,60,0.16)";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Fine variation
+      for (let i = 0; i < 400; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const r = 8 + Math.random() * 30;
+        const light = Math.random() > 0.5;
+        ctx.fillStyle = light ? "rgba(200,200,200,0.12)" : "rgba(60,60,60,0.12)";
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
@@ -299,7 +329,7 @@ const BabylonWorld: React.FC = () => {
     const ground = MeshBuilder.CreateGroundFromHeightMap(
       "ground",
       heightMapUrl,
-      { width: 800, height: 800, subdivisions: 128, minHeight: 0, maxHeight: 4 },
+      { width: 800, height: 800, subdivisions: 128, minHeight: -6, maxHeight: 16 },
       scene
     );
     const asphaltMat = new PBRMaterial("asphaltMat", scene);

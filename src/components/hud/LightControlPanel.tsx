@@ -11,11 +11,11 @@ type LightSettings = {
 };
 
 const DEFAULTS: LightSettings = {
-  hemi: 0.5,
-  ambient: 0.8,
-  neonA: 1.25,
-  neonB: 1.2,
-  moon: 0.6,
+  hemi: 0,
+  ambient: 0.45,
+  neonA: 1.7,
+  neonB: 1.1,
+  moon: 0.85,
   glow: 0.15,
 };
 
