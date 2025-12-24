@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "node server/ws-server.js",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -17,7 +18,8 @@
     "@babylonjs/materials": "^8.42.0",
     "node-fetch": "^3.3.2",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -63,6 +63,12 @@ const BabylonWorld: React.FC = () => {
     document.body.appendChild(debugOverlay);
     debugOverlay.style.display = "none";
     let showDebugOverlay = false;
+    const isTextInputActive = () => {
+      const active = document.activeElement;
+      if (!active) return false;
+      const tag = active.tagName.toLowerCase();
+      return tag === "input" || tag === "textarea";
+    };
     const onToggleDebugOverlay = (evt: KeyboardEvent) => {
       if (evt.key.toLowerCase() !== "p") return;
       showDebugOverlay = !showDebugOverlay;
@@ -105,6 +111,174 @@ const BabylonWorld: React.FC = () => {
     }
 
     // Mouse look handled by default camera controls.
+
+    const localPlayerId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `player-${Math.random().toString(36).slice(2, 10)}`;
+    const defaultPlayerName = `Player-${localPlayerId.slice(-4)}`;
+    const namePrompt = window.prompt("Enter your player name:", defaultPlayerName);
+    const localPlayerName = (namePrompt || "").trim() || defaultPlayerName;
+    const remotePlayers = new Map<string, { mesh: any }>();
+    const remotePlayerMat = new StandardMaterial("remotePlayerMat", scene);
+    remotePlayerMat.diffuseColor = new Color3(0.2, 0.8, 0.9);
+    remotePlayerMat.emissiveColor = new Color3(0.05, 0.15, 0.2);
+
+    const createRemotePlayer = (id: string) => {
+      const mesh = MeshBuilder.CreateCylinder(`remote_${id}`, { height: 2.2, diameter: 1 }, scene);
+      mesh.material = remotePlayerMat;
+      mesh.isPickable = false;
+      remotePlayers.set(id, { mesh });
+      return mesh;
+    };
+
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const defaultWsUrl =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        ? `${wsProtocol}://${window.location.hostname}:8080`
+        : "wss://kevin-1-8541.onrender.com";
+    const wsUrl = (import.meta as any).env?.VITE_WS_URL || defaultWsUrl;
+    let socket: WebSocket | null = null;
+    try {
+      socket = new WebSocket(wsUrl);
+    } catch {
+      socket = null;
+    }
+
+    const sendSocketMessage = (payload: any) => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify(payload));
+    };
+    let lastNetworkSend = 0;
+    const networkSendIntervalMs = 120;
+
+    const chatPanel = document.createElement("div");
+    chatPanel.style.position = "fixed";
+    chatPanel.style.left = "12px";
+    chatPanel.style.bottom = "12px";
+    chatPanel.style.width = "260px";
+    chatPanel.style.background = "rgba(0,0,0,0.6)";
+    chatPanel.style.color = "#e6f3ff";
+    chatPanel.style.fontFamily = "Consolas, Menlo, monospace";
+    chatPanel.style.fontSize = "12px";
+    chatPanel.style.borderRadius = "6px";
+    chatPanel.style.padding = "8px";
+    chatPanel.style.zIndex = "20";
+    chatPanel.style.pointerEvents = "auto";
+
+    const chatLog = document.createElement("div");
+    chatLog.style.maxHeight = "160px";
+    chatLog.style.overflowY = "auto";
+    chatLog.style.marginBottom = "6px";
+    chatLog.style.whiteSpace = "pre-wrap";
+
+    const chatInput = document.createElement("input");
+    chatInput.type = "text";
+    chatInput.placeholder = "Press Enter to chat";
+    chatInput.style.width = "100%";
+    chatInput.style.padding = "4px 6px";
+    chatInput.style.borderRadius = "4px";
+    chatInput.style.border = "1px solid rgba(255,255,255,0.15)";
+    chatInput.style.background = "rgba(10,12,20,0.8)";
+    chatInput.style.color = "#e6f3ff";
+
+    const appendChatLine = (text: string) => {
+      const line = document.createElement("div");
+      line.textContent = text;
+      chatLog.appendChild(line);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    };
+
+    chatInput.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter") {
+        const value = chatInput.value.trim();
+        if (value) {
+          appendChatLine(`${localPlayerName}: ${value}`);
+          sendSocketMessage({ type: "chat", id: localPlayerId, name: localPlayerName, message: value });
+        }
+        chatInput.value = "";
+        chatInput.blur();
+      }
+      if (evt.key === "Escape") {
+        chatInput.value = "";
+        chatInput.blur();
+      }
+    });
+
+    const onChatFocusKey = (evt: KeyboardEvent) => {
+      if (evt.key === "Enter" && !isTextInputActive()) {
+        chatInput.focus();
+        evt.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onChatFocusKey);
+
+    chatPanel.appendChild(chatLog);
+    chatPanel.appendChild(chatInput);
+    document.body.appendChild(chatPanel);
+
+    if (socket) {
+      socket.addEventListener("open", () => {
+        sendSocketMessage({
+          type: "join",
+          id: localPlayerId,
+          name: localPlayerName,
+          pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+          rot: { y: camera.rotation.y },
+        });
+      });
+
+      socket.addEventListener("message", (event) => {
+        let msg: any;
+        try {
+          msg = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+
+        if (msg.type === "init" && Array.isArray(msg.players)) {
+          msg.players.forEach((player: any) => {
+            if (!player?.id || player.id === localPlayerId) return;
+            const mesh = remotePlayers.get(player.id)?.mesh || createRemotePlayer(player.id);
+            if (player.pos) {
+              mesh.position.set(player.pos.x || 0, player.pos.y || 0, player.pos.z || 0);
+            }
+          });
+          return;
+        }
+
+        if (msg.type === "join" && msg.player?.id && msg.player.id !== localPlayerId) {
+          const mesh = remotePlayers.get(msg.player.id)?.mesh || createRemotePlayer(msg.player.id);
+          if (msg.player.pos) {
+            mesh.position.set(msg.player.pos.x || 0, msg.player.pos.y || 0, msg.player.pos.z || 0);
+          }
+          return;
+        }
+
+        if (msg.type === "move" && msg.id && msg.id !== localPlayerId) {
+          const mesh = remotePlayers.get(msg.id)?.mesh || createRemotePlayer(msg.id);
+          if (msg.pos) {
+            mesh.position.set(msg.pos.x || 0, msg.pos.y || 0, msg.pos.z || 0);
+          }
+          if (msg.rot && typeof msg.rot.y === "number") {
+            mesh.rotation.y = msg.rot.y;
+          }
+          return;
+        }
+
+        if (msg.type === "leave" && msg.id) {
+          const entry = remotePlayers.get(msg.id);
+          if (entry) {
+            entry.mesh.dispose();
+            remotePlayers.delete(msg.id);
+          }
+        }
+
+        if (msg.type === "chat" && msg.name && typeof msg.message === "string") {
+          appendChatLine(`${msg.name}: ${msg.message}`);
+        }
+      });
+    }
 
     // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
@@ -1128,6 +1302,7 @@ const BabylonWorld: React.FC = () => {
 
     scene.actionManager.registerAction(
       new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, (evt) => {
+        if (isTextInputActive()) return;
         const key = evt.sourceEvent.key.toLowerCase();
         // Prevent default browser behavior for movement keys to avoid scrolling
         if (key === "w" || key === "a" || key === "s" || key === "d" || key === " ") {
@@ -1143,6 +1318,7 @@ const BabylonWorld: React.FC = () => {
 
     scene.actionManager.registerAction(
       new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (evt) => {
+        if (isTextInputActive()) return;
         inputMap[evt.sourceEvent.key.toLowerCase()] = false;
         if (evt.sourceEvent.code === "Space") {
           inputMap["space"] = false;
@@ -1208,11 +1384,23 @@ const BabylonWorld: React.FC = () => {
       tryMove(move);
 
       const dir = camera.getDirection(new Vector3(0, 0, 1));
-      const heading = ((Math.atan2(dir.x, dir.z) * 180) / Math.PI + 360) % 360;
+      const headingRad = Math.atan2(dir.x, dir.z);
+      const heading = ((headingRad * 180) / Math.PI + 360) % 360;
       const delta = Math.abs(((heading - lastHeading + 540) % 360) - 180);
       if (delta > 0.5) {
         lastHeading = heading;
         window.dispatchEvent(new CustomEvent("player-heading", { detail: { heading } }));
+      }
+
+      const now = performance.now();
+      if (socket && socket.readyState === WebSocket.OPEN && now - lastNetworkSend > networkSendIntervalMs) {
+        lastNetworkSend = now;
+        sendSocketMessage({
+          type: "move",
+          id: localPlayerId,
+          pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+          rot: { y: headingRad },
+        });
       }
     });
 
@@ -1228,7 +1416,11 @@ const BabylonWorld: React.FC = () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
+      try { window.removeEventListener("keydown", onChatFocusKey); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
+      try { document.body.removeChild(chatPanel); } catch {}
+      try { socket?.close(); } catch {}
+      remotePlayers.forEach((entry) => entry.mesh.dispose());
       scene.dispose();
       engine.dispose();
     };
