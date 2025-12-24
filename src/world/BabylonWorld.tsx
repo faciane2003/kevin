@@ -38,8 +38,8 @@ const BabylonWorld: React.FC = () => {
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
 
     // First-person camera
-    const camera = new UniversalCamera("camera", new Vector3(-82.48, 2.25, -103.13), scene);
-    camera.setTarget(new Vector3(-48.72, 2.97, -81.69));
+    const camera = new UniversalCamera("camera", new Vector3(-230.77, 2.18, -4.26), scene);
+    camera.setTarget(new Vector3(-191.22, 7.88, -6.19));
 
     // Attach default controls so mouse drag looks around.
     camera.attachControl(canvasRef.current, true);
@@ -61,23 +61,15 @@ const BabylonWorld: React.FC = () => {
     debugOverlay.style.pointerEvents = "none";
     debugOverlay.style.zIndex = "20";
     document.body.appendChild(debugOverlay);
+    let showDebugOverlay = true;
+    const onToggleDebugOverlay = (evt: KeyboardEvent) => {
+      if (evt.key.toLowerCase() !== "p") return;
+      showDebugOverlay = !showDebugOverlay;
+      debugOverlay.style.display = showDebugOverlay ? "block" : "none";
+    };
+    window.addEventListener("keydown", onToggleDebugOverlay);
 
-    const buildingDebugPanel = document.createElement("div");
-    buildingDebugPanel.style.position = "fixed";
-    buildingDebugPanel.style.top = "12px";
-    buildingDebugPanel.style.left = "12px";
-    buildingDebugPanel.style.padding = "10px 12px";
-    buildingDebugPanel.style.background = "rgba(6,8,14,0.85)";
-    buildingDebugPanel.style.border = "1px solid rgba(120, 140, 180, 0.4)";
-    buildingDebugPanel.style.borderRadius = "8px";
-    buildingDebugPanel.style.color = "#e6f3ff";
-    buildingDebugPanel.style.fontFamily = "Consolas, Menlo, monospace";
-    buildingDebugPanel.style.fontSize = "12px";
-    buildingDebugPanel.style.zIndex = "21";
-    buildingDebugPanel.style.pointerEvents = "auto";
-    buildingDebugPanel.style.maxWidth = "220px";
-    buildingDebugPanel.innerHTML = "<div style=\"font-weight:600;margin-bottom:6px;\">Building Debug</div>";
-    document.body.appendChild(buildingDebugPanel);
+
     const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) {
       try {
@@ -133,7 +125,7 @@ const BabylonWorld: React.FC = () => {
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
     // Sky (large inverted sphere)
-    const sky = MeshBuilder.CreateSphere("sky", { diameter: 2000, segments: 16 }, scene);
+    const sky = MeshBuilder.CreateSphere("sky", { diameter: 8000, segments: 16 }, scene);
     const skyMat = new StandardMaterial("skyMat", scene);
     skyMat.backFaceCulling = false;
     skyMat.emissiveTexture = new Texture("/textures/sky_galaxy.png", scene);
@@ -153,13 +145,15 @@ const BabylonWorld: React.FC = () => {
     moonMat.specularColor = new Color3(0, 0, 0);
     moonMat.disableLighting = true;
     moon.material = moonMat;
-    moon.position = new Vector3(-260, 240, -320);
+    moon.position = new Vector3(700, 450, -130);
     moon.isPickable = false;
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
     moonLight.intensity = 0.85;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
+
+    moon.scaling.set(2.3, 2.3, 2.3);
 
     const createHeightMapUrl = () => {
       const tex = new DynamicTexture("heightMap", { width: 512, height: 512 }, scene, false);
@@ -435,7 +429,8 @@ const BabylonWorld: React.FC = () => {
       facadeUrl: string,
       windowOn: string,
       windowOff: string,
-      emissiveTint: Color3
+      emissiveTint: Color3,
+      rand: () => number
     ) => {
       const mat = new StandardMaterial(name, scene);
       const facade = new Texture(facadeUrl, scene);
@@ -453,7 +448,7 @@ const BabylonWorld: React.FC = () => {
       const gapY = 14;
       for (let y = 20; y < size.height - winH - 10; y += winH + gapY) {
         for (let x = 16; x < size.width - winW - 10; x += winW + gapX) {
-          const lit = Math.random() > 0.3;
+          const lit = rand() > 0.3;
           ctx.fillStyle = lit ? windowOn : windowOff;
           ctx.fillRect(x, y, winW, winH);
         }
@@ -474,13 +469,17 @@ const BabylonWorld: React.FC = () => {
       return mat;
     };
 
-    const buildingMeshes: any[] = [];
-    const buildingMats = [
-      createBuildingMaterial("buildingMat_brick", "/textures/bricktile.jpg", "#ffe7b0", "#10131a", new Color3(0.6, 0.4, 0.2)),
-      createBuildingMaterial("buildingMat_concrete", "/textures/concrete_color.jpg", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.9, 1.0)),
-      createBuildingMaterial("buildingMat_modern", "/textures/concrete_color.jpg", "#bba0ff", "#0a0d12", new Color3(0.6, 0.4, 1.0)),
-      createBuildingMaterial("buildingMat_sand", "/textures/bricktile.jpg", "#ff7ad9", "#0a0b10", new Color3(1.0, 0.25, 0.8)),
-    ];
+    let buildingMeshes: any[] = [];
+    let buildingMats: StandardMaterial[] = [];
+    const makeRng = (seed: number) => {
+      let t = seed >>> 0;
+      return () => {
+        t += 0x6d2b79f5;
+        let r = Math.imul(t ^ (t >>> 15), 1 | t);
+        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+      };
+    };
 
     const roadHalfWidth = 35;
     const crossHalfWidth = 30;
@@ -489,80 +488,43 @@ const BabylonWorld: React.FC = () => {
       zRoads.some((zr) => Math.abs(z - zr) < roadHalfWidth + roadBuffer) ||
       xRoads.some((xr) => Math.abs(x - xr) < crossHalfWidth + roadBuffer);
 
-    for (let i = 0; i < 380; i++) {
-      const w = 8 + Math.random() * 24;
-      const d = 8 + Math.random() * 24;
-      const h = 16 + Math.random() * 90;
-      const b = MeshBuilder.CreateBox(`building_${i}`, { width: w, depth: d, height: h }, scene);
-      let x = 0;
-      let z = 0;
-      let attempts = 0;
-      do {
-        x = (Math.random() - 0.5) * 760;
-        z = (Math.random() - 0.5) * 760 - 120;
-        attempts += 1;
-      } while (isNearRoad(x, z) && attempts < 40);
-      b.position = new Vector3(x, h / 2, z);
-      b.rotation.y = Math.random() * Math.PI * 2;
-      b.material = buildingMats[Math.floor(Math.random() * buildingMats.length)];
-      b.isPickable = false;
-      buildingMeshes.push(b);
-    }
-
-    const buildingDebugState = {
-      showBuildings: true,
-      useFacadeTexture: true,
-      showWindowsEmissive: true,
-      useTextureAlpha: false,
-      backFaceCulling: true,
-      forceOpaque: true,
+    const rebuildBuildings = (seed: number, count: number) => {
+      buildingMeshes.forEach((mesh) => mesh.dispose());
+      buildingMeshes = [];
+      buildingMats.forEach((mat) => mat.dispose(true, true));
+      buildingMats = [];
+      const rand = makeRng(seed);
+      buildingMats = [
+        createBuildingMaterial("buildingMat_brick", "/textures/bricktile.jpg", "#ffe7b0", "#10131a", new Color3(0.6, 0.4, 0.2), rand),
+        createBuildingMaterial("buildingMat_concrete", "/textures/concrete_color.jpg", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.9, 1.0), rand),
+        createBuildingMaterial("buildingMat_modern", "/textures/concrete_color.jpg", "#bba0ff", "#0a0d12", new Color3(0.6, 0.4, 1.0), rand),
+        createBuildingMaterial("buildingMat_sand", "/textures/bricktile.jpg", "#ff7ad9", "#0a0b10", new Color3(1.0, 0.25, 0.8), rand),
+      ];
+      for (let i = 0; i < count; i++) {
+        const w = 8 + rand() * 24;
+        const d = 8 + rand() * 24;
+        const h = 16 + rand() * 90;
+        const b = MeshBuilder.CreateBox(`building_${i}`, { width: w, depth: d, height: h }, scene);
+        let x = 0;
+        let z = 0;
+        let attempts = 0;
+        do {
+          x = (rand() - 0.5) * 760;
+          z = (rand() - 0.5) * 760 - 120;
+          attempts += 1;
+        } while (isNearRoad(x, z) && attempts < 40);
+        b.position = new Vector3(x, h / 2, z);
+        b.rotation.y = rand() * Math.PI * 2;
+        b.material = buildingMats[Math.floor(rand() * buildingMats.length)];
+        b.isPickable = false;
+        buildingMeshes.push(b);
+      }
     };
 
-    const applyBuildingDebug = () => {
-      buildingMeshes.forEach((mesh) => {
-        mesh.setEnabled(buildingDebugState.showBuildings);
-      });
-      buildingMats.forEach((mat) => {
-        const meta = (mat as any).metadata || {};
-        mat.diffuseTexture = buildingDebugState.useFacadeTexture ? meta.facadeTex : null;
-        mat.emissiveTexture = buildingDebugState.showWindowsEmissive ? meta.windowTex : null;
-        mat.backFaceCulling = buildingDebugState.backFaceCulling;
-        mat.useAlphaFromDiffuseTexture = buildingDebugState.useTextureAlpha;
-        mat.alpha = buildingDebugState.forceOpaque ? 1 : 0.6;
-        mat.transparencyMode = buildingDebugState.forceOpaque ? Material.MATERIAL_OPAQUE : undefined;
-        if (mat.diffuseTexture) {
-          mat.diffuseTexture.hasAlpha = buildingDebugState.useTextureAlpha;
-        }
-      });
-    };
+    const buildingSeedState = { value: 18 };
+    const buildingCountState = { value: 1200 };
+    rebuildBuildings(buildingSeedState.value, buildingCountState.value);
 
-    const addDebugCheckbox = (label: string, key: keyof typeof buildingDebugState) => {
-      const row = document.createElement("label");
-      row.style.display = "flex";
-      row.style.alignItems = "center";
-      row.style.gap = "6px";
-      row.style.marginBottom = "6px";
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = buildingDebugState[key];
-      input.addEventListener("change", () => {
-        buildingDebugState[key] = input.checked;
-        applyBuildingDebug();
-      });
-      const span = document.createElement("span");
-      span.textContent = label;
-      row.appendChild(input);
-      row.appendChild(span);
-      buildingDebugPanel.appendChild(row);
-    };
-
-    addDebugCheckbox("Show buildings", "showBuildings");
-    addDebugCheckbox("Use facade textures", "useFacadeTexture");
-    addDebugCheckbox("Show window emissive", "showWindowsEmissive");
-    addDebugCheckbox("Use texture alpha", "useTextureAlpha");
-    addDebugCheckbox("Backface culling", "backFaceCulling");
-    addDebugCheckbox("Force opaque", "forceOpaque");
-    applyBuildingDebug();
 
     // Street props and neon set dressing
     const metalMat = new StandardMaterial("metalMat", scene);
@@ -1304,8 +1266,8 @@ const BabylonWorld: React.FC = () => {
     return () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
+      try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
-      try { document.body.removeChild(buildingDebugPanel); } catch {}
       scene.dispose();
       engine.dispose();
     };
