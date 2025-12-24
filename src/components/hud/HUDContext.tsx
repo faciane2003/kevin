@@ -9,11 +9,13 @@ type HUDState = {
   mana: number;
   xp: number;
   hotbar: HotbarItem[];
+  inventory: string[];
   activeTab: string | null;
   activeSlot: number | null;
   setHealth: (v: number) => void;
   setMana: (v: number) => void;
   setXp: (v: number) => void;
+  addInventoryItem: (item: string) => void;
   setActiveTab: React.Dispatch<React.SetStateAction<string | null>>;
   setActiveSlot: React.Dispatch<React.SetStateAction<number | null>>;
 };
@@ -32,8 +34,10 @@ export const HUDProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [mana, setMana] = useState(50);
   const [xp, setXp] = useState(30);
   const [hotbar, _setHotbar] = useState<HotbarItem[]>(defaultItems);
+  const [inventory, setInventory] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const addInventoryItem = (item: string) => setInventory((items) => [item, ...items]);
 
   return (
     <HUDContext.Provider
@@ -45,10 +49,12 @@ export const HUDProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         xp,
         setXp,
         hotbar,
+        inventory,
         activeTab,
         setActiveTab,
         activeSlot,
         setActiveSlot,
+        addInventoryItem,
       }}
     >
       {children}

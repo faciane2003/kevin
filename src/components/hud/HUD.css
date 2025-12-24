@@ -28,6 +28,29 @@
 .menu-tab-button{ padding:8px 12px; border-radius:8px; background:rgba(20,20,20,0.85); color:#fff; border:none; cursor:pointer; font-weight:600; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 .menu-tab-button.active{ background: linear-gradient(180deg,#3a3a3a,#2b2b2b); transform: translateY(-2px); }
 
+/* Journal panel */
+.journal-overlay { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(4,8,14,0.55); backdrop-filter: blur(2px); pointer-events:auto; }
+.journal-panel { width: min(720px, 90vw); min-height: 360px; background: linear-gradient(160deg, rgba(10,16,28,0.98), rgba(8,10,18,0.98)); border: 1px solid rgba(120,180,255,0.2); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,0.7); padding: 18px 20px 16px; color: #dbe8ff; display:flex; flex-direction:column; gap:12px; }
+.journal-header { display:flex; align-items:center; justify-content:space-between; border-bottom: 1px solid rgba(120,180,255,0.2); padding-bottom: 10px; }
+.journal-title { font-size: 18px; letter-spacing: 0.6px; text-transform: uppercase; color: #9ad7ff; }
+.journal-close { background: rgba(30,40,60,0.7); color: #dbe8ff; border: 1px solid rgba(120,180,255,0.25); border-radius: 10px; padding: 6px 12px; cursor: pointer; }
+.journal-body { flex:1; display:flex; flex-direction:column; gap:10px; font-size: 15px; color: rgba(220,235,255,0.9); }
+.journal-body p { margin:0; line-height: 1.5; }
+.journal-tabs { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-start; }
+.journal-tab { background: rgba(20,26,40,0.8); border: 1px solid rgba(120,180,255,0.2); color: #cfe3ff; padding: 6px 10px; border-radius: 10px; cursor:pointer; }
+.journal-tab.active { background: linear-gradient(160deg, rgba(60,120,220,0.6), rgba(180,80,220,0.5)); border-color: rgba(180,220,255,0.6); color: #ffffff; }
+
+/* Dialogue */
+.dialogue-overlay { position: absolute; inset: 0; display:flex; align-items:flex-end; justify-content:center; padding-bottom: 40px; background: rgba(0,0,0,0.2); pointer-events:auto; }
+.dialogue-panel { width: min(620px, 90vw); background: rgba(8,12,20,0.92); border: 1px solid rgba(120,180,255,0.2); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); padding: 14px 16px 12px; color: #e2efff; display:flex; flex-direction:column; gap:10px; }
+.dialogue-header { display:flex; align-items:center; justify-content:space-between; }
+.dialogue-name { font-size: 16px; color: #9ad7ff; letter-spacing: 0.4px; }
+.dialogue-close { background: rgba(30,40,60,0.7); color: #dbe8ff; border: 1px solid rgba(120,180,255,0.25); border-radius: 10px; padding: 4px 10px; cursor: pointer; }
+.dialogue-body { font-size: 15px; line-height: 1.5; color: rgba(220,235,255,0.95); }
+.dialogue-options { display:flex; flex-wrap:wrap; gap:8px; }
+.dialogue-option { background: rgba(20,26,40,0.9); border: 1px solid rgba(120,180,255,0.2); color: #cfe3ff; padding: 6px 10px; border-radius: 10px; cursor:pointer; }
+.dialogue-option:hover { background: rgba(60,120,220,0.5); border-color: rgba(180,220,255,0.6); color: #ffffff; }
+
 /* Hotbar */
 .hotbar { position:absolute; left:50%; transform:translateX(-50%); bottom:22px; display:flex; gap:8px; pointer-events:auto; }
 .hotbar-slot { width:48px; height:48px; background:rgba(10,10,10,0.8); border-radius:8px; border:1px solid rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:center; position:relative; cursor:pointer; }
