@@ -986,14 +986,26 @@ const BabylonWorld: React.FC = () => {
     addBillboardBulbs(signB_back, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_back", 0.6);
 
     // Holo kiosks
+    const kioskAds = [
+      new Texture("/ads/ad_sunglasses.jpg", scene),
+      new Texture("/ads/ad_cyborg.jpg", scene),
+      new Texture("/ads/ad_child_apple.jpg", scene),
+      new Texture("/ads/ad_mech_goat.jpg", scene),
+    ];
     for (let i = 0; i < 5; i++) {
       const base = MeshBuilder.CreateCylinder(`kiosk_base_${i}`, { height: 3, diameter: 4 }, scene);
       base.position = new Vector3(-80 + i * 40, 1.5, -40);
       base.material = metalMat;
 
       const holo = MeshBuilder.CreatePlane(`kiosk_holo_${i}`, { width: 6, height: 8 }, scene);
-      holo.position = new Vector3(-80 + i * 40, 6, -40);
-      holo.material = neonMagenta;
+      holo.position = new Vector3(-80 + i * 40, 6.8, -40);
+      const adTex = kioskAds[i % kioskAds.length];
+      const adMat = new StandardMaterial(`kiosk_ad_mat_${i}`, scene);
+      adMat.diffuseTexture = adTex;
+      adMat.emissiveTexture = adTex;
+      adMat.emissiveColor = new Color3(0.25, 0.25, 0.25);
+      adMat.backFaceCulling = false;
+      holo.material = adMat;
       holo.billboardMode = 7;
     }
 
