@@ -319,7 +319,7 @@ const BabylonWorld: React.FC = () => {
     roadAO.vScale = 8;
 
     const roadMeshes: any[] = [];
-    const zRoads = [-160, -60, 40, 140, 240];
+    const zRoads = [-260, -180, -100, -20, 60, 140, 220, 300];
     zRoads.forEach((z, i) => {
       const road = MeshBuilder.CreateGround(`road_z_${i}`, { width: 70, height: 800 }, scene);
       road.position = new Vector3(0, 0.2, z);
@@ -327,7 +327,7 @@ const BabylonWorld: React.FC = () => {
       roadMeshes.push(road);
     });
 
-    const xRoads = [-210, -70, 70, 210];
+    const xRoads = [-300, -220, -140, -60, 20, 100, 180, 260];
     xRoads.forEach((x, i) => {
       const road = MeshBuilder.CreateGround(`road_x_${i}`, { width: 800, height: 60 }, scene);
       road.position = new Vector3(x, 0.21, 40);
@@ -429,31 +429,21 @@ const BabylonWorld: React.FC = () => {
     // Procedural buildings (simple boxes with varied heights)
     const createBuildingMaterial = (
       name: string,
-      baseColor: string,
-      trimColor: string,
+      facadeUrl: string,
       windowOn: string,
       windowOff: string,
       emissiveTint: Color3
     ) => {
       const mat = new StandardMaterial(name, scene);
-      const tex = new DynamicTexture(`${name}_tex`, { width: 512, height: 512 }, scene, false);
-      const ctx = tex.getContext();
-      const size = tex.getSize();
+      const facade = new Texture(facadeUrl, scene);
+      facade.uScale = 3;
+      facade.vScale = 6;
 
-      // Base facade with subtle vertical gradient
-      const grad = ctx.createLinearGradient(0, 0, 0, size.height);
-      grad.addColorStop(0, baseColor);
-      grad.addColorStop(1, "#6f6f6f");
-      ctx.fillStyle = grad;
+      const winTex = new DynamicTexture(`${name}_windows`, { width: 512, height: 512 }, scene, false);
+      const ctx = winTex.getContext();
+      const size = winTex.getSize();
+      ctx.fillStyle = "rgba(0,0,0,1)";
       ctx.fillRect(0, 0, size.width, size.height);
-
-      // Trim bands
-      ctx.fillStyle = trimColor;
-      for (let y = 0; y < size.height; y += 96) {
-        ctx.fillRect(0, y + 72, size.width, 6);
-      }
-
-      // Window grid
       const winW = 18;
       const winH = 26;
       const gapX = 10;
@@ -465,22 +455,12 @@ const BabylonWorld: React.FC = () => {
           ctx.fillRect(x, y, winW, winH);
         }
       }
+      winTex.update();
+      winTex.uScale = 1.0;
+      winTex.vScale = 2.4;
 
-      // Light grime/noise pass
-      ctx.fillStyle = "rgba(0,0,0,0.06)";
-      for (let i = 0; i < 220; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const w = 20 + Math.random() * 60;
-        ctx.fillRect(x, y, w, 2);
-      }
-
-      tex.update();
-      tex.uScale = 1.0;
-      tex.vScale = 2.4;
-
-      mat.diffuseTexture = tex;
-      mat.emissiveTexture = tex;
+      mat.diffuseTexture = facade;
+      mat.emissiveTexture = winTex;
       mat.emissiveColor = emissiveTint;
       mat.specularColor = new Color3(0.04, 0.04, 0.04);
       mat.ambientColor = new Color3(0.08, 0.1, 0.14);
@@ -488,18 +468,33 @@ const BabylonWorld: React.FC = () => {
     };
 
     const buildingMats = [
-      createBuildingMaterial("buildingMat_concrete", "#1a1f2b", "#242b3a", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.9, 1.0)),
-      createBuildingMaterial("buildingMat_sand", "#1b1c26", "#252632", "#ff7ad9", "#0a0b10", new Color3(1.0, 0.25, 0.8)),
-      createBuildingMaterial("buildingMat_brick", "#151824", "#222536", "#7cffb0", "#080a10", new Color3(0.3, 1.0, 0.6)),
-      createBuildingMaterial("buildingMat_modern", "#12151f", "#1f2433", "#bba0ff", "#0a0d12", new Color3(0.6, 0.4, 1.0)),
+      createBuildingMaterial("buildingMat_brick", "/textures/bricktile.jpg", "#ffe7b0", "#10131a", new Color3(0.6, 0.4, 0.2)),
+      createBuildingMaterial("buildingMat_concrete", "/textures/concrete_color.jpg", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.9, 1.0)),
+      createBuildingMaterial("buildingMat_modern", "/textures/concrete_color.jpg", "#bba0ff", "#0a0d12", new Color3(0.6, 0.4, 1.0)),
+      createBuildingMaterial("buildingMat_sand", "/textures/bricktile.jpg", "#ff7ad9", "#0a0b10", new Color3(1.0, 0.25, 0.8)),
     ];
 
-    for (let i = 0; i < 40; i++) {
-      const w = 8 + Math.random() * 20;
-      const d = 8 + Math.random() * 20;
-      const h = 10 + Math.random() * 60;
+    const roadHalfWidth = 35;
+    const crossHalfWidth = 30;
+    const roadBuffer = 8;
+    const isNearRoad = (x: number, z: number) =>
+      zRoads.some((zr) => Math.abs(z - zr) < roadHalfWidth + roadBuffer) ||
+      xRoads.some((xr) => Math.abs(x - xr) < crossHalfWidth + roadBuffer);
+
+    for (let i = 0; i < 220; i++) {
+      const w = 8 + Math.random() * 24;
+      const d = 8 + Math.random() * 24;
+      const h = 16 + Math.random() * 90;
       const b = MeshBuilder.CreateBox(`building_${i}`, { width: w, depth: d, height: h }, scene);
-      b.position = new Vector3((Math.random() - 0.5) * 700, h / 2, (Math.random() - 0.5) * 700 - 200);
+      let x = 0;
+      let z = 0;
+      let attempts = 0;
+      do {
+        x = (Math.random() - 0.5) * 760;
+        z = (Math.random() - 0.5) * 760 - 120;
+        attempts += 1;
+      } while (isNearRoad(x, z) && attempts < 40);
+      b.position = new Vector3(x, h / 2, z);
       b.rotation.y = Math.random() * Math.PI * 2;
       b.material = buildingMats[Math.floor(Math.random() * buildingMats.length)];
       b.isPickable = false;
@@ -781,21 +776,41 @@ const BabylonWorld: React.FC = () => {
 
     // Groundcover disabled for neon city vibe
 
-    // People (simple walking NPCs) - circular waypoint movement
-    type NPC = { mesh: any; angle: number; radius: number; center: Vector3; speed: number };
-    const people: NPC[] = [];
-    for (let i = 0; i < 14; i++) {
-      const h = 1.8;
-      const m = MeshBuilder.CreateBox(`person_${i}`, { width: 0.6, height: h, depth: 0.6 }, scene);
-      const mat = new StandardMaterial(`personMat_${i}`, scene);
-      mat.diffuseColor = new Color3(Math.random() * 0.8 + 0.2, Math.random() * 0.8 + 0.2, Math.random() * 0.8 + 0.2);
-      m.material = mat;
-      const center = new Vector3((Math.random() - 0.5) * 300, 0, (Math.random() - 0.5) * 300 - 100);
-      const radius = 5 + Math.random() * 30;
+    // People (glb pedestrians) - circular waypoint movement
+    type Pedestrian = { root: TransformNode; angle: number; radius: number; center: Vector3; speed: number };
+    const people: Pedestrian[] = [];
+    for (let i = 0; i < 28; i++) {
+      const root = new TransformNode(`person_${i}`, scene);
+      const center = new Vector3((Math.random() - 0.5) * 420, 0, (Math.random() - 0.5) * 420 - 80);
+      const radius = 6 + Math.random() * 26;
       const angle = Math.random() * Math.PI * 2;
-      const speed = 0.4 + Math.random() * 0.8;
-      people.push({ mesh: m, angle, radius, center, speed });
+      const speed = 0.5 + Math.random() * 0.9;
+      root.position = center.clone();
+      people.push({ root, angle, radius, center, speed });
     }
+
+    const pedestrianModels = ["/models/RiggedFigure.glb", "/models/CesiumMan.glb"];
+    const pedestrianScales = [1.6, 1.4];
+    const loadPedestrians = async () => {
+      const containers = await Promise.all(
+        pedestrianModels.map((url) => SceneLoader.LoadAssetContainerAsync("", url, scene))
+      );
+      people.forEach((p, idx) => {
+        const container = containers[idx % containers.length];
+        const scale = pedestrianScales[idx % pedestrianScales.length];
+        const inst = container.instantiateModelsToScene((name) => `${p.root.name}_${name}`);
+        inst.rootNodes.forEach((node) => {
+          const tnode = node as TransformNode;
+          tnode.parent = p.root;
+          if ((tnode as any).position) tnode.position = new Vector3(0, -1.6, 0);
+          if ((tnode as any).scaling) tnode.scaling = new Vector3(scale, scale, scale);
+        });
+        if (inst.animationGroups && inst.animationGroups.length > 0) {
+          inst.animationGroups.forEach((group) => group.start(true));
+        }
+      });
+    };
+    loadPedestrians();
 
     // Drones (flying) - simple circular paths with bobbing
     const drones: { mesh: any; angle: number; radius: number; center: Vector3; speed: number; height: number }[] = [];
@@ -812,6 +827,51 @@ const BabylonWorld: React.FC = () => {
       drones.push({ mesh: d, angle, radius, center, speed, height });
     }
 
+    // Cars (glb) driving along a loop
+    const cars: { root: TransformNode; speed: number; segment: number; t: number; path: Vector3[] }[] = [];
+    const carPath = [
+      new Vector3(-320, 0.3, -180),
+      new Vector3(320, 0.3, -180),
+      new Vector3(320, 0.3, 140),
+      new Vector3(-320, 0.3, 140),
+    ];
+    for (let i = 0; i < 8; i++) {
+      const root = new TransformNode(`car_${i}`, scene);
+      cars.push({ root, speed: 14 + Math.random() * 10, segment: i % carPath.length, t: Math.random(), path: carPath });
+    }
+
+    const loadCars = async () => {
+      const container = await SceneLoader.LoadAssetContainerAsync("", "/models/CesiumMilkTruck.glb", scene);
+      cars.forEach((car, idx) => {
+        const inst = container.instantiateModelsToScene((name) => `${car.root.name}_${name}_${idx}`);
+        inst.rootNodes.forEach((node) => {
+          const tnode = node as TransformNode;
+          tnode.parent = car.root;
+          if ((tnode as any).position) tnode.position = new Vector3(0, -0.5, 0);
+          if ((tnode as any).scaling) tnode.scaling = new Vector3(1.2, 1.2, 1.2);
+        });
+      });
+    };
+    loadCars();
+
+    // Trees (procedural clusters)
+    const treeTrunkMat = new StandardMaterial("treeTrunkMat", scene);
+    treeTrunkMat.diffuseColor = new Color3(0.25, 0.18, 0.1);
+    const treeLeafMat = new StandardMaterial("treeLeafMat", scene);
+    treeLeafMat.diffuseColor = new Color3(0.08, 0.35, 0.18);
+    for (let i = 0; i < 50; i++) {
+      const base = new TransformNode(`tree_${i}`, scene);
+      const trunk = MeshBuilder.CreateCylinder(`tree_trunk_${i}`, { height: 5, diameter: 1.2 }, scene);
+      trunk.material = treeTrunkMat;
+      trunk.position = new Vector3(0, 2.5, 0);
+      trunk.parent = base;
+      const crown = MeshBuilder.CreateSphere(`tree_crown_${i}`, { diameter: 6 }, scene);
+      crown.material = treeLeafMat;
+      crown.position = new Vector3(0, 6, 0);
+      crown.parent = base;
+      base.position = new Vector3((Math.random() - 0.5) * 700, 0, (Math.random() - 0.5) * 700 - 100);
+    }
+
     // Animation updates: people, drones, pickups
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
@@ -819,8 +879,8 @@ const BabylonWorld: React.FC = () => {
         p.angle += p.speed * dt;
         const px = p.center.x + Math.cos(p.angle) * p.radius;
         const pz = p.center.z + Math.sin(p.angle) * p.radius;
-        p.mesh.position.set(px, 0.9, pz);
-        p.mesh.rotation.y = -p.angle + Math.PI / 2;
+        p.root.position.set(px, 0.9, pz);
+        p.root.rotation.y = -p.angle + Math.PI / 2;
       });
 
       drones.forEach((d) => {
@@ -828,6 +888,22 @@ const BabylonWorld: React.FC = () => {
         const dx = d.center.x + Math.cos(d.angle) * d.radius;
         const dz = d.center.z + Math.sin(d.angle) * d.radius;
         d.mesh.position.set(dx, d.height + Math.sin(d.angle * 2) * 2.0, dz);
+      });
+
+      cars.forEach((car) => {
+        const path = car.path;
+        const nextIndex = (car.segment + 1) % path.length;
+        const a = path[car.segment];
+        const b = path[nextIndex];
+        car.t += (car.speed * dt) / Vector3.Distance(a, b);
+        if (car.t >= 1) {
+          car.t = 0;
+          car.segment = nextIndex;
+        }
+        const pos = Vector3.Lerp(a, b, car.t);
+        car.root.position.copyFrom(pos);
+        const dir = b.subtract(a);
+        car.root.rotation.y = Math.atan2(dir.x, dir.z);
       });
 
       pickups.forEach((p) => {
