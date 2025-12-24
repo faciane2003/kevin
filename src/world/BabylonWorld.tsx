@@ -7,14 +7,14 @@ import {
   Vector3,
   Ray,
   HemisphericLight,
+  DirectionalLight,
   PointLight,
   MeshBuilder,
   StandardMaterial,
   Color3,
   Color4,
+  Texture,
   DynamicTexture,
-  SceneLoader,
-  Mesh,
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
@@ -89,25 +89,77 @@ const BabylonWorld: React.FC = () => {
     neonLightB.intensity = 1.0;
 
     const createSkyTexture = (name: string) => {
-      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
+      const tex = new DynamicTexture(name, { width: 4096, height: 4096 }, scene, false);
       const ctx = tex.getContext() as any;
       const size = tex.getSize();
+
+      // Deep space gradient
       const grad = ctx.createLinearGradient(0, 0, 0, size.height);
-      grad.addColorStop(0, "#0a0d1a");
-      grad.addColorStop(0.45, "#0b1124");
-      grad.addColorStop(1, "#0f1b36");
+      grad.addColorStop(0, "#05070f");
+      grad.addColorStop(0.45, "#0a1326");
+      grad.addColorStop(1, "#101c3a");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, size.width, size.height);
 
-      // Star field
-      for (let i = 0; i < 900; i++) {
+      // Subtle noise field for sky depth
+      for (let i = 0; i < 12000; i++) {
         const x = Math.random() * size.width;
-        const y = Math.random() * size.height * 0.75;
-        const r = Math.random() * 1.6;
-        const a = 0.2 + Math.random() * 0.8;
-        ctx.fillStyle = `rgba(220,240,255,${a})`;
+        const y = Math.random() * size.height;
+        const a = Math.random() * 0.05;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+
+      // Dense star field with varied sizes and subtle color
+      for (let i = 0; i < 12000; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height * 0.85;
+        const r = Math.random() * 1.2 + 0.2;
+        const a = 0.08 + Math.random() * 0.6;
+        const tint = Math.random() > 0.95 ? "255,220,200" : "210,235,255";
+        ctx.fillStyle = `rgba(${tint},${a})`;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Few bright stars with glow
+      for (let i = 0; i < 60; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height * 0.7;
+        const glow = ctx.createRadialGradient(x, y, 1, x, y, 12 + Math.random() * 14);
+        glow.addColorStop(0, "rgba(255,255,255,0.9)");
+        glow.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, 16, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Milky way band
+      for (let i = 0; i < 200; i++) {
+        const x = Math.random() * size.width;
+        const y = size.height * 0.25 + Math.random() * size.height * 0.35;
+        const glow = ctx.createRadialGradient(x, y, 10, x, y, 240 + Math.random() * 200);
+        glow.addColorStop(0, "rgba(200,220,255,0.08)");
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, 260, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Subtle nebula haze
+      for (let i = 0; i < 10; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height * 0.7;
+        const neb = ctx.createRadialGradient(x, y, 10, x, y, 260 + Math.random() * 260);
+        const col = Math.random() > 0.5 ? "80,120,255" : "180,80,255";
+        neb.addColorStop(0, `rgba(${col},0.1)`);
+        neb.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = neb;
+        ctx.beginPath();
+        ctx.arc(x, y, 260, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -129,8 +181,25 @@ const BabylonWorld: React.FC = () => {
     skyMat.diffuseColor = new Color3(0, 0, 0);
     skyMat.specularColor = new Color3(0, 0, 0);
     skyMat.disableLighting = true;
+    skyMat.fogEnabled = false;
     sky.material = skyMat;
     sky.isPickable = false;
+
+    // Moon (emissive sphere with texture)
+    const moon = MeshBuilder.CreateSphere("moon", { diameter: 120, segments: 24 }, scene);
+    const moonMat = new StandardMaterial("moonMat", scene);
+    moonMat.emissiveTexture = new Texture("/textures/moon.jpg", scene);
+    moonMat.emissiveColor = new Color3(1.2, 1.2, 1.25);
+    moonMat.specularColor = new Color3(0, 0, 0);
+    moonMat.disableLighting = true;
+    moon.material = moonMat;
+    moon.position = new Vector3(-260, 240, -320);
+    moon.isPickable = false;
+
+    const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
+    moonLight.position = moon.position;
+    moonLight.intensity = 0.6;
+    moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
     const createDirtTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
@@ -507,29 +576,7 @@ const BabylonWorld: React.FC = () => {
       npc.metadata = { type: "npc", id };
     });
 
-    // Simple imported models (free assets)
-    SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/", "robot.glb", scene)
-      .then((result) => {
-        result.meshes.forEach((m) => {
-          if (m instanceof Mesh) {
-            m.position = new Vector3(40, 0, -30);
-            m.scaling = new Vector3(4, 4, 4);
-          }
-          m.isPickable = false;
-        });
-      })
-      .catch(() => {});
-    SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/", "Dude.glb", scene)
-      .then((result) => {
-        result.meshes.forEach((m) => {
-          if (m instanceof Mesh) {
-            m.position = new Vector3(-70, 0, -20);
-            m.scaling = new Vector3(3.5, 3.5, 3.5);
-          }
-          m.isPickable = false;
-        });
-      })
-      .catch(() => {});
+    // Imported models removed (external URLs 404)
 
     scene.onPointerObservable.add((pointerInfo) => {
       if (pointerInfo.type !== 1) return;
