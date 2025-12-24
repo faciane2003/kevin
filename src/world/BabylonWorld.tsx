@@ -116,9 +116,7 @@ const BabylonWorld: React.FC = () => {
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `player-${Math.random().toString(36).slice(2, 10)}`;
-    const defaultPlayerName = `Player-${localPlayerId.slice(-4)}`;
-    const namePrompt = window.prompt("Enter your player name:", defaultPlayerName);
-    const localPlayerName = (namePrompt || "").trim() || defaultPlayerName;
+    const localPlayerName = "Frodo";
     const remotePlayers = new Map<string, { mesh: any }>();
     const remotePlayerMat = new StandardMaterial("remotePlayerMat", scene);
     remotePlayerMat.diffuseColor = new Color3(0.2, 0.8, 0.9);
