@@ -13,6 +13,7 @@ import {
   DefaultRenderingPipeline,
   ColorCurves,
   MeshBuilder,
+  PBRMaterial,
   StandardMaterial,
   Color3,
   Color4,
@@ -211,43 +212,51 @@ const BabylonWorld: React.FC = () => {
     moonLight.intensity = 0.6;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
-    const createDirtTexture = (name: string) => {
-      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext() as any;
+    const createHeightMapUrl = () => {
+      const tex = new DynamicTexture("heightMap", { width: 256, height: 256 }, scene, false);
+      const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
-
-      // Base asphalt tones
-      ctx.fillStyle = "#181a22";
+      ctx.fillStyle = "rgb(128,128,128)";
       ctx.fillRect(0, 0, size.width, size.height);
-
-      // Speckled variation
-      for (let i = 0; i < 18000; i++) {
+      for (let i = 0; i < 60; i++) {
         const x = Math.random() * size.width;
         const y = Math.random() * size.height;
-        const shade = Math.random();
-        const v = Math.floor(30 + shade * 40);
-        ctx.fillStyle = `rgb(${v},${v},${v})`;
-        ctx.fillRect(x, y, 2, 2);
+        const r = 40 + Math.random() * 140;
+        const light = Math.random() > 0.5;
+        ctx.fillStyle = light ? "rgba(200,200,200,0.18)" : "rgba(60,60,60,0.18)";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
       }
+      tex.update();
+      const canvas = (ctx as any).canvas as HTMLCanvasElement;
+      return canvas.toDataURL("image/png");
+    };
 
-      // Neon grid accents
-      ctx.strokeStyle = "rgba(0, 220, 255, 0.12)";
-      ctx.lineWidth = 1;
-      for (let x = 0; x < size.width; x += 80) {
+    const createNeonStreakMask = (name: string) => {
+      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
+      const ctx = tex.getContext() as CanvasRenderingContext2D;
+      const size = tex.getSize();
+      ctx.clearRect(0, 0, size.width, size.height);
+      ctx.strokeStyle = "rgba(0, 200, 255, 0.6)";
+      ctx.lineWidth = 6;
+      for (let i = 0; i < 6; i++) {
+        const x = Math.random() * size.width;
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, size.height);
+        ctx.lineTo(x + Math.random() * 40 - 20, size.height);
         ctx.stroke();
       }
-      ctx.strokeStyle = "rgba(255, 60, 200, 0.08)";
-      for (let y = 0; y < size.height; y += 80) {
+      ctx.strokeStyle = "rgba(255, 70, 200, 0.5)";
+      for (let i = 0; i < 4; i++) {
+        const y = Math.random() * size.height;
         ctx.beginPath();
         ctx.moveTo(0, y);
-        ctx.lineTo(size.width, y);
+        ctx.lineTo(size.width, y + Math.random() * 40 - 20);
         ctx.stroke();
       }
-
       tex.update();
+      tex.hasAlpha = true;
       return tex;
     };
 
@@ -285,17 +294,75 @@ const BabylonWorld: React.FC = () => {
       return tex;
     };
 
-    // Ground (large)
-    const ground = MeshBuilder.CreateGround("ground", { width: 800, height: 800 }, scene);
-    const groundMat = new StandardMaterial("groundMat", scene);
-    const groundDirtTex = createDirtTexture("groundDirtTex");
-    groundDirtTex.uScale = 24;
-    groundDirtTex.vScale = 24;
-    groundMat.diffuseTexture = groundDirtTex;
-    groundMat.specularColor = new Color3(0.05, 0.05, 0.08);
-    groundMat.ambientColor = new Color3(0.1, 0.12, 0.2);
-    groundMat.emissiveColor = new Color3(0.02, 0.04, 0.08);
-    ground.material = groundMat;
+    // Ground (large) with smooth elevation
+    const heightMapUrl = createHeightMapUrl();
+    const ground = MeshBuilder.CreateGroundFromHeightMap(
+      "ground",
+      heightMapUrl,
+      { width: 800, height: 800, subdivisions: 128, minHeight: 0, maxHeight: 4 },
+      scene
+    );
+    const asphaltMat = new PBRMaterial("asphaltMat", scene);
+    asphaltMat.albedoTexture = new Texture("/textures/asphalt_color.jpg", scene);
+    asphaltMat.bumpTexture = new Texture("/textures/asphalt_normal.jpg", scene);
+    asphaltMat.ambientTexture = new Texture("/textures/asphalt_ao.jpg", scene);
+    asphaltMat.roughness = 0.85;
+    asphaltMat.metallic = 0.0;
+    asphaltMat.albedoTexture.uScale = 6;
+    asphaltMat.albedoTexture.vScale = 6;
+    asphaltMat.bumpTexture.uScale = 6;
+    asphaltMat.bumpTexture.vScale = 6;
+    asphaltMat.ambientTexture.uScale = 6;
+    asphaltMat.ambientTexture.vScale = 6;
+    ground.material = asphaltMat;
+
+    // Wet neon streets
+    const wetRoadMat = new PBRMaterial("wetRoadMat", scene);
+    wetRoadMat.albedoTexture = new Texture("/textures/asphalt_color.jpg", scene);
+    wetRoadMat.bumpTexture = new Texture("/textures/asphalt_normal.jpg", scene);
+    wetRoadMat.ambientTexture = new Texture("/textures/asphalt_ao.jpg", scene);
+    wetRoadMat.roughness = 0.25;
+    wetRoadMat.metallic = 0.0;
+    wetRoadMat.emissiveTexture = createNeonStreakMask("wetNeonMask");
+    wetRoadMat.emissiveColor = new Color3(0.2, 0.4, 0.8);
+    wetRoadMat.albedoTexture.uScale = 8;
+    wetRoadMat.albedoTexture.vScale = 8;
+    wetRoadMat.bumpTexture.uScale = 8;
+    wetRoadMat.bumpTexture.vScale = 8;
+    wetRoadMat.ambientTexture.uScale = 8;
+    wetRoadMat.ambientTexture.vScale = 8;
+
+    const mainRoad = MeshBuilder.CreateGround("mainRoad", { width: 70, height: 800 }, scene);
+    mainRoad.position = new Vector3(0, 0.2, 40);
+    mainRoad.material = wetRoadMat;
+
+    const crossRoad = MeshBuilder.CreateGround("crossRoad", { width: 800, height: 60 }, scene);
+    crossRoad.position = new Vector3(0, 0.21, -60);
+    crossRoad.material = wetRoadMat;
+
+    // Cracked concrete sidewalks
+    const concreteMat = new PBRMaterial("concreteMat", scene);
+    concreteMat.albedoTexture = new Texture("/textures/concrete_color.jpg", scene);
+    concreteMat.bumpTexture = new Texture("/textures/concrete_normal.jpg", scene);
+    concreteMat.ambientTexture = new Texture("/textures/concrete_ao.jpg", scene);
+    concreteMat.roughness = 0.9;
+    concreteMat.metallic = 0.0;
+    concreteMat.albedoTexture.uScale = 6;
+    concreteMat.albedoTexture.vScale = 6;
+    concreteMat.bumpTexture.uScale = 6;
+    concreteMat.bumpTexture.vScale = 6;
+    concreteMat.ambientTexture.uScale = 6;
+    concreteMat.ambientTexture.vScale = 6;
+
+    const sidewalkLeft = MeshBuilder.CreateGround("sidewalkLeft", { width: 120, height: 800 }, scene);
+    sidewalkLeft.position = new Vector3(-240, 0.18, 40);
+    sidewalkLeft.material = concreteMat;
+
+    const sidewalkRight = MeshBuilder.CreateGround("sidewalkRight", { width: 120, height: 800 }, scene);
+    sidewalkRight.position = new Vector3(240, 0.18, 40);
+    sidewalkRight.material = concreteMat;
+
+    const walkMeshes = new Set([ground, mainRoad, crossRoad, sidewalkLeft, sidewalkRight]);
 
     // Distant mountains removed for now
 
@@ -803,7 +870,7 @@ const BabylonWorld: React.FC = () => {
         const rayOrigin = new Vector3(proposedPos.x, 50, proposedPos.z);
         const down = new Vector3(0, -1, 0);
         const ray = new Ray(rayOrigin, down, 200);
-        const pick = scene.pickWithRay(ray, (mesh) => mesh === ground);
+        const pick = scene.pickWithRay(ray, (mesh) => walkMeshes.has(mesh));
         const groundY = pick && pick.hit && pick.pickedPoint ? pick.pickedPoint.y : 0;
 
         if (jumpRequested && Math.abs(camera.position.y - (groundY + eyeHeight)) < 0.1) {
