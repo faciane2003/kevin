@@ -78,22 +78,22 @@ const BabylonWorld: React.FC = () => {
 
     // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0.25;
+    hemi.intensity = 0.5;
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
     hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
     const neonLightA = new PointLight("neonLightA", new Vector3(120, 30, 40), scene);
     neonLightA.diffuse = new Color3(0.1, 0.9, 1.0);
     neonLightA.specular = new Color3(0.1, 0.9, 1.0);
-    neonLightA.intensity = 1.1;
+    neonLightA.intensity = 1.25;
 
     const neonLightB = new PointLight("neonLightB", new Vector3(-140, 28, 60), scene);
     neonLightB.diffuse = new Color3(1.0, 0.2, 0.8);
     neonLightB.specular = new Color3(1.0, 0.2, 0.8);
-    neonLightB.intensity = 1.0;
+    neonLightB.intensity = 1.2;
 
     const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.15;
+    ambientLight.intensity = 0.8;
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
@@ -208,7 +208,7 @@ const BabylonWorld: React.FC = () => {
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 1;
+    moonLight.intensity = 0.6;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
     const createDirtTexture = (name: string) => {
@@ -307,7 +307,7 @@ const BabylonWorld: React.FC = () => {
 
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
-    glowLayer.intensity = 0.2;
+    glowLayer.intensity = 0.15;
 
     const pipeline = new DefaultRenderingPipeline(
       "defaultPipeline",

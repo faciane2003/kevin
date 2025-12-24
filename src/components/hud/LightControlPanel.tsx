@@ -11,12 +11,12 @@ type LightSettings = {
 };
 
 const DEFAULTS: LightSettings = {
-  hemi: 0.25,
-  ambient: 0.15,
-  neonA: 1.1,
-  neonB: 1.0,
+  hemi: 0.5,
+  ambient: 0.8,
+  neonA: 1.25,
+  neonB: 1.2,
   moon: 0.6,
-  glow: 0.7,
+  glow: 0.15,
 };
 
 const LightControlPanel: React.FC = () => {
@@ -35,13 +35,7 @@ const LightControlPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent("light-settings", { detail: settings }));
   }, [settings]);
 
-  if (!open) {
-    return (
-      <button className="light-panel-toggle" onClick={() => setOpen(true)}>
-        Lights
-      </button>
-    );
-  }
+  if (!open) return null;
 
   const onChange = (key: keyof LightSettings, value: number) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
