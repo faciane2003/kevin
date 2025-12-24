@@ -239,12 +239,18 @@ const BabylonWorld: React.FC = () => {
       ctx.fillStyle = "rgba(5,8,16,1)";
       ctx.fillRect(0, 0, size.width, size.height);
       ctx.fillStyle = glow;
-      ctx.font = "bold 64px Arial";
+      ctx.font = "bold 40px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.shadowColor = glow;
       ctx.shadowBlur = 18;
-      ctx.fillText(label, size.width / 2, size.height / 2);
+      const lines = label.split("\n");
+      const lineHeight = 52;
+      const totalHeight = lines.length * lineHeight;
+      const startY = (size.height - totalHeight) / 2 + lineHeight / 2;
+      lines.forEach((line, index) => {
+        ctx.fillText(line, size.width / 2, startY + index * lineHeight);
+      });
       tex.update();
       return tex;
     };
@@ -611,33 +617,88 @@ const BabylonWorld: React.FC = () => {
     loadLampPosts();
 
     // Neon billboards
+    const signBulbMats: StandardMaterial[] = [];
+    const addBillboardBulbs = (
+      sign: any,
+      width: number,
+      height: number,
+      color: Color3,
+      namePrefix: string
+    ) => {
+      const bulbMat = new StandardMaterial(`${namePrefix}_bulbMat`, scene);
+      bulbMat.emissiveColor = color;
+      bulbMat.diffuseColor = color.scale(0.3);
+      bulbMat.disableLighting = true;
+      signBulbMats.push(bulbMat);
+
+      const halfW = width / 2;
+      const halfH = height / 2;
+      const spacing = 4;
+      let idx = 0;
+      for (let x = -halfW; x <= halfW; x += spacing) {
+        const top = MeshBuilder.CreateSphere(`${namePrefix}_bulb_top_${idx}`, { diameter: 1.1 }, scene);
+        top.material = bulbMat;
+        top.parent = sign;
+        top.position = new Vector3(x, halfH, 0.6);
+        const bottom = MeshBuilder.CreateSphere(`${namePrefix}_bulb_bottom_${idx}`, { diameter: 1.1 }, scene);
+        bottom.material = bulbMat;
+        bottom.parent = sign;
+        bottom.position = new Vector3(x, -halfH, 0.6);
+        idx += 1;
+      }
+      for (let y = -halfH + spacing; y <= halfH - spacing; y += spacing) {
+        const left = MeshBuilder.CreateSphere(`${namePrefix}_bulb_left_${idx}`, { diameter: 1.1 }, scene);
+        left.material = bulbMat;
+        left.parent = sign;
+        left.position = new Vector3(-halfW, y, 0.6);
+        const right = MeshBuilder.CreateSphere(`${namePrefix}_bulb_right_${idx}`, { diameter: 1.1 }, scene);
+        right.material = bulbMat;
+        right.parent = sign;
+        right.position = new Vector3(halfW, y, 0.6);
+        idx += 1;
+      }
+    };
     const signMatA = new StandardMaterial("signMatA", scene);
-    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome to Jacuzzi City!", "#6af6ff");
+    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome!\nJacuzzi City Awaits!", "#6af6ff");
     signMatA.emissiveColor = new Color3(0.4, 0.8, 1.0);
     signMatA.disableLighting = true;
     signMatA.backFaceCulling = false;
-    const signA = MeshBuilder.CreatePlane("billboard_a", { width: 50, height: 18 }, scene);
-    signA.rotation = new Vector3(0, Math.PI / 6, 0);
-    signA.material = signMatA;
     const signPoleA = MeshBuilder.CreateCylinder("billboard_pole_a", { height: 26, diameter: 1.6 }, scene);
     signPoleA.position = new Vector3(-120, 13, 20);
     signPoleA.material = metalMat;
-    signA.parent = signPoleA;
-    signA.position = new Vector3(0, 13, 0);
+    const signAGroup = new TransformNode("billboard_a_group", scene);
+    signAGroup.parent = signPoleA;
+    signAGroup.position = new Vector3(0, 22, 0);
+    const signA = MeshBuilder.CreatePlane("billboard_a", { width: 50, height: 18 }, scene);
+    signA.rotation = new Vector3(0, Math.PI / 6, 0);
+    signA.material = signMatA;
+    signA.parent = signAGroup;
+    const signA_back = MeshBuilder.CreatePlane("billboard_a_back", { width: 50, height: 18 }, scene);
+    signA_back.rotation = new Vector3(0, Math.PI / 6 + Math.PI, 0);
+    signA_back.material = signMatA;
+    signA_back.parent = signAGroup;
+    addBillboardBulbs(signAGroup, 50, 18, new Color3(0.4, 0.9, 1.0), "signA");
 
     const signMatB = new StandardMaterial("signMatB", scene);
-    signMatB.emissiveTexture = createNeonSignTexture("signTexB", "Welcome to Jacuzzi City!", "#ff6bd6");
+    signMatB.emissiveTexture = createNeonSignTexture("signTexB", "Welcome!\nJacuzzi City Awaits!", "#ff6bd6");
     signMatB.emissiveColor = new Color3(1.0, 0.35, 0.8);
     signMatB.disableLighting = true;
     signMatB.backFaceCulling = false;
-    const signB = MeshBuilder.CreatePlane("billboard_b", { width: 46, height: 16 }, scene);
-    signB.rotation = new Vector3(0, -Math.PI / 5, 0);
-    signB.material = signMatB;
     const signPoleB = MeshBuilder.CreateCylinder("billboard_pole_b", { height: 24, diameter: 1.6 }, scene);
     signPoleB.position = new Vector3(140, 12, 10);
     signPoleB.material = metalMat;
-    signB.parent = signPoleB;
-    signB.position = new Vector3(0, 12, 0);
+    const signBGroup = new TransformNode("billboard_b_group", scene);
+    signBGroup.parent = signPoleB;
+    signBGroup.position = new Vector3(0, 20, 0);
+    const signB = MeshBuilder.CreatePlane("billboard_b", { width: 46, height: 16 }, scene);
+    signB.rotation = new Vector3(0, -Math.PI / 5, 0);
+    signB.material = signMatB;
+    signB.parent = signBGroup;
+    const signB_back = MeshBuilder.CreatePlane("billboard_b_back", { width: 46, height: 16 }, scene);
+    signB_back.rotation = new Vector3(0, -Math.PI / 5 + Math.PI, 0);
+    signB_back.material = signMatB;
+    signB_back.parent = signBGroup;
+    addBillboardBulbs(signBGroup, 46, 16, new Color3(1.0, 0.4, 0.9), "signB");
 
     // Holo kiosks
     for (let i = 0; i < 5; i++) {
@@ -741,6 +802,9 @@ const BabylonWorld: React.FC = () => {
       { mat: signMatA, base: new Color3(0.4, 0.8, 1.0) },
       { mat: signMatB, base: new Color3(1.0, 0.35, 0.8) },
     ];
+    signBulbMats.forEach((mat) => {
+      flickerMats.push({ mat, base: mat.emissiveColor.clone() });
+    });
     const pickupDefs = [
       { id: "Sword", mat: pickupMatSword },
       { id: "Potion", mat: pickupMatPotion },
