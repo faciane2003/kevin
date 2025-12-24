@@ -39,6 +39,17 @@ const BabylonWorld: React.FC = () => {
       canvasRef.current?.requestPointerLock?.();
     };
     canvasRef.current?.addEventListener("click", requestLock);
+    const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    if (isTouchDevice) {
+      try {
+        // @ts-ignore - touch input may not be publicly typed in some versions
+        if (camera.inputs?.attached?.touch) {
+          // Lower values = faster rotation on touch
+          // @ts-ignore
+          camera.inputs.attached.touch.touchAngularSensibility = 1500;
+        }
+      } catch {}
+    }
 
     // Try to remove default camera inputs to avoid double-handling. The
     // exact property paths can vary between Babylon versions so guard with try/catch.
@@ -79,7 +90,7 @@ const BabylonWorld: React.FC = () => {
 
     const createSkyTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext() as CanvasRenderingContext2D;
+      const ctx = tex.getContext() as any;
       const size = tex.getSize();
       const grad = ctx.createLinearGradient(0, 0, 0, size.height);
       grad.addColorStop(0, "#0a0d1a");
@@ -123,7 +134,7 @@ const BabylonWorld: React.FC = () => {
 
     const createDirtTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext() as CanvasRenderingContext2D;
+      const ctx = tex.getContext() as any;
       const size = tex.getSize();
 
       // Base asphalt tones
