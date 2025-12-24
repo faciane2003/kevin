@@ -274,6 +274,7 @@ const BabylonWorld: React.FC = () => {
       { width: 800, height: 800, subdivisions: 128, minHeight: -2, maxHeight: 6 },
       scene
     );
+    ground.scaling.y = 0.05;
     const asphaltMat = new PBRMaterial("asphaltMat", scene);
     const asphaltAlbedo = new Texture("/textures/asphalt_color.jpg", scene);
     const asphaltNormal = new Texture("/textures/asphalt_normal.jpg", scene);
@@ -917,6 +918,7 @@ const BabylonWorld: React.FC = () => {
     const planeMat = new StandardMaterial("planeMat", scene);
     planeMat.diffuseColor = new Color3(0.9, 0.92, 0.95);
     planeMat.emissiveColor = new Color3(0.1, 0.1, 0.12);
+    const planeBounds = { minX: -520, maxX: 520, minZ: -520, maxZ: 520 };
     const planes: {
       root: TransformNode;
       angle: number;
@@ -924,6 +926,7 @@ const BabylonWorld: React.FC = () => {
       center: Vector3;
       speed: number;
       height: number;
+      drift: Vector3;
       trail: any;
       trailPoints: Vector3[];
     }[] = [];
@@ -941,11 +944,18 @@ const BabylonWorld: React.FC = () => {
       tail.parent = root;
       tail.position = new Vector3(-2.8, 0.7, 0);
 
-      const center = new Vector3(0, 0, 0);
+      const center = new Vector3(
+        planeBounds.minX + Math.random() * (planeBounds.maxX - planeBounds.minX),
+        0,
+        planeBounds.minZ + Math.random() * (planeBounds.maxZ - planeBounds.minZ)
+      );
       const radius = 420 + i * 40;
       const angle = Math.random() * Math.PI * 2;
       const speed = 0.12 + Math.random() * 0.08;
       const height = 120 + i * 12;
+      const driftAngle = Math.random() * Math.PI * 2;
+      const driftSpeed = 6 + Math.random() * 8;
+      const drift = new Vector3(Math.cos(driftAngle) * driftSpeed, 0, Math.sin(driftAngle) * driftSpeed);
       const trailPoints = Array.from({ length: 18 }, () => new Vector3(0, height, 0));
       const trail = MeshBuilder.CreateLines(
         `plane_trail_${i}`,
@@ -954,7 +964,7 @@ const BabylonWorld: React.FC = () => {
       );
       trail.color = new Color3(1, 1, 1);
       trail.alpha = 0.6;
-      planes.push({ root, angle, radius, center, speed, height, trail, trailPoints });
+      planes.push({ root, angle, radius, center, speed, height, drift, trail, trailPoints });
     }
 
     // Cars (glb) driving along a loop
@@ -1021,6 +1031,12 @@ const BabylonWorld: React.FC = () => {
       });
 
       planes.forEach((p) => {
+        p.center.addInPlace(p.drift.scale(dt));
+        if (p.center.x > planeBounds.maxX) p.center.x = planeBounds.minX;
+        if (p.center.x < planeBounds.minX) p.center.x = planeBounds.maxX;
+        if (p.center.z > planeBounds.maxZ) p.center.z = planeBounds.minZ;
+        if (p.center.z < planeBounds.minZ) p.center.z = planeBounds.maxZ;
+
         p.angle += p.speed * dt;
         const px = p.center.x + Math.cos(p.angle) * p.radius;
         const pz = p.center.z + Math.sin(p.angle) * p.radius;
@@ -1045,7 +1061,7 @@ const BabylonWorld: React.FC = () => {
         const pos = Vector3.Lerp(a, b, car.t);
         car.root.position.copyFrom(pos);
         const dir = b.subtract(a);
-        car.root.rotation.y = Math.atan2(dir.x, dir.z);
+        car.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
       });
 
       pickups.forEach((p) => {
@@ -1067,7 +1083,7 @@ const BabylonWorld: React.FC = () => {
         f.mat.emissiveColor = f.base.scale(pulse);
       });
 
-      moon.rotation.y += dt * 0.02;
+      moon.rotation.y += dt * 0.08;
 
       const pos = camera.position;
       const target = camera.getTarget();
