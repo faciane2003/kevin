@@ -408,7 +408,6 @@ const BabylonWorld: React.FC = () => {
       facadeUrl: string,
       windowOn: string,
       windowOff: string,
-      emissiveTint: Color3,
       rand: () => number
     ) => {
       const mat = new StandardMaterial(name, scene);
@@ -486,10 +485,10 @@ const BabylonWorld: React.FC = () => {
       buildingMats = [];
       const rand = makeRng(seed);
       buildingMats = [
-        createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#c9c9c9", "#10131a", new Color3(0, 0, 0), rand),
-        createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0d12", new Color3(0, 0, 0), rand),
-        createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#c9c9c9", "#0a0d12", new Color3(0, 0, 0), rand),
-        createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", new Color3(0, 0, 0), rand),
+        createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#c9c9c9", "#10131a", rand),
+        createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0d12", rand),
+        createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#c9c9c9", "#0a0d12", rand),
+        createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", rand),
       ];
       for (let i = 0; i < count; i++) {
         const w = 8 + rand() * 24;
