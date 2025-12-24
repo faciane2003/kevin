@@ -12,6 +12,7 @@ import {
   MeshBuilder,
   StandardMaterial,
   Color3,
+  Color4,
   DynamicTexture,
   ActionManager,
   ExecuteCodeAction,
@@ -25,6 +26,7 @@ const BabylonWorld: React.FC = () => {
 
     const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
+    scene.clearColor = new Color4(0.7, 0.85, 0.98, 1);
 
     // First-person camera
     const camera = new UniversalCamera("camera", new Vector3(0, 2, 0), scene);
@@ -87,7 +89,7 @@ const BabylonWorld: React.FC = () => {
       return tex;
     };
 
-    // Sky (large inverted sphere)
+    // Sky (large inverted sphere) - disabled for visibility debugging
     const sky = MeshBuilder.CreateSphere("sky", { diameter: 2000, segments: 16 }, scene);
     const skyMat = new StandardMaterial("skyMat", scene);
     skyMat.backFaceCulling = false;
@@ -95,6 +97,7 @@ const BabylonWorld: React.FC = () => {
     skyMat.specularColor = new Color3(0, 0, 0);
     sky.material = skyMat;
     sky.isPickable = false;
+    sky.setEnabled(false);
 
     // Sun (emissive sphere)
     const sun = MeshBuilder.CreateSphere("sun", { diameter: 18 }, scene);
@@ -136,6 +139,36 @@ const BabylonWorld: React.FC = () => {
         ctx.moveTo(x, y);
         ctx.lineTo(x + (Math.random() * 2 - 1), y + len);
         ctx.stroke();
+      }
+
+      tex.update();
+      return tex;
+    };
+
+    const createRockTexture = (name: string) => {
+      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
+      const ctx = tex.getContext();
+      const size = tex.getSize();
+
+      ctx.fillStyle = "#6e6e6e";
+      ctx.fillRect(0, 0, size.width, size.height);
+
+      for (let i = 0; i < 14000; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const shade = Math.random();
+        const v = Math.floor(90 + shade * 90);
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      ctx.fillStyle = "rgba(40,40,40,0.3)";
+      for (let i = 0; i < 1200; i++) {
+        const x = Math.random() * size.width;
+        const y = Math.random() * size.height;
+        const w = 10 + Math.random() * 80;
+        const h = 6 + Math.random() * 40;
+        ctx.fillRect(x, y, w, h);
       }
 
       tex.update();
@@ -190,25 +223,49 @@ const BabylonWorld: React.FC = () => {
 
     // Distant mountains (simple shapes)
     const mountainMat = new StandardMaterial("mountainMat", scene);
-    mountainMat.diffuseColor = new Color3(0.5, 0.5, 0.5);
+    const rockTex = createRockTexture("mountainRockTex");
+    rockTex.uScale = 2;
+    rockTex.vScale = 2;
+    mountainMat.diffuseTexture = rockTex;
+    mountainMat.specularColor = new Color3(0.02, 0.02, 0.02);
+    const mountainTints = [
+      new Color3(0.62, 0.62, 0.62),
+      new Color3(0.55, 0.6, 0.58),
+      new Color3(0.58, 0.54, 0.5),
+      new Color3(0.5, 0.56, 0.62),
+    ];
+    const makeMountainMat = (name: string, tint: Color3) => {
+      const mat = mountainMat.clone(name) as StandardMaterial;
+      mat.diffuseColor = tint;
+      return mat;
+    };
 
     const mountain1 = MeshBuilder.CreateBox(
       "mountain1",
-      { width: 200, height: 70, depth: 40 },
+      { width: 200, height: 45, depth: 40 },
       scene
     );
-    mountain1.position = new Vector3(-150, 35, -300);
+    mountain1.position = new Vector3(-150, 35, 300);
     mountain1.rotation = new Vector3(0, 0.2, 0);
-    mountain1.material = mountainMat;
+    mountain1.material = makeMountainMat("mountainMat_1", mountainTints[0]);
 
     const mountain2 = MeshBuilder.CreateBox(
       "mountain2",
-      { width: 180, height: 60, depth: 40 },
+      { width: 180, height: 40, depth: 40 },
       scene
     );
-    mountain2.position = new Vector3(180, 30, -320);
+    mountain2.position = new Vector3(180, 30, 320);
     mountain2.rotation = new Vector3(0, -0.15, 0);
-    mountain2.material = mountainMat;
+    mountain2.material = makeMountainMat("mountainMat_2", mountainTints[1]);
+
+    const mountain3 = MeshBuilder.CreateBox(
+      "mountain3",
+      { width: 160, height: 38, depth: 40 },
+      scene
+    );
+    mountain3.position = new Vector3(20, 26, 340);
+    mountain3.rotation = new Vector3(0, 0.05, 0);
+    mountain3.material = makeMountainMat("mountainMat_3", mountainTints[2]);
 
     // 3D clouds - clustered spheres
     const cloudMat = new StandardMaterial("cloudMat", scene);
@@ -237,10 +294,8 @@ const BabylonWorld: React.FC = () => {
     }
 
     // Sky texture already applied above.
-    // Soft exponential fog tuned for large outdoor scenes
-    scene.fogMode = Scene.FOGMODE_EXP;
-    scene.fogDensity = 0.0009;
-    scene.fogColor = new Color3(0.82, 0.91, 1.0);
+    // Fog disabled for visibility debugging
+    scene.fogMode = Scene.FOGMODE_NONE;
 
     // Procedural buildings (simple boxes with varied heights)
     const createBuildingMaterial = (
@@ -447,6 +502,8 @@ const BabylonWorld: React.FC = () => {
       })
     );
 
+    let lastHeading = 0;
+
     // Movement: W/S move forward/back relative to camera view, A/D strafe left/right
     const moveSpeed = 12; // world units per second (tune as needed)
     scene.onBeforeRenderObservable.add(() => {
@@ -462,8 +519,8 @@ const BabylonWorld: React.FC = () => {
       const move = new Vector3(0, 0, 0);
       if (inputMap["w"]) move.addInPlace(forward);
       if (inputMap["s"]) move.addInPlace(forward.scale(-1));
-      if (inputMap["a"]) move.addInPlace(right.scale(-1));
-      if (inputMap["d"]) move.addInPlace(right);
+      if (inputMap["a"]) move.addInPlace(right);
+      if (inputMap["d"]) move.addInPlace(right.scale(-1));
 
       if (move.lengthSquared() > 0) {
         move.normalize();
@@ -493,6 +550,14 @@ const BabylonWorld: React.FC = () => {
       };
 
       tryMove(move);
+
+      const dir = camera.getDirection(new Vector3(0, 0, 1));
+      const heading = ((Math.atan2(dir.x, dir.z) * 180) / Math.PI + 360) % 360;
+      const delta = Math.abs(((heading - lastHeading + 540) % 360) - 180);
+      if (delta > 0.5) {
+        lastHeading = heading;
+        window.dispatchEvent(new CustomEvent("player-heading", { detail: { heading } }));
+      }
     });
 
     engine.runRenderLoop(() => {

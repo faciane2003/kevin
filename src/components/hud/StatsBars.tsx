@@ -2,6 +2,7 @@
 import React from "react";
 import "./HUD.css";
 import { useHUD } from "./HUDContext";
+import Compass from "./Compass";
 
 const StatBar: React.FC<{ label: string; value: number; colorClass: string }> = ({ label, value, colorClass }) => {
   const pct = Math.max(0, Math.min(100, value));
@@ -17,6 +18,7 @@ const StatsBars: React.FC = () => {
   const { health, mana, xp } = useHUD();
   return (
     <div className="stats-bars">
+      <Compass />
       <StatBar label="Health" value={health} colorClass="health" />
       <StatBar label="Mana" value={mana} colorClass="mana" />
       <StatBar label="XP" value={xp} colorClass="xp" />
