@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from "react";
 import {
   Engine,
   Scene,
-  ArcRotateCamera,
+  UniversalCamera,
   Vector3,
   Ray,
   Texture,
@@ -26,31 +26,22 @@ const BabylonWorld: React.FC = () => {
     const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
 
-    // Camera - pulled back to see the environment
-    const camera = new ArcRotateCamera(
-      "camera",
-      Math.PI / 2,
-      Math.PI / 3.5,
-      80,
-      new Vector3(0, 5, 0),
-      scene
-    );
+    // First-person camera
+    const camera = new UniversalCamera("camera", new Vector3(0, 2, 0), scene);
+    camera.setTarget(new Vector3(0, 2, 1));
 
-    // Attach default controls but remove the built-in pointer rotation so we can
-    // implement a custom pointer drag handler that inverts the Y-axis (move
-    // mouse up -> look up).
+    // Attach default controls so mouse drag looks around.
     camera.attachControl(canvasRef.current, true);
+    const requestLock = () => {
+      canvasRef.current?.requestPointerLock?.();
+    };
+    canvasRef.current?.addEventListener("click", requestLock);
 
     // Try to remove default camera inputs to avoid double-handling. The
     // exact property paths can vary between Babylon versions so guard with try/catch.
     try {
       // @ts-ignore - internal inputs may not be publicly typed in some versions
       if (camera.inputs && camera.inputs.attached) {
-        // Remove pointer-based rotation inputs (we handle rotation via Pointer Lock)
-        if (camera.inputs.attached.pointers) {
-          // @ts-ignore
-          camera.inputs.remove(camera.inputs.attached.pointers);
-        }
         // Remove keyboard/mousewheel camera inputs so movement is handled only by our own WASD logic
         if (camera.inputs.attached.keyboard) {
           // @ts-ignore
@@ -65,43 +56,7 @@ const BabylonWorld: React.FC = () => {
       // ignore if inputs not present
     }
 
-    // Pointer-lock based controls (inverted Y): click to lock pointer to canvas
-    // and use the Pointer Lock API so mouse movement drives camera yaw/pitch
-    const rotSpeed = 0.0025; // tuning value for movementX/movementY
-
-    // Y-axis set to inverted by default (no toggle). -1 means moving the mouse up looks up.
-    const pointerYSign = -1;
-
-    const onMouseMove = (ev: MouseEvent) => {
-      // Only react while pointer is locked to our canvas
-      if (document.pointerLockElement !== canvasRef.current) return;
-      const dx = ev.movementX || 0;
-      const dy = ev.movementY || 0;
-
-      camera.alpha -= dx * rotSpeed;
-      // Apply pointerYSign so users can invert mapping with a keypress
-      camera.beta += dy * rotSpeed * pointerYSign;
-
-      const minBeta = 0.1;
-      const maxBeta = Math.PI - 0.1;
-      if (camera.beta < minBeta) camera.beta = minBeta;
-      if (camera.beta > maxBeta) camera.beta = maxBeta;
-    };
-
-    // Wheel handler: temporarily disabled — scroll wheel will not change camera pitch.
-    // Re-enable later by restoring the onWheel handler and registration if desired.
-
-    // No pointer-lock overlay handling (overlay removed).
-
-    const requestLock = () => {
-      canvasRef.current?.requestPointerLock?.();
-    };
-
-    canvasRef.current?.addEventListener("click", requestLock);
-    document.addEventListener("mousemove", onMouseMove);
-
-    // ensure we remove the listeners in cleanup below (we'll reference the names there)
-
+    // Mouse look handled by default camera controls.
 
     // Ambient light and sun
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
@@ -437,10 +392,10 @@ const BabylonWorld: React.FC = () => {
       canopy.material = leafMat;
     }
 
-    // Remove player sphere (no red ball in center) and keep camera target on ground
-    camera.target = new Vector3(0, 2, 0);
+    // First-person camera height above ground
+    const eyeHeight = 2;
 
-    // WASD movement for camera orbit (optional: move camera target).
+    // WASD movement for first-person camera.
     const inputMap: { [key: string]: boolean } = {};
     scene.actionManager = new ActionManager(scene);
 
@@ -462,44 +417,50 @@ const BabylonWorld: React.FC = () => {
     );
 
     // Movement: W/S move forward/back relative to camera view, A/D strafe left/right
-    const moveSpeed = 0.6; // world units per frame tick (tune as needed)
+    const moveSpeed = 6; // world units per second (tune as needed)
     scene.onBeforeRenderObservable.add(() => {
-      // forward vector: from camera position to target, flattened to XZ plane
-      const forward = camera.target.subtract(camera.position);
+      const dt = engine.getDeltaTime() / 1000;
+      // forward vector: camera look direction flattened to XZ plane
+      const forward = camera.getDirection(new Vector3(0, 0, 1));
       forward.y = 0;
       forward.normalize();
       // right vector (perpendicular on XZ plane)
       const right = Vector3.Cross(forward, Vector3.Up());
       right.normalize();
 
+      const move = new Vector3(0, 0, 0);
+      if (inputMap["w"]) move.addInPlace(forward);
+      if (inputMap["s"]) move.addInPlace(forward.scale(-1));
+      if (inputMap["a"]) move.addInPlace(right.scale(-1));
+      if (inputMap["d"]) move.addInPlace(right);
+
+      if (move.lengthSquared() > 0) {
+        move.normalize();
+        move.scaleInPlace(moveSpeed * dt);
+      }
+
       // Try to move while preventing going below the ground. We raycast down at the proposed
-      // XZ position to find the ground height and then clamp the target Y to stay above it.
+      // XZ position to find the ground height and then clamp the camera Y to stay above it.
       const tryMove = (delta: Vector3) => {
-        // clone so we don't mutate camera.target until after checks
-        const proposedTarget = camera.target.clone();
-        proposedTarget.addInPlace(delta);
+        const proposedPos = camera.position.add(delta);
 
         // Raycast down from a high point above the proposed position to find the ground
-        const rayOrigin = new Vector3(proposedTarget.x, 50, proposedTarget.z);
+        const rayOrigin = new Vector3(proposedPos.x, 50, proposedPos.z);
         const down = new Vector3(0, -1, 0);
         const ray = new Ray(rayOrigin, down, 200);
         const pick = scene.pickWithRay(ray, (mesh) => mesh === ground);
 
         if (pick && pick.hit && pick.pickedPoint) {
-          const minY = pick.pickedPoint.y + 2; // keep player ~2 units above ground
-          if (proposedTarget.y < minY) proposedTarget.y = minY;
+          proposedPos.y = pick.pickedPoint.y + eyeHeight;
         } else {
-          // fallback: never go below y = 2
-          if (proposedTarget.y < 2) proposedTarget.y = 2;
+          // fallback: never go below eye height
+          proposedPos.y = eyeHeight;
         }
 
-        camera.target = proposedTarget;
+        camera.position = proposedPos;
       };
 
-      if (inputMap["w"]) tryMove(forward.scale(moveSpeed));
-      if (inputMap["s"]) tryMove(forward.scale(-moveSpeed));
-      if (inputMap["a"]) tryMove(right.scale(moveSpeed));
-      if (inputMap["d"]) tryMove(right.scale(-moveSpeed));
+      tryMove(move);
     });
 
     engine.runRenderLoop(() => {
@@ -511,10 +472,7 @@ const BabylonWorld: React.FC = () => {
     });
 
     return () => {
-      // remove pointer-lock related listeners and overlay
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
-      try { document.removeEventListener("mousemove", onMouseMove as any); } catch {}
-
       scene.dispose();
       engine.dispose();
     };
@@ -524,3 +482,4 @@ const BabylonWorld: React.FC = () => {
 };
 
 export default BabylonWorld;
+
