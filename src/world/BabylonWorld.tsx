@@ -441,7 +441,7 @@ const BabylonWorld: React.FC = () => {
       mat.diffuseTexture = facade;
       mat.diffuseColor = new Color3(0.55, 0.55, 0.55);
       mat.emissiveTexture = winTex;
-      mat.emissiveColor = emissiveTint;
+      mat.emissiveColor = new Color3(0, 0, 0);
       mat.specularColor = new Color3(0.04, 0.04, 0.04);
       mat.ambientColor = new Color3(0.08, 0.1, 0.14);
       mat.useAlphaFromDiffuseTexture = false;
@@ -486,10 +486,10 @@ const BabylonWorld: React.FC = () => {
       buildingMats = [];
       const rand = makeRng(seed);
       buildingMats = [
-        createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#ffe7b0", "#10131a", new Color3(0.5, 0.35, 0.2), rand),
-        createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.8, 0.9), rand),
-        createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#bba0ff", "#0a0d12", new Color3(0.5, 0.35, 0.9), rand),
-        createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#ff7ad9", "#0a0b10", new Color3(0.9, 0.2, 0.6), rand),
+        createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#c9c9c9", "#10131a", new Color3(0, 0, 0), rand),
+        createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0d12", new Color3(0, 0, 0), rand),
+        createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#c9c9c9", "#0a0d12", new Color3(0, 0, 0), rand),
+        createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", new Color3(0, 0, 0), rand),
       ];
       for (let i = 0; i < count; i++) {
         const w = 8 + rand() * 24;
