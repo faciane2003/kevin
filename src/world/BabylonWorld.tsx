@@ -89,6 +89,11 @@ const BabylonWorld: React.FC = () => {
     neonLightB.specular = new Color3(1.0, 0.2, 0.8);
     neonLightB.intensity = 1.0;
 
+    const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
+    ambientLight.intensity = 0.15;
+    ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
+    ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
+
     const createSkyTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 4096, height: 4096 }, scene, false);
       const ctx = tex.getContext() as any;
@@ -264,8 +269,7 @@ const BabylonWorld: React.FC = () => {
       const tex = new DynamicTexture(name, { width: 256, height: 256 }, scene, false);
       const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
-      ctx.fillStyle = "rgba(8,10,14,1)";
-      ctx.fillRect(0, 0, size.width, size.height);
+      ctx.clearRect(0, 0, size.width, size.height);
       ctx.fillStyle = color;
       ctx.font = "bold 72px Arial";
       ctx.textAlign = "center";
@@ -274,6 +278,7 @@ const BabylonWorld: React.FC = () => {
       ctx.shadowBlur = 20;
       ctx.fillText(label, size.width / 2, size.height / 2);
       tex.update();
+      tex.hasAlpha = true;
       return tex;
     };
 
@@ -495,13 +500,25 @@ const BabylonWorld: React.FC = () => {
     // Floating pickups (swords, potions, gold)
     const pickupMatSword = new StandardMaterial("pickupSwordMat", scene);
     pickupMatSword.emissiveTexture = createPickupTexture("pickupSwordTex", "S", "#7cffb0");
+    pickupMatSword.emissiveTexture.hasAlpha = true;
+    pickupMatSword.opacityTexture = pickupMatSword.emissiveTexture;
+    pickupMatSword.useAlphaFromDiffuseTexture = true;
     pickupMatSword.disableLighting = true;
+    pickupMatSword.alpha = 0.95;
     const pickupMatPotion = new StandardMaterial("pickupPotionMat", scene);
     pickupMatPotion.emissiveTexture = createPickupTexture("pickupPotionTex", "P", "#6af6ff");
+    pickupMatPotion.emissiveTexture.hasAlpha = true;
+    pickupMatPotion.opacityTexture = pickupMatPotion.emissiveTexture;
+    pickupMatPotion.useAlphaFromDiffuseTexture = true;
     pickupMatPotion.disableLighting = true;
+    pickupMatPotion.alpha = 0.95;
     const pickupMatGold = new StandardMaterial("pickupGoldMat", scene);
     pickupMatGold.emissiveTexture = createPickupTexture("pickupGoldTex", "G", "#ffd16a");
+    pickupMatGold.emissiveTexture.hasAlpha = true;
+    pickupMatGold.opacityTexture = pickupMatGold.emissiveTexture;
+    pickupMatGold.useAlphaFromDiffuseTexture = true;
     pickupMatGold.disableLighting = true;
+    pickupMatGold.alpha = 0.95;
 
     const pickups: { mesh: any; baseY: number; phase: number }[] = [];
     const flickerMats: { mat: StandardMaterial; base: Color3 }[] = [
