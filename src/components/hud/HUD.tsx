@@ -1,9 +1,6 @@
 // File: src/components/hud/HUD.tsx
 import React, { useEffect, useState } from "react";
 import { HUDProvider, useHUD } from "./HUDContext";
-import StatsBars from "./StatsBars";
-import MenuTabs from "./MenuTabs";
-import JournalPanel from "./JournalPanel";
 import LightControlPanel from "./LightControlPanel";
 import "./HUD.css";
 
