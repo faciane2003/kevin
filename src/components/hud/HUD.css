@@ -63,7 +63,7 @@
   .stat-bar { width: 160px; height:22px; }
   .hotbar-slot { width:40px; height:40px; }
   .compass { width: 96px; height: 96px; }
-  .menu-tabs { left: 10px; bottom: calc(26px + env(safe-area-inset-bottom)); gap:6px; max-width: 90vw; }
+  .menu-tabs { left: 10px; bottom: calc(80px + env(safe-area-inset-bottom)); gap:6px; max-width: 90vw; }
   .menu-tab-button { padding:6px 8px; font-size:12px; }
-  .stats-bars { right: 10px; bottom: calc(26px + env(safe-area-inset-bottom)); gap:6px; }
+  .stats-bars { right: 10px; bottom: calc(80px + env(safe-area-inset-bottom)); gap:6px; }
 }
