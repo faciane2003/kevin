@@ -4,6 +4,7 @@ import { HUDProvider, useHUD } from "./HUDContext";
 import StatsBars from "./StatsBars";
 import MenuTabs from "./MenuTabs";
 import JournalPanel from "./JournalPanel";
+import LightControlPanel from "./LightControlPanel";
 import "./HUD.css";
 
 type DialogueOption = { text: string; next?: string };
@@ -251,6 +252,7 @@ const HUDInner: React.FC = () => {
       <MenuTabs />
       <JournalPanel />
       <DialoguePanel npcId={activeNpc} onClose={() => setActiveNpc(null)} />
+      <LightControlPanel />
       {/* Hotbar removed from UI per request */}
     </div>
   );

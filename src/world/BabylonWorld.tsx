@@ -9,6 +9,9 @@ import {
   HemisphericLight,
   DirectionalLight,
   PointLight,
+  GlowLayer,
+  DefaultRenderingPipeline,
+  ColorCurves,
   MeshBuilder,
   StandardMaterial,
   Color3,
@@ -77,7 +80,7 @@ const BabylonWorld: React.FC = () => {
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
     hemi.intensity = 0.25;
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
-    hemi.groundColor = new Color3(0.05, 0.05, 0.1);
+    hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
     const neonLightA = new PointLight("neonLightA", new Vector3(120, 30, 40), scene);
     neonLightA.diffuse = new Color3(0.1, 0.9, 1.0);
@@ -196,7 +199,7 @@ const BabylonWorld: React.FC = () => {
     const moonMat = new StandardMaterial("moonMat", scene);
     moonMat.diffuseTexture = new Texture("/textures/moon.jpg", scene);
     moonMat.emissiveTexture = moonMat.diffuseTexture;
-    moonMat.emissiveColor = new Color3(1.3, 1.3, 1.4);
+    moonMat.emissiveColor = new Color3(1.3, 1.3, 1.0);
     moonMat.specularColor = new Color3(0, 0, 0);
     moonMat.disableLighting = true;
     moon.material = moonMat;
@@ -205,7 +208,7 @@ const BabylonWorld: React.FC = () => {
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 0.6;
+    moonLight.intensity = 1;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
     const createDirtTexture = (name: string) => {
@@ -301,6 +304,57 @@ const BabylonWorld: React.FC = () => {
     scene.fogMode = Scene.FOGMODE_EXP;
     scene.fogDensity = 0.0022;
     scene.fogColor = new Color3(0.05, 0.08, 0.16);
+
+    // Post-processing: glow, depth of field, motion blur, color grading
+    const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
+    glowLayer.intensity = 0.2;
+
+    const pipeline = new DefaultRenderingPipeline(
+      "defaultPipeline",
+      true,
+      scene,
+      [camera]
+    );
+    pipeline.fxaaEnabled = true;
+    pipeline.bloomEnabled = false;
+    pipeline.depthOfFieldEnabled = false;
+    pipeline.depthOfFieldBlurLevel = 2;
+    if (pipeline.depthOfField) {
+      pipeline.depthOfField.focusDistance = 12000;
+      pipeline.depthOfField.fStop = 3.2;
+    }
+
+    const curves = new ColorCurves();
+    curves.globalHue = 12;
+    curves.globalDensity = 8;
+    curves.globalSaturation = 10;
+    curves.globalExposure = 0;
+    curves.highlightsHue = 25;
+    curves.highlightsDensity = 15;
+    curves.highlightsSaturation = 10;
+    curves.shadowsHue = 220;
+    curves.shadowsDensity = 20;
+    curves.shadowsSaturation = 10;
+    scene.imageProcessingConfiguration.colorCurves = curves;
+    scene.imageProcessingConfiguration.colorCurvesEnabled = true;
+
+    // Slightly reduce quality on touch devices
+    if (isTouchDevice) {
+      pipeline.depthOfFieldBlurLevel = 1;
+      glowLayer.intensity = 0.6;
+    }
+
+    const onLightSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      if (typeof detail.hemi === "number") hemi.intensity = detail.hemi;
+      if (typeof detail.ambient === "number") ambientLight.intensity = detail.ambient;
+      if (typeof detail.neonA === "number") neonLightA.intensity = detail.neonA;
+      if (typeof detail.neonB === "number") neonLightB.intensity = detail.neonB;
+      if (typeof detail.moon === "number") moonLight.intensity = detail.moon;
+      if (typeof detail.glow === "number") glowLayer.intensity = detail.glow;
+    };
+    window.addEventListener("light-settings", onLightSettings as EventListener);
 
     // Procedural buildings (simple boxes with varied heights)
     const createBuildingMaterial = (
@@ -790,6 +844,7 @@ const BabylonWorld: React.FC = () => {
 
     return () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
+      try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       scene.dispose();
       engine.dispose();
     };
