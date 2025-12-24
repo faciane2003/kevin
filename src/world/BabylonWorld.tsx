@@ -79,7 +79,7 @@ const BabylonWorld: React.FC = () => {
 
     const createSkyTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext();
+      const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
       const grad = ctx.createLinearGradient(0, 0, 0, size.height);
       grad.addColorStop(0, "#0a0d1a");
@@ -123,7 +123,7 @@ const BabylonWorld: React.FC = () => {
 
     const createDirtTexture = (name: string) => {
       const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext();
+      const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
 
       // Base asphalt tones
