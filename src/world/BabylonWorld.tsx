@@ -163,7 +163,7 @@ const BabylonWorld: React.FC = () => {
 
     const createNeonSignTexture = (name: string, label: string, glow: string) => {
       const tex = new DynamicTexture(name, { width: 512, height: 256 }, scene, false);
-      const ctx = tex.getContext();
+      const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
       ctx.fillStyle = "rgba(5,8,16,1)";
       ctx.fillRect(0, 0, size.width, size.height);
@@ -180,7 +180,7 @@ const BabylonWorld: React.FC = () => {
 
     const createPickupTexture = (name: string, label: string, color: string) => {
       const tex = new DynamicTexture(name, { width: 256, height: 256 }, scene, false);
-      const ctx = tex.getContext();
+      const ctx = tex.getContext() as CanvasRenderingContext2D;
       const size = tex.getSize();
       ctx.fillStyle = "rgba(8,10,14,1)";
       ctx.fillRect(0, 0, size.width, size.height);
