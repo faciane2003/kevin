@@ -98,103 +98,11 @@ const BabylonWorld: React.FC = () => {
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
-    const createSkyTexture = (name: string) => {
-      const tex = new DynamicTexture(name, { width: 6144, height: 6144 }, scene, false);
-      const ctx = tex.getContext() as any;
-      const size = tex.getSize();
-
-      // Deep space gradient
-      const grad = ctx.createLinearGradient(0, 0, 0, size.height);
-      grad.addColorStop(0, "#05070f");
-      grad.addColorStop(0.45, "#0a1326");
-      grad.addColorStop(1, "#101c3a");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, size.width, size.height);
-
-      // Subtle noise field for sky depth
-      for (let i = 0; i < 18000; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const a = Math.random() * 0.05;
-        ctx.fillStyle = `rgba(255,255,255,${a})`;
-        ctx.fillRect(x, y, 1, 1);
-      }
-
-      // Dense star field with varied sizes and subtle color
-      for (let i = 0; i < 26000; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height * 0.85;
-        const r = Math.random() * 1.2 + 0.2;
-        const a = 0.08 + Math.random() * 0.6;
-        const tint = Math.random() > 0.95 ? "255,220,200" : "210,235,255";
-        ctx.fillStyle = `rgba(${tint},${a})`;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Milky way band (tilted)
-      for (let i = 0; i < 280; i++) {
-        const x = Math.random() * size.width;
-        const y = size.height * 0.2 + Math.random() * size.height * 0.5;
-        const tilt = (x / size.width - 0.5) * size.height * 0.2;
-        const glow = ctx.createRadialGradient(x, y + tilt, 10, x, y + tilt, 320 + Math.random() * 260);
-        glow.addColorStop(0, "rgba(200,220,255,0.09)");
-        glow.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y + tilt, 340, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Subtle nebula haze
-      for (let i = 0; i < 14; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height * 0.7;
-        const neb = ctx.createRadialGradient(x, y, 10, x, y, 320 + Math.random() * 320);
-        const col = Math.random() > 0.5 ? "70,120,255" : "200,90,255";
-        neb.addColorStop(0, `rgba(${col},0.12)`);
-        neb.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = neb;
-        ctx.beginPath();
-        ctx.arc(x, y, 340, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Planets (soft discs with glow)
-      const planetColors = ["rgba(120,180,255,0.7)", "rgba(255,200,150,0.65)", "rgba(190,140,255,0.6)"];
-      for (let i = 0; i < 3; i++) {
-        const x = size.width * (0.15 + Math.random() * 0.7);
-        const y = size.height * (0.1 + Math.random() * 0.35);
-        const radius = 40 + Math.random() * 80;
-        const glow = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius * 2.2);
-        glow.addColorStop(0, planetColors[i % planetColors.length]);
-        glow.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, radius * 2.2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = planetColors[i % planetColors.length].replace("0.7", "0.9").replace("0.65", "0.85").replace("0.6", "0.8");
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Neon haze near horizon
-      const haze = ctx.createLinearGradient(0, size.height * 0.6, 0, size.height);
-      haze.addColorStop(0, "rgba(70,120,255,0)");
-      haze.addColorStop(1, "rgba(40,80,200,0.45)");
-      ctx.fillStyle = haze;
-      ctx.fillRect(0, size.height * 0.6, size.width, size.height * 0.4);
-      tex.update();
-      return tex;
-    };
-
     // Sky (large inverted sphere)
     const sky = MeshBuilder.CreateSphere("sky", { diameter: 2000, segments: 16 }, scene);
     const skyMat = new StandardMaterial("skyMat", scene);
     skyMat.backFaceCulling = false;
-    skyMat.emissiveTexture = createSkyTexture("skyTex");
+    skyMat.emissiveTexture = new Texture("/textures/sky_galaxy.png", scene);
     skyMat.diffuseColor = new Color3(0, 0, 0);
     skyMat.specularColor = new Color3(0, 0, 0);
     skyMat.disableLighting = true;
