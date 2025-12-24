@@ -744,9 +744,10 @@ const BabylonWorld: React.FC = () => {
         const scale = npcModelScales[idx % npcModelScales.length];
         const inst = container.instantiateModelsToScene((name) => `${npc.mesh.name}_${name}`);
         inst.rootNodes.forEach((node) => {
-          node.parent = npc.mesh;
-          node.position = new Vector3(0, -2.5, 0);
-          node.scaling = new Vector3(scale, scale, scale);
+          const tnode = node as TransformNode;
+          tnode.parent = npc.mesh;
+          if ((tnode as any).position) tnode.position = new Vector3(0, -2.5, 0);
+          if ((tnode as any).scaling) tnode.scaling = new Vector3(scale, scale, scale);
         });
         if (inst.animationGroups && inst.animationGroups.length > 0) {
           inst.animationGroups.forEach((group) => group.start(true));
