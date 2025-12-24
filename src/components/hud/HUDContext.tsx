@@ -26,6 +26,12 @@ const defaultItems: HotbarItem[] = new Array(10).fill(null).map((_, i) => ({
   icon: undefined,
   cooldown: 0,
 }));
+const defaultInventory: string[] = [
+  "Not much toilet paper",
+  "SEPTA Transit Keycard",
+  "Two Joints",
+  "Half a pound of bananas and peanut butter (each)",
+];
 
 const HUDContext = createContext<HUDState | undefined>(undefined);
 
@@ -34,7 +40,7 @@ export const HUDProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [mana, setMana] = useState(50);
   const [xp, setXp] = useState(30);
   const [hotbar, _setHotbar] = useState<HotbarItem[]>(defaultItems);
-  const [inventory, setInventory] = useState<string[]>([]);
+  const [inventory, setInventory] = useState<string[]>(defaultInventory);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const addInventoryItem = (item: string) => setInventory((items) => [item, ...items]);

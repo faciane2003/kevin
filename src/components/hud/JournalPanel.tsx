@@ -4,53 +4,53 @@ import "./HUD.css";
 
 const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
   Quests: {
-    title: "Active Quests",
+    title: "Quests",
     body: [
-      "Neon Relay: Route power to the East District.",
+      "Find enough money to pay overdue rent",
       "Ghost Signal: Trace the broadcast near Sector 7.",
-      "Courier Run: Deliver the shard before dawn.",
+      "Courier Run: Deliver the cybershard before dawn.",
+      "Get new skates."
     ],
   },
   Journal: {
-    title: "Field Journal",
+    title: "Journal",
     body: [
-      "Streetlights hum louder when the rain starts.",
-      "The market drones follow me more than usual.",
-      "Someone keeps tagging the skybridge with a spiral.",
+      "How am I going to pay all these bills?",
+      "Had that dream again...the one where I was in a Jacuzzi.",
+      "I heard the most interesting music by a guy banging on the side of the subway. I looked at him and smiled and he looked back and felt heard. I can't imagine night after night screaming and no one cares. Anyway, it was a good song.",
     ],
   },
   Map: {
-    title: "City Grid",
+    title: "Map",
     body: [
-      "North: Arcadia Tower",
-      "East: Neon Bazaar",
-      "South: Transit Yards",
-      "West: The Old Dock",
+      "Error 404: Snow Crash",
+      "Location...Tracking",
+      "Ninja en route..."
     ],
   },
   Spells: {
-    title: "Spellbook",
+    title: "Tech",
     body: [
-      "Pulse Nova — short-range shockwave.",
-      "Phase Step — blink through a wall.",
-      "Signal Scramble — disorient nearby drones.",
+      "Camera",
+      "Rollerblades",
+      "Fake Lightsaber",
     ],
   },
   Items: {
-    title: "Inventory",
+    title: "Items",
     body: [
-      "Glowcell Battery x3",
-      "Transit Keycard",
-      "Med Patch x2",
-      "Scrap Alloy x14",
+      "Not much toilet paper",
+      "SEPTA Transit Keycard",
+      "Two Joints",
+      "Half a pound of bananas and peanut butter (each)",
     ],
   },
   Magic: {
-    title: "Arcane Nodes",
+    title: "Skills",
     body: [
-      "Synth Ward — reduces incoming damage.",
-      "Lumina Thread — highlights hidden routes.",
-      "Echo Bind — temporarily freeze a target.",
+      "Composite",
+      "Imagine",
+      "Anxiety",
     ],
   },
 };
