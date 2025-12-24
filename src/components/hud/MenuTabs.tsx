@@ -3,13 +3,22 @@ import React from "react";
 import "./HUD.css";
 import { useHUD } from "./HUDContext";
 
-const TABS = ["Quests", "Journal", "Map", "Items", "Magic"] as const;
+const TABS = ["Quests", "Journal", "Map", "Items", "Magic", "Tech"] as const;
+const TAB_COLORS: Record<(typeof TABS)[number], string> = {
+  Quests: "gold",
+  Journal: "red",
+  Map: "blue",
+  Items: "green",
+  Magic: "purple",
+  Tech: "pink",
+};
 const TAB_ICONS: Record<(typeof TABS)[number], string> = {
   Quests: "/icons/quests.png",
   Journal: "/icons/journal.png",
   Map: "/icons/map.png",
   Items: "/icons/items.png",
   Magic: "/icons/magic.png",
+  Tech: "/icons/tech.png",
 };
 
 const MenuTabs: React.FC = () => {
@@ -25,7 +34,7 @@ const MenuTabs: React.FC = () => {
             role="tab"
             aria-selected={active}
             tabIndex={0}
-            className={`menu-tab-button ${active ? "active" : ""}`}
+            className={`menu-tab-button menu-tab-${TAB_COLORS[t]} ${active ? "active" : ""}`}
             onClick={() => setActiveTab(active ? null : t)}
             title={t}
           >

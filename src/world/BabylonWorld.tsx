@@ -92,17 +92,60 @@ const BabylonWorld: React.FC = () => {
     }
 
     let lookZone: HTMLDivElement | null = null;
+    let walkLabelZone: HTMLDivElement | null = null;
     let lookPointerActive = false;
     let lastLookX = 0;
     let lastLookY = 0;
     const lookSensitivity = 0.004;
     const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
     if (isTouchDevice) {
+      walkLabelZone = document.createElement("div");
+      walkLabelZone.style.position = "fixed";
+      walkLabelZone.style.left = "0";
+      walkLabelZone.style.top = "0";
+      walkLabelZone.style.width = "28vw";
+      walkLabelZone.style.height = "100vh";
+      walkLabelZone.style.border = "none";
+      walkLabelZone.style.background = "transparent";
+      walkLabelZone.style.boxShadow = "none";
+      walkLabelZone.style.outline = "none";
+      walkLabelZone.style.userSelect = "none";
+      walkLabelZone.style.zIndex = "18";
+      walkLabelZone.style.pointerEvents = "none";
+      walkLabelZone.style.display = "flex";
+      walkLabelZone.style.flexDirection = "column";
+      walkLabelZone.style.alignItems = "center";
+      walkLabelZone.style.justifyContent = "flex-start";
+      walkLabelZone.style.paddingTop = "70vh";
+      walkLabelZone.style.paddingLeft = "28px";
+      walkLabelZone.style.color = "#38e26f";
+      walkLabelZone.style.fontFamily = "Consolas, Menlo, monospace";
+      walkLabelZone.style.fontSize = "18px";
+      walkLabelZone.style.textAlign = "center";
+      walkLabelZone.style.textShadow = "0 2px 0 rgba(0,0,0,0.6), 0 0 12px rgba(56,226,111,0.7)";
+
+      const walkUp = document.createElement("div");
+      walkUp.textContent = "\u25B2";
+      walkUp.style.fontSize = "12px";
+
+      const walkLabel = document.createElement("div");
+      walkLabel.textContent = "Walk";
+      walkLabel.style.fontSize = "18px";
+
+      const walkDown = document.createElement("div");
+      walkDown.textContent = "\u25BC";
+      walkDown.style.fontSize = "12px";
+
+      walkLabelZone.appendChild(walkUp);
+      walkLabelZone.appendChild(walkLabel);
+      walkLabelZone.appendChild(walkDown);
+      document.body.appendChild(walkLabelZone);
+
       lookZone = document.createElement("div");
       lookZone.style.position = "fixed";
       lookZone.style.right = "0";
       lookZone.style.top = "0";
-      lookZone.style.width = "30vw";
+      lookZone.style.width = "28vw";
       lookZone.style.height = "100vh";
       lookZone.style.borderLeft = "none";
       lookZone.style.border = "none";
@@ -115,17 +158,18 @@ const BabylonWorld: React.FC = () => {
       lookZone.style.touchAction = "none";
       lookZone.style.display = "flex";
       lookZone.style.flexDirection = "column";
-      lookZone.style.alignItems = "flex-end";
+      lookZone.style.alignItems = "center";
       lookZone.style.justifyContent = "flex-start";
-      lookZone.style.paddingTop = "66vh";
-      lookZone.style.paddingRight = "16px";
+      lookZone.style.paddingTop = "70vh";
+      lookZone.style.paddingRight = "28px";
       lookZone.style.color = "#38e26f";
       lookZone.style.fontFamily = "Consolas, Menlo, monospace";
       lookZone.style.fontSize = "18px";
+      lookZone.style.textAlign = "center";
       lookZone.style.textShadow = "0 2px 0 rgba(0,0,0,0.6), 0 0 12px rgba(56,226,111,0.7)";
 
       const lookUp = document.createElement("div");
-      lookUp.textContent = "▲";
+      lookUp.textContent = "\u25B2";
       lookUp.style.fontSize = "12px";
 
       const lookLabel = document.createElement("div");
@@ -133,7 +177,7 @@ const BabylonWorld: React.FC = () => {
       lookLabel.style.fontSize = "18px";
 
       const lookDown = document.createElement("div");
-      lookDown.textContent = "▼";
+      lookDown.textContent = "\u25BC";
       lookDown.style.fontSize = "12px";
 
       lookZone.appendChild(lookUp);
@@ -1496,6 +1540,7 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("keydown", onChatFocusKey); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
       try { if (lookZone) document.body.removeChild(lookZone); } catch {}
+      try { if (walkLabelZone) document.body.removeChild(walkLabelZone); } catch {}
       try { document.body.removeChild(chatPanel); } catch {}
       try { socket?.close(); } catch {}
       remotePlayers.forEach((entry) => entry.mesh.dispose());
@@ -1508,4 +1553,8 @@ const BabylonWorld: React.FC = () => {
 };
 
 export default BabylonWorld;
+
+
+
+
 

@@ -7,8 +7,8 @@ const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
     title: "Quests",
     body: [
       "Find enough money to pay overdue rent",
-      "Ghost Signal: Trace the broadcast near Sector 7.",
-      "Courier Run: Deliver the cybershard before dawn.",
+      "Trace the broadcast near Sector 7.",
+      "Deliver the cybershard before dawn.",
       "Get new skates."
     ],
   },
@@ -53,7 +53,38 @@ const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
       "Anxiety",
     ],
   },
+  Tech: {
+    title: "Tech",
+    body: [
+      "Camera",
+      "Rollerblades",
+      "Fake Lightsaber",
+    ],
+  },
 };
+
+const SPARKLE_POSITIONS = [
+  { left: "8%", top: "6px" },
+  { left: "22%", top: "6px" },
+  { left: "38%", top: "6px" },
+  { left: "52%", top: "6px" },
+  { left: "66%", top: "6px" },
+  { left: "82%", top: "6px" },
+  { right: "6px", top: "14%" },
+  { right: "6px", top: "32%" },
+  { right: "6px", top: "50%" },
+  { right: "6px", top: "68%" },
+  { right: "6px", top: "86%" },
+  { left: "82%", bottom: "6px" },
+  { left: "66%", bottom: "6px" },
+  { left: "52%", bottom: "6px" },
+  { left: "38%", bottom: "6px" },
+  { left: "22%", bottom: "6px" },
+  { left: "8%", bottom: "6px" },
+  { left: "6px", top: "14%" },
+  { left: "6px", top: "50%" },
+  { left: "6px", top: "86%" },
+];
 
 const JournalPanel: React.FC = () => {
   const { activeTab, setActiveTab, inventory } = useHUD();
@@ -68,24 +99,40 @@ const JournalPanel: React.FC = () => {
     <div className="journal-overlay" role="dialog" aria-label={`${activeTab} Journal`}>
       <div className="journal-panel">
         <div className="hud-sparkles hud-sparkles-back" aria-hidden="true">
-          {Array.from({ length: 12 }).map((_, idx) => (
-            <span key={`back-${idx}`} className="hud-sparkle" />
+          {SPARKLE_POSITIONS.map((pos, idx) => (
+            <span
+              key={`back-${idx}`}
+              className="hud-sparkle"
+              style={{
+                ...pos,
+                animationDelay: `${idx * 0.12}s`,
+                animationDuration: `${2.6 + (idx % 5) * 0.35}s`,
+              }}
+            />
           ))}
         </div>
-        <div className="journal-header">
+        <div className={`journal-header journal-header-${activeTab?.toLowerCase() ?? ""}`}>
           <span className="journal-title">{content.title}</span>
           <button className="journal-close" onClick={() => setActiveTab(null)} aria-label="Close journal">
             Close
           </button>
         </div>
-        <div className="journal-body">
+        <div className={`journal-body journal-body-${activeTab?.toLowerCase() ?? ""}`}>
           {content.body.map((line) => (
             <p key={line}>{line}</p>
           ))}
         </div>
         <div className="hud-sparkles hud-sparkles-front" aria-hidden="true">
-          {Array.from({ length: 12 }).map((_, idx) => (
-            <span key={`front-${idx}`} className="hud-sparkle" />
+          {SPARKLE_POSITIONS.map((pos, idx) => (
+            <span
+              key={`front-${idx}`}
+              className="hud-sparkle"
+              style={{
+                ...pos,
+                animationDelay: `${0.08 + idx * 0.11}s`,
+                animationDuration: `${2.4 + (idx % 6) * 0.33}s`,
+              }}
+            />
           ))}
         </div>
       </div>
