@@ -175,9 +175,9 @@ const BabylonWorld: React.FC = () => {
     const moonMat = new StandardMaterial("moonMat", scene);
     moonMat.diffuseTexture = new Texture("/textures/moon.jpg", scene);
     moonMat.emissiveTexture = moonMat.diffuseTexture;
-    moonMat.emissiveColor = new Color3(1.3, 1.3, 1.0);
+    moonMat.emissiveColor = new Color3(0.35, 0.35, 0.3);
     moonMat.specularColor = new Color3(0, 0, 0);
-    moonMat.disableLighting = true;
+    moonMat.disableLighting = false;
     moon.material = moonMat;
     moon.position = new Vector3(700, 450, -130);
     moon.isPickable = false;
@@ -468,6 +468,7 @@ const BabylonWorld: React.FC = () => {
       winTex.vScale = 2.4;
 
       mat.diffuseTexture = facade;
+      mat.diffuseColor = new Color3(0.55, 0.55, 0.55);
       mat.emissiveTexture = winTex;
       mat.emissiveColor = emissiveTint;
       mat.specularColor = new Color3(0.04, 0.04, 0.04);
@@ -505,10 +506,10 @@ const BabylonWorld: React.FC = () => {
       buildingMats = [];
       const rand = makeRng(seed);
       buildingMats = [
-        createBuildingMaterial("buildingMat_brick", "/textures/bricktile.jpg", "#ffe7b0", "#10131a", new Color3(0.6, 0.4, 0.2), rand),
-        createBuildingMaterial("buildingMat_concrete", "/textures/concrete_color.jpg", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.9, 1.0), rand),
-        createBuildingMaterial("buildingMat_modern", "/textures/concrete_color.jpg", "#bba0ff", "#0a0d12", new Color3(0.6, 0.4, 1.0), rand),
-        createBuildingMaterial("buildingMat_sand", "/textures/bricktile.jpg", "#ff7ad9", "#0a0b10", new Color3(1.0, 0.25, 0.8), rand),
+        createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#ffe7b0", "#10131a", new Color3(0.5, 0.35, 0.2), rand),
+        createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.8, 0.9), rand),
+        createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#bba0ff", "#0a0d12", new Color3(0.5, 0.35, 0.9), rand),
+        createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#ff7ad9", "#0a0b10", new Color3(0.9, 0.2, 0.6), rand),
       ];
       for (let i = 0; i < count; i++) {
         const w = 8 + rand() * 24;
