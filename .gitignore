@@ -26,3 +26,13 @@ public/models/car1.glb
 
 .vercel
 .env*.local
+public/models/ship1.glb
+public/models/airplane.glb
+public/models/redroom.glb
+public/models/fightership.glb
+public/models/Lantern.glb
+temp_textures/asphalt.zip
+temp_textures/Concrete039_1K-JPG.zip
+temp_textures/concrete.zip
+temp_textures/Bricks094_1K-JPG.zip
+temp_textures/Facade001_1K-JPG.zip
