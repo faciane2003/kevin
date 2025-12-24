@@ -46,7 +46,7 @@ const BabylonWorld: React.FC = () => {
         if (camera.inputs?.attached?.touch) {
           // Lower values = faster rotation on touch
           // @ts-ignore
-          camera.inputs.attached.touch.touchAngularSensibility = 1200;
+          camera.inputs.attached.touch.touchAngularSensibility = 9000;
         }
       } catch {}
     }
