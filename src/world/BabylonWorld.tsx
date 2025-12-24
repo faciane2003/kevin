@@ -18,6 +18,7 @@ import {
   StandardMaterial,
   Color3,
   Color4,
+  Material,
   Texture,
   DynamicTexture,
   TransformNode,
@@ -60,6 +61,23 @@ const BabylonWorld: React.FC = () => {
     debugOverlay.style.pointerEvents = "none";
     debugOverlay.style.zIndex = "20";
     document.body.appendChild(debugOverlay);
+
+    const buildingDebugPanel = document.createElement("div");
+    buildingDebugPanel.style.position = "fixed";
+    buildingDebugPanel.style.top = "12px";
+    buildingDebugPanel.style.left = "12px";
+    buildingDebugPanel.style.padding = "10px 12px";
+    buildingDebugPanel.style.background = "rgba(6,8,14,0.85)";
+    buildingDebugPanel.style.border = "1px solid rgba(120, 140, 180, 0.4)";
+    buildingDebugPanel.style.borderRadius = "8px";
+    buildingDebugPanel.style.color = "#e6f3ff";
+    buildingDebugPanel.style.fontFamily = "Consolas, Menlo, monospace";
+    buildingDebugPanel.style.fontSize = "12px";
+    buildingDebugPanel.style.zIndex = "21";
+    buildingDebugPanel.style.pointerEvents = "auto";
+    buildingDebugPanel.style.maxWidth = "220px";
+    buildingDebugPanel.innerHTML = "<div style=\"font-weight:600;margin-bottom:6px;\">Building Debug</div>";
+    document.body.appendChild(buildingDebugPanel);
     const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) {
       try {
@@ -273,57 +291,29 @@ const BabylonWorld: React.FC = () => {
     asphaltAO.vScale = 6;
     ground.material = asphaltMat;
 
-    const terrainControl = document.createElement("div");
-    terrainControl.style.position = "fixed";
-    terrainControl.style.left = "12px";
-    terrainControl.style.top = "12px";
-    terrainControl.style.padding = "8px 10px";
-    terrainControl.style.background = "rgba(0,0,0,0.6)";
-    terrainControl.style.color = "#e6f3ff";
-    terrainControl.style.fontFamily = "Consolas, Menlo, monospace";
-    terrainControl.style.fontSize = "12px";
-    terrainControl.style.zIndex = "20";
-    terrainControl.innerHTML = `
-      <div style="margin-bottom:6px;">Terrain Height <span id="terrainHeightValue">0.1</span></div>
-      <input id="terrainHeight" type="range" min="0.1" max="3.0" step="0.05" value="0.1" />
-    `;
-    document.body.appendChild(terrainControl);
-    const terrainSlider = terrainControl.querySelector<HTMLInputElement>("#terrainHeight");
-    const terrainValue = terrainControl.querySelector<HTMLSpanElement>("#terrainHeightValue");
-    if (terrainSlider) {
-      ground.scaling.y = 0.1;
-      terrainSlider.addEventListener("input", () => {
-        const value = parseFloat(terrainSlider.value);
-        ground.scaling.y = value;
-        if (terrainValue) terrainValue.textContent = value.toFixed(2);
-      });
-    }
-
-    // Wet neon streets
-    const wetRoadMat = new PBRMaterial("wetRoadMat", scene);
-    const roadAlbedo = new Texture("/textures/asphalt_color.jpg", scene);
-    const roadNormal = new Texture("/textures/asphalt_normal.jpg", scene);
-    const roadAO = new Texture("/textures/asphalt_ao.jpg", scene);
-    wetRoadMat.albedoTexture = roadAlbedo;
-    wetRoadMat.bumpTexture = roadNormal;
-    wetRoadMat.ambientTexture = roadAO;
-    wetRoadMat.roughness = 0.25;
-    wetRoadMat.metallic = 0.0;
-    wetRoadMat.emissiveTexture = createNeonStreakMask("wetNeonMask");
-    wetRoadMat.emissiveColor = new Color3(0.2, 0.4, 0.8);
-    roadAlbedo.uScale = 8;
-    roadAlbedo.vScale = 8;
-    roadNormal.uScale = 8;
-    roadNormal.vScale = 8;
-    roadAO.uScale = 8;
-    roadAO.vScale = 8;
+    // Streets (smooth concrete)
+    const roadMat = new PBRMaterial("roadMat", scene);
+    const roadAlbedo = new Texture("/textures/concrete_color.jpg", scene);
+    const roadNormal = new Texture("/textures/concrete_normal.jpg", scene);
+    const roadAO = new Texture("/textures/concrete_ao.jpg", scene);
+    roadMat.albedoTexture = roadAlbedo;
+    roadMat.bumpTexture = roadNormal;
+    roadMat.ambientTexture = roadAO;
+    roadMat.roughness = 0.55;
+    roadMat.metallic = 0.0;
+    roadAlbedo.uScale = 6;
+    roadAlbedo.vScale = 6;
+    roadNormal.uScale = 6;
+    roadNormal.vScale = 6;
+    roadAO.uScale = 6;
+    roadAO.vScale = 6;
 
     const roadMeshes: any[] = [];
     const zRoads = [-260, -180, -100, -20, 60, 140, 220, 300];
     zRoads.forEach((z, i) => {
       const road = MeshBuilder.CreateGround(`road_z_${i}`, { width: 70, height: 800 }, scene);
       road.position = new Vector3(0, 0.2, z);
-      road.material = wetRoadMat;
+      road.material = roadMat;
       roadMeshes.push(road);
     });
 
@@ -331,7 +321,7 @@ const BabylonWorld: React.FC = () => {
     xRoads.forEach((x, i) => {
       const road = MeshBuilder.CreateGround(`road_x_${i}`, { width: 800, height: 60 }, scene);
       road.position = new Vector3(x, 0.21, 40);
-      road.material = wetRoadMat;
+      road.material = roadMat;
       roadMeshes.push(road);
     });
 
@@ -450,7 +440,7 @@ const BabylonWorld: React.FC = () => {
       const gapY = 14;
       for (let y = 20; y < size.height - winH - 10; y += winH + gapY) {
         for (let x = 16; x < size.width - winW - 10; x += winW + gapX) {
-          const lit = Math.random() > 0.55;
+          const lit = Math.random() > 0.3;
           ctx.fillStyle = lit ? windowOn : windowOff;
           ctx.fillRect(x, y, winW, winH);
         }
@@ -464,9 +454,14 @@ const BabylonWorld: React.FC = () => {
       mat.emissiveColor = emissiveTint;
       mat.specularColor = new Color3(0.04, 0.04, 0.04);
       mat.ambientColor = new Color3(0.08, 0.1, 0.14);
+      mat.useAlphaFromDiffuseTexture = false;
+      mat.alpha = 1;
+      mat.transparencyMode = Material.MATERIAL_OPAQUE;
+      (mat as any).metadata = { facadeTex: facade, windowTex: winTex };
       return mat;
     };
 
+    const buildingMeshes: any[] = [];
     const buildingMats = [
       createBuildingMaterial("buildingMat_brick", "/textures/bricktile.jpg", "#ffe7b0", "#10131a", new Color3(0.6, 0.4, 0.2)),
       createBuildingMaterial("buildingMat_concrete", "/textures/concrete_color.jpg", "#8ff2ff", "#0a0d12", new Color3(0.2, 0.9, 1.0)),
@@ -476,12 +471,12 @@ const BabylonWorld: React.FC = () => {
 
     const roadHalfWidth = 35;
     const crossHalfWidth = 30;
-    const roadBuffer = 8;
+    const roadBuffer = 4;
     const isNearRoad = (x: number, z: number) =>
       zRoads.some((zr) => Math.abs(z - zr) < roadHalfWidth + roadBuffer) ||
       xRoads.some((xr) => Math.abs(x - xr) < crossHalfWidth + roadBuffer);
 
-    for (let i = 0; i < 220; i++) {
+    for (let i = 0; i < 380; i++) {
       const w = 8 + Math.random() * 24;
       const d = 8 + Math.random() * 24;
       const h = 16 + Math.random() * 90;
@@ -498,7 +493,63 @@ const BabylonWorld: React.FC = () => {
       b.rotation.y = Math.random() * Math.PI * 2;
       b.material = buildingMats[Math.floor(Math.random() * buildingMats.length)];
       b.isPickable = false;
+      buildingMeshes.push(b);
     }
+
+    const buildingDebugState = {
+      showBuildings: true,
+      useFacadeTexture: true,
+      showWindowsEmissive: true,
+      useTextureAlpha: false,
+      backFaceCulling: true,
+      forceOpaque: true,
+    };
+
+    const applyBuildingDebug = () => {
+      buildingMeshes.forEach((mesh) => {
+        mesh.setEnabled(buildingDebugState.showBuildings);
+      });
+      buildingMats.forEach((mat) => {
+        const meta = (mat as any).metadata || {};
+        mat.diffuseTexture = buildingDebugState.useFacadeTexture ? meta.facadeTex : null;
+        mat.emissiveTexture = buildingDebugState.showWindowsEmissive ? meta.windowTex : null;
+        mat.backFaceCulling = buildingDebugState.backFaceCulling;
+        mat.useAlphaFromDiffuseTexture = buildingDebugState.useTextureAlpha;
+        mat.alpha = buildingDebugState.forceOpaque ? 1 : 0.6;
+        mat.transparencyMode = buildingDebugState.forceOpaque ? Material.MATERIAL_OPAQUE : undefined;
+        if (mat.diffuseTexture) {
+          mat.diffuseTexture.hasAlpha = buildingDebugState.useTextureAlpha;
+        }
+      });
+    };
+
+    const addDebugCheckbox = (label: string, key: keyof typeof buildingDebugState) => {
+      const row = document.createElement("label");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.gap = "6px";
+      row.style.marginBottom = "6px";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = buildingDebugState[key];
+      input.addEventListener("change", () => {
+        buildingDebugState[key] = input.checked;
+        applyBuildingDebug();
+      });
+      const span = document.createElement("span");
+      span.textContent = label;
+      row.appendChild(input);
+      row.appendChild(span);
+      buildingDebugPanel.appendChild(row);
+    };
+
+    addDebugCheckbox("Show buildings", "showBuildings");
+    addDebugCheckbox("Use facade textures", "useFacadeTexture");
+    addDebugCheckbox("Show window emissive", "showWindowsEmissive");
+    addDebugCheckbox("Use texture alpha", "useTextureAlpha");
+    addDebugCheckbox("Backface culling", "backFaceCulling");
+    addDebugCheckbox("Force opaque", "forceOpaque");
+    applyBuildingDebug();
 
     // Street props and neon set dressing
     const metalMat = new StandardMaterial("metalMat", scene);
@@ -519,38 +570,73 @@ const BabylonWorld: React.FC = () => {
     neonGreen.emissiveColor = new Color3(0.3, 1.0, 0.6);
     neonGreen.diffuseColor = new Color3(0.1, 0.5, 0.3);
 
-    // Neon street lamps
-    for (let i = -3; i <= 3; i++) {
-      const pole = MeshBuilder.CreateCylinder(`lamp_pole_${i}`, { height: 12, diameter: 1.2 }, scene);
-      pole.position = new Vector3(i * 70, 6, 40);
-      pole.material = metalMat;
-
-      const ring = MeshBuilder.CreateTorus(`lamp_ring_${i}`, { diameter: 5, thickness: 0.5 }, scene);
-      ring.position = new Vector3(i * 70, 12, 40);
-      ring.material = neonCyan;
-      ring.rotation = new Vector3(Math.PI / 2, 0, 0);
-    }
+    // Realistic lamp posts (GLB) with point lights
+    const lampPositions = [
+      new Vector3(-300, 0, -140),
+      new Vector3(-220, 0, -140),
+      new Vector3(-140, 0, -140),
+      new Vector3(-60, 0, -140),
+      new Vector3(20, 0, -140),
+      new Vector3(100, 0, -140),
+      new Vector3(180, 0, -140),
+      new Vector3(260, 0, -140),
+      new Vector3(-300, 0, 100),
+      new Vector3(-220, 0, 100),
+      new Vector3(-140, 0, 100),
+      new Vector3(-60, 0, 100),
+      new Vector3(20, 0, 100),
+      new Vector3(100, 0, 100),
+      new Vector3(180, 0, 100),
+      new Vector3(260, 0, 100),
+    ];
+    const loadLampPosts = async () => {
+      const container = await SceneLoader.LoadAssetContainerAsync("", "/models/Lantern.glb", scene);
+      lampPositions.forEach((pos, idx) => {
+        const root = new TransformNode(`lamp_${idx}`, scene);
+        root.position = pos.clone();
+        const inst = container.instantiateModelsToScene((name) => `${root.name}_${name}`);
+        inst.rootNodes.forEach((node) => {
+          const tnode = node as TransformNode;
+          tnode.parent = root;
+          if ((tnode as any).position) tnode.position = new Vector3(0, 0, 0);
+          if ((tnode as any).scaling) tnode.scaling = new Vector3(3.2, 3.2, 3.2);
+        });
+        const lampLight = new PointLight(`lamp_light_${idx}`, new Vector3(pos.x, 8, pos.z), scene);
+        lampLight.intensity = 0.6;
+        lampLight.diffuse = new Color3(1.0, 0.9, 0.7);
+        lampLight.range = 40;
+      });
+    };
+    loadLampPosts();
 
     // Neon billboards
     const signMatA = new StandardMaterial("signMatA", scene);
-    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome to Jacuzzi City: Multiplayer Coming", "#6af6ff");
+    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome to Jacuzzi City!", "#6af6ff");
     signMatA.emissiveColor = new Color3(0.4, 0.8, 1.0);
     signMatA.disableLighting = true;
     signMatA.backFaceCulling = false;
     const signA = MeshBuilder.CreatePlane("billboard_a", { width: 50, height: 18 }, scene);
-    signA.position = new Vector3(-120, 28, 20);
     signA.rotation = new Vector3(0, Math.PI / 6, 0);
     signA.material = signMatA;
+    const signPoleA = MeshBuilder.CreateCylinder("billboard_pole_a", { height: 26, diameter: 1.6 }, scene);
+    signPoleA.position = new Vector3(-120, 13, 20);
+    signPoleA.material = metalMat;
+    signA.parent = signPoleA;
+    signA.position = new Vector3(0, 13, 0);
 
     const signMatB = new StandardMaterial("signMatB", scene);
-    signMatB.emissiveTexture = createNeonSignTexture("signTexB", "SPLICE", "#ff6bd6");
+    signMatB.emissiveTexture = createNeonSignTexture("signTexB", "Welcome to Jacuzzi City!", "#ff6bd6");
     signMatB.emissiveColor = new Color3(1.0, 0.35, 0.8);
     signMatB.disableLighting = true;
     signMatB.backFaceCulling = false;
     const signB = MeshBuilder.CreatePlane("billboard_b", { width: 46, height: 16 }, scene);
-    signB.position = new Vector3(140, 24, 10);
     signB.rotation = new Vector3(0, -Math.PI / 5, 0);
     signB.material = signMatB;
+    const signPoleB = MeshBuilder.CreateCylinder("billboard_pole_b", { height: 24, diameter: 1.6 }, scene);
+    signPoleB.position = new Vector3(140, 12, 10);
+    signPoleB.material = metalMat;
+    signB.parent = signPoleB;
+    signB.position = new Vector3(0, 12, 0);
 
     // Holo kiosks
     for (let i = 0; i < 5; i++) {
@@ -827,6 +913,50 @@ const BabylonWorld: React.FC = () => {
       drones.push({ mesh: d, angle, radius, center, speed, height });
     }
 
+    // Airplanes with white trails
+    const planeMat = new StandardMaterial("planeMat", scene);
+    planeMat.diffuseColor = new Color3(0.9, 0.92, 0.95);
+    planeMat.emissiveColor = new Color3(0.1, 0.1, 0.12);
+    const planes: {
+      root: TransformNode;
+      angle: number;
+      radius: number;
+      center: Vector3;
+      speed: number;
+      height: number;
+      trail: any;
+      trailPoints: Vector3[];
+    }[] = [];
+    for (let i = 0; i < 4; i++) {
+      const root = new TransformNode(`plane_${i}`, scene);
+      const body = MeshBuilder.CreateBox(`plane_body_${i}`, { width: 6, height: 1.2, depth: 2 }, scene);
+      body.material = planeMat;
+      body.parent = root;
+      const wing = MeshBuilder.CreateBox(`plane_wing_${i}`, { width: 10, height: 0.2, depth: 2.8 }, scene);
+      wing.material = planeMat;
+      wing.parent = root;
+      wing.position = new Vector3(0, 0, 0);
+      const tail = MeshBuilder.CreateBox(`plane_tail_${i}`, { width: 2, height: 0.8, depth: 0.2 }, scene);
+      tail.material = planeMat;
+      tail.parent = root;
+      tail.position = new Vector3(-2.8, 0.7, 0);
+
+      const center = new Vector3(0, 0, 0);
+      const radius = 420 + i * 40;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.12 + Math.random() * 0.08;
+      const height = 120 + i * 12;
+      const trailPoints = Array.from({ length: 18 }, () => new Vector3(0, height, 0));
+      const trail = MeshBuilder.CreateLines(
+        `plane_trail_${i}`,
+        { points: trailPoints, updatable: true },
+        scene
+      );
+      trail.color = new Color3(1, 1, 1);
+      trail.alpha = 0.6;
+      planes.push({ root, angle, radius, center, speed, height, trail, trailPoints });
+    }
+
     // Cars (glb) driving along a loop
     const cars: { root: TransformNode; speed: number; segment: number; t: number; path: Vector3[] }[] = [];
     const carPath = [
@@ -890,6 +1020,18 @@ const BabylonWorld: React.FC = () => {
         d.mesh.position.set(dx, d.height + Math.sin(d.angle * 2) * 2.0, dz);
       });
 
+      planes.forEach((p) => {
+        p.angle += p.speed * dt;
+        const px = p.center.x + Math.cos(p.angle) * p.radius;
+        const pz = p.center.z + Math.sin(p.angle) * p.radius;
+        p.root.position.set(px, p.height, pz);
+        p.root.rotation.y = -p.angle + Math.PI / 2;
+
+        p.trailPoints.pop();
+        p.trailPoints.unshift(new Vector3(px, p.height, pz));
+        MeshBuilder.CreateLines("plane_trail_update", { points: p.trailPoints, instance: p.trail }, scene);
+      });
+
       cars.forEach((car) => {
         const path = car.path;
         const nextIndex = (car.segment + 1) % path.length;
@@ -924,6 +1066,8 @@ const BabylonWorld: React.FC = () => {
         const pulse = 0.6 + Math.sin(t + i) * 0.2 + Math.sin(t * 2.3 + i) * 0.1;
         f.mat.emissiveColor = f.base.scale(pulse);
       });
+
+      moon.rotation.y += dt * 0.02;
 
       const pos = camera.position;
       const target = camera.getTarget();
@@ -1045,7 +1189,7 @@ const BabylonWorld: React.FC = () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
-      try { document.body.removeChild(terrainControl); } catch {}
+      try { document.body.removeChild(buildingDebugPanel); } catch {}
       scene.dispose();
       engine.dispose();
     };
