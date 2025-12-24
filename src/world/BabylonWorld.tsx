@@ -691,6 +691,11 @@ const BabylonWorld: React.FC = () => {
     signA_back.material = signMatABack;
     signA_back.parent = signAGroup;
     signA_back.position.z = -0.12;
+    const signA_black = MeshBuilder.CreatePlane("billboard_a_black", { width: 50, height: 18 }, scene);
+    signA_black.material = metalMat;
+    signA_black.parent = signAGroup;
+    signA_black.rotation = new Vector3(0, Math.PI / 6 + Math.PI, 0);
+    signA_black.position.z = -0.16;
     addBillboardBulbs(signA, 50, 18, new Color3(1.0, 0.7, 0.2), "signA_front", 0.6);
     addBillboardBulbs(signA_back, 50, 18, new Color3(1.0, 0.7, 0.2), "signA_back", 0.6);
 
@@ -720,6 +725,11 @@ const BabylonWorld: React.FC = () => {
     signB_back.material = signMatBBack;
     signB_back.parent = signBGroup;
     signB_back.position.z = -0.12;
+    const signB_black = MeshBuilder.CreatePlane("billboard_b_black", { width: 46, height: 16 }, scene);
+    signB_black.material = metalMat;
+    signB_black.parent = signBGroup;
+    signB_black.rotation = new Vector3(0, -Math.PI / 5 + Math.PI, 0);
+    signB_black.position.z = -0.16;
     addBillboardBulbs(signB, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_front", 0.6);
     addBillboardBulbs(signB_back, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_back", 0.6);
 
@@ -1169,6 +1179,9 @@ const BabylonWorld: React.FC = () => {
         const pulse = 0.6 + Math.sin(t + i) * 0.2 + Math.sin(t * 2.3 + i) * 0.1;
         f.mat.emissiveColor = f.base.scale(pulse);
       });
+
+      signAGroup.rotation.y += dt * 0.8;
+      signBGroup.rotation.y += dt * 0.8;
 
       moon.rotation.y += dt * 0.08;
 
