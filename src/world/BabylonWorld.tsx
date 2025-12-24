@@ -61,6 +61,40 @@ const BabylonWorld: React.FC = () => {
     debugOverlay.style.pointerEvents = "none";
     debugOverlay.style.zIndex = "20";
     document.body.appendChild(debugOverlay);
+    const debugCopyButton = document.createElement("button");
+    debugCopyButton.textContent = "Copy Debug";
+    debugCopyButton.style.position = "fixed";
+    debugCopyButton.style.top = "12px";
+    debugCopyButton.style.right = "12px";
+    debugCopyButton.style.transform = "translateY(100%)";
+    debugCopyButton.style.marginTop = "8px";
+    debugCopyButton.style.padding = "6px 10px";
+    debugCopyButton.style.background = "rgba(6,8,14,0.85)";
+    debugCopyButton.style.border = "1px solid rgba(120, 140, 180, 0.4)";
+    debugCopyButton.style.borderRadius = "6px";
+    debugCopyButton.style.color = "#e6f3ff";
+    debugCopyButton.style.fontFamily = "Consolas, Menlo, monospace";
+    debugCopyButton.style.fontSize = "12px";
+    debugCopyButton.style.cursor = "pointer";
+    debugCopyButton.style.zIndex = "20";
+    debugCopyButton.addEventListener("click", async () => {
+      const text = debugOverlay.textContent || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        debugCopyButton.textContent = "Copied";
+        setTimeout(() => { debugCopyButton.textContent = "Copy Debug"; }, 1200);
+      } catch {
+        const temp = document.createElement("textarea");
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        try { document.execCommand("copy"); } catch {}
+        document.body.removeChild(temp);
+        debugCopyButton.textContent = "Copied";
+        setTimeout(() => { debugCopyButton.textContent = "Copy Debug"; }, 1200);
+      }
+    });
+    document.body.appendChild(debugCopyButton);
     let showDebugOverlay = true;
     const onToggleDebugOverlay = (evt: KeyboardEvent) => {
       if (evt.key.toLowerCase() !== "p") return;
@@ -105,22 +139,22 @@ const BabylonWorld: React.FC = () => {
 
     // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0;
+    hemi.intensity = 0.33;
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
     hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
     const neonLightA = new PointLight("neonLightA", new Vector3(120, 30, 40), scene);
     neonLightA.diffuse = new Color3(0.1, 0.9, 1.0);
     neonLightA.specular = new Color3(0.1, 0.9, 1.0);
-    neonLightA.intensity = 1.7;
+    neonLightA.intensity = 0.79;
 
     const neonLightB = new PointLight("neonLightB", new Vector3(-140, 28, 60), scene);
     neonLightB.diffuse = new Color3(1.0, 0.2, 0.8);
     neonLightB.specular = new Color3(1.0, 0.2, 0.8);
-    neonLightB.intensity = 1.1;
+    neonLightB.intensity = 0.76;
 
     const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.45;
+    ambientLight.intensity = 0.08;
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
@@ -150,8 +184,9 @@ const BabylonWorld: React.FC = () => {
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 0.85;
+    moonLight.intensity = 0.3;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
+
 
     moon.scaling.set(2.3, 2.3, 2.3);
 
@@ -347,7 +382,8 @@ const BabylonWorld: React.FC = () => {
 
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
-    glowLayer.intensity = 0.15;
+    glowLayer.intensity = 0.31;
+    glowLayer.addExcludedMesh(moon);
 
     const pipeline = new DefaultRenderingPipeline(
       "defaultPipeline",
@@ -395,6 +431,7 @@ const BabylonWorld: React.FC = () => {
       if (typeof detail.glow === "number") glowLayer.intensity = detail.glow;
     };
     window.addEventListener("light-settings", onLightSettings as EventListener);
+
 
     // Procedural buildings (simple boxes with varied heights)
     const createBuildingMaterial = (
@@ -794,10 +831,12 @@ const BabylonWorld: React.FC = () => {
         blade.position = new Vector3(0, 2.2, 0);
         blade.material = neonCyan;
         blade.parent = base;
+        blade.isVisible = false;
         const hilt = MeshBuilder.CreateBox(`pickup_sword_hilt_${i}`, { width: 1.4, height: 0.3, depth: 0.4 }, scene);
         hilt.position = new Vector3(0, 0.6, 0);
         hilt.material = metalMat;
         hilt.parent = base;
+        hilt.isVisible = false;
       }
 
       if (def.id === "Potion") {
@@ -805,10 +844,12 @@ const BabylonWorld: React.FC = () => {
         bottle.position = new Vector3(0, 1.4, 0);
         bottle.material = neonMagenta;
         bottle.parent = base;
+        bottle.isVisible = false;
         const cap = MeshBuilder.CreateCylinder(`pickup_potion_cap_${i}`, { height: 0.4, diameter: 0.7 }, scene);
         cap.position = new Vector3(0, 2.8, 0);
         cap.material = metalMat;
         cap.parent = base;
+        cap.isVisible = false;
       }
 
       if (def.id === "Gold") {
@@ -816,6 +857,7 @@ const BabylonWorld: React.FC = () => {
         coin.position = new Vector3(0, 1.1, 0);
         coin.material = neonGreen;
         coin.parent = base;
+        coin.isVisible = false;
       }
 
       base.getChildMeshes().forEach((m) => {
@@ -1241,6 +1283,7 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
+      try { document.body.removeChild(debugCopyButton); } catch {}
       scene.dispose();
       engine.dispose();
     };
