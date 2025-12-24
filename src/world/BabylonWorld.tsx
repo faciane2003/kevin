@@ -267,12 +267,12 @@ const BabylonWorld: React.FC = () => {
     asphaltMat.ambientTexture = asphaltAO;
     asphaltMat.roughness = 0.85;
     asphaltMat.metallic = 0.0;
-    asphaltAlbedo.uScale = 6;
-    asphaltAlbedo.vScale = 6;
-    asphaltNormal.uScale = 6;
-    asphaltNormal.vScale = 6;
-    asphaltAO.uScale = 6;
-    asphaltAO.vScale = 6;
+    asphaltAlbedo.uScale = 12;
+    asphaltAlbedo.vScale = 12;
+    asphaltNormal.uScale = 12;
+    asphaltNormal.vScale = 12;
+    asphaltAO.uScale = 12;
+    asphaltAO.vScale = 12;
     ground.material = asphaltMat;
 
     // Streets (smooth concrete)
@@ -285,12 +285,12 @@ const BabylonWorld: React.FC = () => {
     roadMat.ambientTexture = roadAO;
     roadMat.roughness = 0.55;
     roadMat.metallic = 0.0;
-    roadAlbedo.uScale = 6;
-    roadAlbedo.vScale = 6;
-    roadNormal.uScale = 6;
-    roadNormal.vScale = 6;
-    roadAO.uScale = 6;
-    roadAO.vScale = 6;
+    roadAlbedo.uScale = 12;
+    roadAlbedo.vScale = 1;
+    roadNormal.uScale = 12;
+    roadNormal.vScale = 1;
+    roadAO.uScale = 12;
+    roadAO.vScale = 1;
 
     const roadMeshes: any[] = [];
     const zRoads = [-260, -180, -100, -20, 60, 140, 220, 300];
@@ -319,12 +319,12 @@ const BabylonWorld: React.FC = () => {
     concreteMat.ambientTexture = concreteAO;
     concreteMat.roughness = 0.9;
     concreteMat.metallic = 0.0;
-    concreteAlbedo.uScale = 6;
-    concreteAlbedo.vScale = 6;
-    concreteNormal.uScale = 6;
-    concreteNormal.vScale = 6;
-    concreteAO.uScale = 6;
-    concreteAO.vScale = 6;
+    concreteAlbedo.uScale = 1;
+    concreteAlbedo.vScale = 12;
+    concreteNormal.uScale = 1;
+    concreteNormal.vScale = 12;
+    concreteAO.uScale = 1;
+    concreteAO.vScale = 12;
 
     const sidewalkLeft = MeshBuilder.CreateGround("sidewalkLeft", { width: 120, height: 800 }, scene);
     sidewalkLeft.position = new Vector3(-240, 0.18, 40);
@@ -346,7 +346,7 @@ const BabylonWorld: React.FC = () => {
     // Sky texture already applied above.
     // Neon haze for atmosphere
     scene.fogMode = Scene.FOGMODE_EXP;
-    scene.fogDensity = 0.0022;
+    scene.fogDensity = 0;
     scene.fogColor = new Color3(0.05, 0.08, 0.16);
 
     // Post-processing: glow, depth of field, motion blur, color grading
@@ -1028,33 +1028,7 @@ const BabylonWorld: React.FC = () => {
       planes.push({ root, angle, radius, center, speed, height, drift, trail, trailPoints });
     }
 
-    // Cars (glb) driving along a loop
-    const cars: { root: any; speed: number; segment: number; t: number; path: Vector3[] }[] = [];
-    const carPath = [
-      new Vector3(-320, 0.05, -180),
-      new Vector3(320, 0.05, -180),
-      new Vector3(320, 0.05, 140),
-      new Vector3(-320, 0.05, 140),
-    ];
-    for (let i = 0; i < 8; i++) {
-      const root = MeshBuilder.CreateBox(`car_${i}`, { width: 2.4, height: 1.2, depth: 4.6 }, scene);
-      root.visibility = 0;
-      cars.push({ root, speed: 14 + Math.random() * 10, segment: i % carPath.length, t: Math.random(), path: carPath });
-    }
-
-    const loadCars = async () => {
-      const container = await SceneLoader.LoadAssetContainerAsync("", "/models/car1.glb", scene);
-      cars.forEach((car, idx) => {
-        const inst = container.instantiateModelsToScene((name) => `${car.root.name}_${name}_${idx}`);
-        inst.rootNodes.forEach((node) => {
-          const tnode = node as TransformNode;
-          tnode.parent = car.root;
-          if ((tnode as any).position) tnode.position = new Vector3(0, -0.9, 0);
-          if ((tnode as any).scaling) tnode.scaling = new Vector3(1.2, 1.2, 1.2);
-        });
-      });
-    };
-    loadCars();
+    // Cars removed (car1.glb deleted).
 
     // Trees (procedural clusters)
     const treeTrunkMat = new StandardMaterial("treeTrunkMat", scene);
@@ -1108,22 +1082,6 @@ const BabylonWorld: React.FC = () => {
         p.trailPoints.pop();
         p.trailPoints.unshift(new Vector3(px, p.height, pz));
         MeshBuilder.CreateLines("plane_trail_update", { points: p.trailPoints, instance: p.trail }, scene);
-      });
-
-      cars.forEach((car) => {
-        const path = car.path;
-        const nextIndex = (car.segment + 1) % path.length;
-        const a = path[car.segment];
-        const b = path[nextIndex];
-        car.t += (car.speed * dt) / Vector3.Distance(a, b);
-        if (car.t >= 1) {
-          car.t = 0;
-          car.segment = nextIndex;
-        }
-        const pos = Vector3.Lerp(a, b, car.t);
-        car.root.position.copyFrom(pos);
-        const dir = b.subtract(a);
-        car.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI - Math.PI / 2;
       });
 
       pickups.forEach((p) => {
