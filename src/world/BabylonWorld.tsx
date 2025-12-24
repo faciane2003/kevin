@@ -1,5 +1,6 @@
 // File: src/world/BabylonWorld.tsx
 import React, { useEffect, useRef } from "react";
+import "@babylonjs/loaders";
 import {
   Engine,
   Scene,
@@ -20,6 +21,7 @@ import {
   Texture,
   DynamicTexture,
   TransformNode,
+  SceneLoader,
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
@@ -35,8 +37,8 @@ const BabylonWorld: React.FC = () => {
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
 
     // First-person camera
-    const camera = new UniversalCamera("camera", new Vector3(0, 2, 0), scene);
-    camera.setTarget(new Vector3(0, 2, 1));
+    const camera = new UniversalCamera("camera", new Vector3(-82.48, 2.25, -103.13), scene);
+    camera.setTarget(new Vector3(-48.72, 2.97, -81.69));
 
     // Attach default controls so mouse drag looks around.
     camera.attachControl(canvasRef.current, true);
@@ -44,6 +46,20 @@ const BabylonWorld: React.FC = () => {
       canvasRef.current?.requestPointerLock?.();
     };
     canvasRef.current?.addEventListener("click", requestLock);
+
+    const debugOverlay = document.createElement("div");
+    debugOverlay.style.position = "fixed";
+    debugOverlay.style.top = "12px";
+    debugOverlay.style.right = "12px";
+    debugOverlay.style.padding = "8px 10px";
+    debugOverlay.style.background = "rgba(0,0,0,0.6)";
+    debugOverlay.style.color = "#e6f3ff";
+    debugOverlay.style.fontFamily = "Consolas, Menlo, monospace";
+    debugOverlay.style.fontSize = "12px";
+    debugOverlay.style.whiteSpace = "pre";
+    debugOverlay.style.pointerEvents = "none";
+    debugOverlay.style.zIndex = "20";
+    document.body.appendChild(debugOverlay);
     const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) {
       try {
@@ -134,12 +150,12 @@ const BabylonWorld: React.FC = () => {
       ctx.fillStyle = "rgb(120,120,120)";
       ctx.fillRect(0, 0, size.width, size.height);
       // Large rolling hills
-      for (let i = 0; i < 24; i++) {
+      for (let i = 0; i < 14; i++) {
         const x = Math.random() * size.width;
         const y = Math.random() * size.height;
-        const r = 160 + Math.random() * 220;
+        const r = 160 + Math.random() * 240;
         const light = Math.random() > 0.5;
-        ctx.fillStyle = light ? "rgba(220,220,220,0.22)" : "rgba(40,40,40,0.22)";
+        ctx.fillStyle = light ? "rgba(210,210,210,0.12)" : "rgba(60,60,60,0.12)";
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
@@ -150,7 +166,7 @@ const BabylonWorld: React.FC = () => {
         const y = Math.random() * size.height;
         const r = 40 + Math.random() * 120;
         const light = Math.random() > 0.5;
-        ctx.fillStyle = light ? "rgba(200,200,200,0.16)" : "rgba(60,60,60,0.16)";
+        ctx.fillStyle = light ? "rgba(200,200,200,0.1)" : "rgba(60,60,60,0.1)";
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
@@ -237,7 +253,7 @@ const BabylonWorld: React.FC = () => {
     const ground = MeshBuilder.CreateGroundFromHeightMap(
       "ground",
       heightMapUrl,
-      { width: 800, height: 800, subdivisions: 128, minHeight: -6, maxHeight: 16 },
+      { width: 800, height: 800, subdivisions: 128, minHeight: -2, maxHeight: 6 },
       scene
     );
     const asphaltMat = new PBRMaterial("asphaltMat", scene);
@@ -256,6 +272,32 @@ const BabylonWorld: React.FC = () => {
     asphaltAO.uScale = 6;
     asphaltAO.vScale = 6;
     ground.material = asphaltMat;
+
+    const terrainControl = document.createElement("div");
+    terrainControl.style.position = "fixed";
+    terrainControl.style.left = "12px";
+    terrainControl.style.top = "12px";
+    terrainControl.style.padding = "8px 10px";
+    terrainControl.style.background = "rgba(0,0,0,0.6)";
+    terrainControl.style.color = "#e6f3ff";
+    terrainControl.style.fontFamily = "Consolas, Menlo, monospace";
+    terrainControl.style.fontSize = "12px";
+    terrainControl.style.zIndex = "20";
+    terrainControl.innerHTML = `
+      <div style="margin-bottom:6px;">Terrain Height <span id="terrainHeightValue">0.1</span></div>
+      <input id="terrainHeight" type="range" min="0.1" max="3.0" step="0.05" value="0.1" />
+    `;
+    document.body.appendChild(terrainControl);
+    const terrainSlider = terrainControl.querySelector<HTMLInputElement>("#terrainHeight");
+    const terrainValue = terrainControl.querySelector<HTMLSpanElement>("#terrainHeightValue");
+    if (terrainSlider) {
+      ground.scaling.y = 0.1;
+      terrainSlider.addEventListener("input", () => {
+        const value = parseFloat(terrainSlider.value);
+        ground.scaling.y = value;
+        if (terrainValue) terrainValue.textContent = value.toFixed(2);
+      });
+    }
 
     // Wet neon streets
     const wetRoadMat = new PBRMaterial("wetRoadMat", scene);
@@ -276,13 +318,22 @@ const BabylonWorld: React.FC = () => {
     roadAO.uScale = 8;
     roadAO.vScale = 8;
 
-    const mainRoad = MeshBuilder.CreateGround("mainRoad", { width: 70, height: 800 }, scene);
-    mainRoad.position = new Vector3(0, 0.2, 40);
-    mainRoad.material = wetRoadMat;
+    const roadMeshes: any[] = [];
+    const zRoads = [-160, -60, 40, 140, 240];
+    zRoads.forEach((z, i) => {
+      const road = MeshBuilder.CreateGround(`road_z_${i}`, { width: 70, height: 800 }, scene);
+      road.position = new Vector3(0, 0.2, z);
+      road.material = wetRoadMat;
+      roadMeshes.push(road);
+    });
 
-    const crossRoad = MeshBuilder.CreateGround("crossRoad", { width: 800, height: 60 }, scene);
-    crossRoad.position = new Vector3(0, 0.21, -60);
-    crossRoad.material = wetRoadMat;
+    const xRoads = [-210, -70, 70, 210];
+    xRoads.forEach((x, i) => {
+      const road = MeshBuilder.CreateGround(`road_x_${i}`, { width: 800, height: 60 }, scene);
+      road.position = new Vector3(x, 0.21, 40);
+      road.material = wetRoadMat;
+      roadMeshes.push(road);
+    });
 
     // Cracked concrete sidewalks
     const concreteMat = new PBRMaterial("concreteMat", scene);
@@ -311,10 +362,9 @@ const BabylonWorld: React.FC = () => {
 
     const walkMeshes = new Set([
       ground.name,
-      mainRoad.name,
-      crossRoad.name,
       sidewalkLeft.name,
       sidewalkRight.name,
+      ...roadMeshes.map((mesh) => mesh.name),
     ]);
 
     // Distant mountains removed for now
@@ -463,10 +513,12 @@ const BabylonWorld: React.FC = () => {
     const neonCyan = new StandardMaterial("neonCyan", scene);
     neonCyan.emissiveColor = new Color3(0.1, 0.9, 1.0);
     neonCyan.diffuseColor = new Color3(0.1, 0.6, 0.7);
+    neonCyan.backFaceCulling = false;
 
     const neonMagenta = new StandardMaterial("neonMagenta", scene);
     neonMagenta.emissiveColor = new Color3(1.0, 0.25, 0.8);
     neonMagenta.diffuseColor = new Color3(0.6, 0.1, 0.5);
+    neonMagenta.backFaceCulling = false;
 
     const neonGreen = new StandardMaterial("neonGreen", scene);
     neonGreen.emissiveColor = new Color3(0.3, 1.0, 0.6);
@@ -486,9 +538,10 @@ const BabylonWorld: React.FC = () => {
 
     // Neon billboards
     const signMatA = new StandardMaterial("signMatA", scene);
-    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "ARCADIA", "#6af6ff");
+    signMatA.emissiveTexture = createNeonSignTexture("signTexA", "Welcome to Jacuzzi City: Multiplayer Coming", "#6af6ff");
     signMatA.emissiveColor = new Color3(0.4, 0.8, 1.0);
     signMatA.disableLighting = true;
+    signMatA.backFaceCulling = false;
     const signA = MeshBuilder.CreatePlane("billboard_a", { width: 50, height: 18 }, scene);
     signA.position = new Vector3(-120, 28, 20);
     signA.rotation = new Vector3(0, Math.PI / 6, 0);
@@ -498,6 +551,7 @@ const BabylonWorld: React.FC = () => {
     signMatB.emissiveTexture = createNeonSignTexture("signTexB", "SPLICE", "#ff6bd6");
     signMatB.emissiveColor = new Color3(1.0, 0.35, 0.8);
     signMatB.disableLighting = true;
+    signMatB.backFaceCulling = false;
     const signB = MeshBuilder.CreatePlane("billboard_b", { width: 46, height: 16 }, scene);
     signB.position = new Vector3(140, 24, 10);
     signB.rotation = new Vector3(0, -Math.PI / 5, 0);
@@ -579,6 +633,7 @@ const BabylonWorld: React.FC = () => {
     pickupMatSword.useAlphaFromDiffuseTexture = true;
     pickupMatSword.disableLighting = true;
     pickupMatSword.alpha = 0.95;
+    pickupMatSword.backFaceCulling = false;
     const pickupMatPotion = new StandardMaterial("pickupPotionMat", scene);
     pickupMatPotion.emissiveTexture = createPickupTexture("pickupPotionTex", "P", "#6af6ff");
     pickupMatPotion.emissiveTexture.hasAlpha = true;
@@ -586,6 +641,7 @@ const BabylonWorld: React.FC = () => {
     pickupMatPotion.useAlphaFromDiffuseTexture = true;
     pickupMatPotion.disableLighting = true;
     pickupMatPotion.alpha = 0.95;
+    pickupMatPotion.backFaceCulling = false;
     const pickupMatGold = new StandardMaterial("pickupGoldMat", scene);
     pickupMatGold.emissiveTexture = createPickupTexture("pickupGoldTex", "G", "#ffd16a");
     pickupMatGold.emissiveTexture.hasAlpha = true;
@@ -593,6 +649,7 @@ const BabylonWorld: React.FC = () => {
     pickupMatGold.useAlphaFromDiffuseTexture = true;
     pickupMatGold.disableLighting = true;
     pickupMatGold.alpha = 0.95;
+    pickupMatGold.backFaceCulling = false;
 
     const pickups: { mesh: any; baseY: number; phase: number }[] = [];
     const flickerMats: { mat: StandardMaterial; base: Color3 }[] = [
@@ -660,13 +717,44 @@ const BabylonWorld: React.FC = () => {
     npcMat.diffuseColor = new Color3(0.18, 0.2, 0.3);
     npcMat.emissiveColor = new Color3(0.2, 0.6, 1.0);
     const npcIds = ["aria", "kade", "mira", "vex", "lux", "zed"];
+    const npcWalkers: { mesh: any; angle: number; radius: number; center: Vector3; speed: number }[] = [];
     npcIds.forEach((id, idx) => {
       const npc = MeshBuilder.CreateCylinder(`npc_${id}`, { height: 5, diameter: 2.8 }, scene);
       npc.position = new Vector3(-30 + idx * 12, 2.5, -60 + (idx % 2) * 10);
       npc.material = npcMat;
       npc.isPickable = true;
       npc.metadata = { type: "npc", id };
+      npcWalkers.push({
+        mesh: npc,
+        angle: Math.random() * Math.PI * 2,
+        radius: 2.5 + Math.random() * 2.5,
+        center: npc.position.clone(),
+        speed: 0.2 + Math.random() * 0.4,
+      });
     });
+
+    const npcModelUrls = ["/models/RiggedFigure.glb", "/models/CesiumMan.glb"];
+    const npcModelScales = [1.8, 1.6];
+    const loadNpcModels = async () => {
+      const containers = await Promise.all(
+        npcModelUrls.map((url) => SceneLoader.LoadAssetContainerAsync("", url, scene))
+      );
+      npcWalkers.forEach((npc, idx) => {
+        const container = containers[idx % containers.length];
+        const scale = npcModelScales[idx % npcModelScales.length];
+        const inst = container.instantiateModelsToScene((name) => `${npc.mesh.name}_${name}`);
+        inst.rootNodes.forEach((node) => {
+          node.parent = npc.mesh;
+          node.position = new Vector3(0, -2.5, 0);
+          node.scaling = new Vector3(scale, scale, scale);
+        });
+        if (inst.animationGroups && inst.animationGroups.length > 0) {
+          inst.animationGroups.forEach((group) => group.start(true));
+        }
+        npc.mesh.visibility = 0;
+      });
+    };
+    loadNpcModels();
 
     // Imported models removed (external URLs 404)
 
@@ -746,11 +834,25 @@ const BabylonWorld: React.FC = () => {
         p.mesh.rotation.y += dt * 0.8;
       });
 
+      npcWalkers.forEach((n) => {
+        n.angle += n.speed * dt;
+        const nx = n.center.x + Math.cos(n.angle) * n.radius;
+        const nz = n.center.z + Math.sin(n.angle) * n.radius;
+        n.mesh.position.set(nx, n.mesh.position.y, nz);
+        n.mesh.rotation.y = -n.angle + Math.PI / 2;
+      });
+
       const t = performance.now() * 0.002;
       flickerMats.forEach((f, i) => {
         const pulse = 0.6 + Math.sin(t + i) * 0.2 + Math.sin(t * 2.3 + i) * 0.1;
         f.mat.emissiveColor = f.base.scale(pulse);
       });
+
+      const pos = camera.position;
+      const target = camera.getTarget();
+      debugOverlay.textContent =
+        `pos: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})\n` +
+        `target: (${target.x.toFixed(2)}, ${target.y.toFixed(2)}, ${target.z.toFixed(2)})`;
     });
 
     // First-person camera height above ground
@@ -865,6 +967,8 @@ const BabylonWorld: React.FC = () => {
     return () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
+      try { document.body.removeChild(debugOverlay); } catch {}
+      try { document.body.removeChild(terrainControl); } catch {}
       scene.dispose();
       engine.dispose();
     };
