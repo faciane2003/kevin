@@ -199,33 +199,6 @@ const BabylonWorld: React.FC = () => {
       return canvas.toDataURL("image/png");
     };
 
-    const createNeonStreakMask = (name: string) => {
-      const tex = new DynamicTexture(name, { width: 1024, height: 1024 }, scene, false);
-      const ctx = tex.getContext() as CanvasRenderingContext2D;
-      const size = tex.getSize();
-      ctx.clearRect(0, 0, size.width, size.height);
-      ctx.strokeStyle = "rgba(0, 200, 255, 0.6)";
-      ctx.lineWidth = 6;
-      for (let i = 0; i < 6; i++) {
-        const x = Math.random() * size.width;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x + Math.random() * 40 - 20, size.height);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = "rgba(255, 70, 200, 0.5)";
-      for (let i = 0; i < 4; i++) {
-        const y = Math.random() * size.height;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(size.width, y + Math.random() * 40 - 20);
-        ctx.stroke();
-      }
-      tex.update();
-      tex.hasAlpha = true;
-      return tex;
-    };
-
     const createNeonSignTexture = (name: string, label: string, glow: string, flipX = false) => {
       const tex = new DynamicTexture(name, { width: 512, height: 256 }, scene, false);
       const ctx = tex.getContext() as CanvasRenderingContext2D;
