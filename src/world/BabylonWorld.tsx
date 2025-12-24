@@ -241,34 +241,40 @@ const BabylonWorld: React.FC = () => {
       scene
     );
     const asphaltMat = new PBRMaterial("asphaltMat", scene);
-    asphaltMat.albedoTexture = new Texture("/textures/asphalt_color.jpg", scene);
-    asphaltMat.bumpTexture = new Texture("/textures/asphalt_normal.jpg", scene);
-    asphaltMat.ambientTexture = new Texture("/textures/asphalt_ao.jpg", scene);
+    const asphaltAlbedo = new Texture("/textures/asphalt_color.jpg", scene);
+    const asphaltNormal = new Texture("/textures/asphalt_normal.jpg", scene);
+    const asphaltAO = new Texture("/textures/asphalt_ao.jpg", scene);
+    asphaltMat.albedoTexture = asphaltAlbedo;
+    asphaltMat.bumpTexture = asphaltNormal;
+    asphaltMat.ambientTexture = asphaltAO;
     asphaltMat.roughness = 0.85;
     asphaltMat.metallic = 0.0;
-    asphaltMat.albedoTexture.uScale = 6;
-    asphaltMat.albedoTexture.vScale = 6;
-    asphaltMat.bumpTexture.uScale = 6;
-    asphaltMat.bumpTexture.vScale = 6;
-    asphaltMat.ambientTexture.uScale = 6;
-    asphaltMat.ambientTexture.vScale = 6;
+    asphaltAlbedo.uScale = 6;
+    asphaltAlbedo.vScale = 6;
+    asphaltNormal.uScale = 6;
+    asphaltNormal.vScale = 6;
+    asphaltAO.uScale = 6;
+    asphaltAO.vScale = 6;
     ground.material = asphaltMat;
 
     // Wet neon streets
     const wetRoadMat = new PBRMaterial("wetRoadMat", scene);
-    wetRoadMat.albedoTexture = new Texture("/textures/asphalt_color.jpg", scene);
-    wetRoadMat.bumpTexture = new Texture("/textures/asphalt_normal.jpg", scene);
-    wetRoadMat.ambientTexture = new Texture("/textures/asphalt_ao.jpg", scene);
+    const roadAlbedo = new Texture("/textures/asphalt_color.jpg", scene);
+    const roadNormal = new Texture("/textures/asphalt_normal.jpg", scene);
+    const roadAO = new Texture("/textures/asphalt_ao.jpg", scene);
+    wetRoadMat.albedoTexture = roadAlbedo;
+    wetRoadMat.bumpTexture = roadNormal;
+    wetRoadMat.ambientTexture = roadAO;
     wetRoadMat.roughness = 0.25;
     wetRoadMat.metallic = 0.0;
     wetRoadMat.emissiveTexture = createNeonStreakMask("wetNeonMask");
     wetRoadMat.emissiveColor = new Color3(0.2, 0.4, 0.8);
-    wetRoadMat.albedoTexture.uScale = 8;
-    wetRoadMat.albedoTexture.vScale = 8;
-    wetRoadMat.bumpTexture.uScale = 8;
-    wetRoadMat.bumpTexture.vScale = 8;
-    wetRoadMat.ambientTexture.uScale = 8;
-    wetRoadMat.ambientTexture.vScale = 8;
+    roadAlbedo.uScale = 8;
+    roadAlbedo.vScale = 8;
+    roadNormal.uScale = 8;
+    roadNormal.vScale = 8;
+    roadAO.uScale = 8;
+    roadAO.vScale = 8;
 
     const mainRoad = MeshBuilder.CreateGround("mainRoad", { width: 70, height: 800 }, scene);
     mainRoad.position = new Vector3(0, 0.2, 40);
@@ -280,17 +286,20 @@ const BabylonWorld: React.FC = () => {
 
     // Cracked concrete sidewalks
     const concreteMat = new PBRMaterial("concreteMat", scene);
-    concreteMat.albedoTexture = new Texture("/textures/concrete_color.jpg", scene);
-    concreteMat.bumpTexture = new Texture("/textures/concrete_normal.jpg", scene);
-    concreteMat.ambientTexture = new Texture("/textures/concrete_ao.jpg", scene);
+    const concreteAlbedo = new Texture("/textures/concrete_color.jpg", scene);
+    const concreteNormal = new Texture("/textures/concrete_normal.jpg", scene);
+    const concreteAO = new Texture("/textures/concrete_ao.jpg", scene);
+    concreteMat.albedoTexture = concreteAlbedo;
+    concreteMat.bumpTexture = concreteNormal;
+    concreteMat.ambientTexture = concreteAO;
     concreteMat.roughness = 0.9;
     concreteMat.metallic = 0.0;
-    concreteMat.albedoTexture.uScale = 6;
-    concreteMat.albedoTexture.vScale = 6;
-    concreteMat.bumpTexture.uScale = 6;
-    concreteMat.bumpTexture.vScale = 6;
-    concreteMat.ambientTexture.uScale = 6;
-    concreteMat.ambientTexture.vScale = 6;
+    concreteAlbedo.uScale = 6;
+    concreteAlbedo.vScale = 6;
+    concreteNormal.uScale = 6;
+    concreteNormal.vScale = 6;
+    concreteAO.uScale = 6;
+    concreteAO.vScale = 6;
 
     const sidewalkLeft = MeshBuilder.CreateGround("sidewalkLeft", { width: 120, height: 800 }, scene);
     sidewalkLeft.position = new Vector3(-240, 0.18, 40);
@@ -300,7 +309,13 @@ const BabylonWorld: React.FC = () => {
     sidewalkRight.position = new Vector3(240, 0.18, 40);
     sidewalkRight.material = concreteMat;
 
-    const walkMeshes = new Set([ground, mainRoad, crossRoad, sidewalkLeft, sidewalkRight]);
+    const walkMeshes = new Set([
+      ground.name,
+      mainRoad.name,
+      crossRoad.name,
+      sidewalkLeft.name,
+      sidewalkRight.name,
+    ]);
 
     // Distant mountains removed for now
 
@@ -808,7 +823,7 @@ const BabylonWorld: React.FC = () => {
         const rayOrigin = new Vector3(proposedPos.x, 50, proposedPos.z);
         const down = new Vector3(0, -1, 0);
         const ray = new Ray(rayOrigin, down, 200);
-        const pick = scene.pickWithRay(ray, (mesh) => walkMeshes.has(mesh));
+        const pick = scene.pickWithRay(ray, (mesh) => walkMeshes.has(mesh.name));
         const groundY = pick && pick.hit && pick.pickedPoint ? pick.pickedPoint.y : 0;
 
         if (jumpRequested && Math.abs(camera.position.y - (groundY + eyeHeight)) < 0.1) {
