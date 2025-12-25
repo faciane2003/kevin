@@ -1,5 +1,5 @@
 // File: src/world/BabylonWorld.tsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "@babylonjs/loaders";
 import {
   Engine,
@@ -25,15 +25,18 @@ import {
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
+import WorldSounds from "../components/sounds/WorldSounds";
 
 const BabylonWorld: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [sceneInstance, setSceneInstance] = useState<Scene | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
     const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
+    setSceneInstance(scene);
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
 
     // First-person camera
@@ -1323,6 +1326,8 @@ const BabylonWorld: React.FC = () => {
           try { evt.sourceEvent.preventDefault(); } catch {}
         }
         inputMap[key] = true;
+        const walkActive = !!(inputMap["w"] || inputMap["a"] || inputMap["s"] || inputMap["d"]);
+        window.dispatchEvent(new CustomEvent("walk-input", { detail: { active: walkActive } }));
         if (evt.sourceEvent.code === "Space") {
           jumpRequested = true;
           inputMap["space"] = true;
@@ -1334,6 +1339,8 @@ const BabylonWorld: React.FC = () => {
       new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, (evt) => {
         if (isTextInputActive()) return;
         inputMap[evt.sourceEvent.key.toLowerCase()] = false;
+        const walkActive = !!(inputMap["w"] || inputMap["a"] || inputMap["s"] || inputMap["d"]);
+        window.dispatchEvent(new CustomEvent("walk-input", { detail: { active: walkActive } }));
         if (evt.sourceEvent.code === "Space") {
           inputMap["space"] = false;
         }
@@ -1341,6 +1348,7 @@ const BabylonWorld: React.FC = () => {
     );
 
     let lastHeading = 0;
+    let lastMoving = false;
 
     // Movement: W/S move forward/back relative to camera view, A/D strafe left/right
     const moveSpeed = 24; // world units per second (tune as needed)
@@ -1364,10 +1372,15 @@ const BabylonWorld: React.FC = () => {
       if (inputMap["a"]) move.addInPlace(right);
       if (inputMap["d"]) move.addInPlace(right.scale(-1));
 
-      if (move.lengthSquared() > 0) {
+      const isMoving = move.lengthSquared() > 0;
+      if (isMoving) {
         move.normalize();
         const speed = moveSpeed * (inputMap["shift"] ? 4 : 1);
         move.scaleInPlace(speed * dt);
+      }
+      if (isMoving !== lastMoving) {
+        lastMoving = isMoving;
+        window.dispatchEvent(new CustomEvent("player-move", { detail: { moving: isMoving } }));
       }
 
       // Try to move while preventing going below the ground. We raycast down at the proposed
@@ -1443,10 +1456,16 @@ const BabylonWorld: React.FC = () => {
       remotePlayers.forEach((entry) => entry.mesh.dispose());
       scene.dispose();
       engine.dispose();
+      setSceneInstance(null);
     };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ width: "100vw", height: "100vh", display: "block" }} />;
+  return (
+    <>
+      <canvas ref={canvasRef} style={{ width: "100vw", height: "100vh", display: "block" }} />
+      <WorldSounds scene={sceneInstance} />
+    </>
+  );
 };
 
 export default BabylonWorld;
