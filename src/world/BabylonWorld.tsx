@@ -94,16 +94,20 @@ const BabylonWorld: React.FC = () => {
     let lookZone: HTMLDivElement | null = null;
     let walkLabelZone: HTMLDivElement | null = null;
     let lookPointerActive = false;
+    let lookPointerId: number | null = null;
     let lastLookX = 0;
     let lastLookY = 0;
+    let lookInputX = 0;
+    let lookInputY = 0;
     const lookSensitivity = 0.004;
+    const lookHoldSpeed = 1.6;
     const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
     if (isTouchDevice) {
       walkLabelZone = document.createElement("div");
       walkLabelZone.style.position = "fixed";
       walkLabelZone.style.left = "0";
       walkLabelZone.style.top = "0";
-      walkLabelZone.style.width = "28vw";
+      walkLabelZone.style.width = "50vw";
       walkLabelZone.style.height = "100vh";
       walkLabelZone.style.border = "none";
       walkLabelZone.style.background = "transparent";
@@ -117,7 +121,7 @@ const BabylonWorld: React.FC = () => {
       walkLabelZone.style.alignItems = "center";
       walkLabelZone.style.justifyContent = "flex-start";
       walkLabelZone.style.paddingTop = "70vh";
-      walkLabelZone.style.paddingLeft = "28px";
+      walkLabelZone.style.paddingLeft = "24px";
       walkLabelZone.style.color = "#38e26f";
       walkLabelZone.style.fontFamily = "Consolas, Menlo, monospace";
       walkLabelZone.style.fontSize = "18px";
@@ -145,7 +149,7 @@ const BabylonWorld: React.FC = () => {
       lookZone.style.position = "fixed";
       lookZone.style.right = "0";
       lookZone.style.top = "0";
-      lookZone.style.width = "28vw";
+      lookZone.style.width = "50vw";
       lookZone.style.height = "100vh";
       lookZone.style.borderLeft = "none";
       lookZone.style.border = "none";
@@ -161,7 +165,7 @@ const BabylonWorld: React.FC = () => {
       lookZone.style.alignItems = "center";
       lookZone.style.justifyContent = "flex-start";
       lookZone.style.paddingTop = "70vh";
-      lookZone.style.paddingRight = "28px";
+      lookZone.style.paddingRight = "24px";
       lookZone.style.color = "#38e26f";
       lookZone.style.fontFamily = "Consolas, Menlo, monospace";
       lookZone.style.fontSize = "18px";
@@ -185,32 +189,46 @@ const BabylonWorld: React.FC = () => {
       lookZone.appendChild(lookDown);
       document.body.appendChild(lookZone);
 
+      const updateLookInput = (evt: PointerEvent) => {
+        if (!lookZone) return;
+        const rect = lookZone.getBoundingClientRect();
+        const nx = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+        const ny = ((evt.clientY - rect.top) / rect.height) * 2 - 1;
+        lookInputX = Math.max(-1, Math.min(1, nx));
+        lookInputY = Math.max(-1, Math.min(1, ny));
+      };
+
       lookZone.addEventListener("pointerdown", (evt) => {
         lookPointerActive = true;
+        lookPointerId = evt.pointerId;
         lastLookX = evt.clientX;
         lastLookY = evt.clientY;
+        updateLookInput(evt);
         lookZone?.setPointerCapture(evt.pointerId);
       });
 
       lookZone.addEventListener("pointermove", (evt) => {
-        if (!lookPointerActive) return;
+        if (!lookPointerActive || lookPointerId !== evt.pointerId) return;
         const dx = evt.clientX - lastLookX;
         const dy = evt.clientY - lastLookY;
         lastLookX = evt.clientX;
         lastLookY = evt.clientY;
         camera.rotation.y += dx * lookSensitivity;
         camera.rotation.x = clampPitch(camera.rotation.x + dy * lookSensitivity);
+        updateLookInput(evt);
       });
 
       const endLook = (evt: PointerEvent) => {
-        if (!lookPointerActive) return;
+        if (!lookPointerActive || lookPointerId !== evt.pointerId) return;
         lookPointerActive = false;
+        lookPointerId = null;
+        lookInputX = 0;
+        lookInputY = 0;
         try { lookZone?.releasePointerCapture(evt.pointerId); } catch {}
       };
 
       lookZone.addEventListener("pointerup", endLook);
       lookZone.addEventListener("pointercancel", endLook);
-      lookZone.addEventListener("pointerleave", endLook);
     }
 
     // Try to remove default camera inputs to avoid double-handling. The
@@ -407,16 +425,6 @@ const BabylonWorld: React.FC = () => {
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
     hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
-    const neonLightA = new PointLight("neonLightA", new Vector3(120, 30, 40), scene);
-    neonLightA.diffuse = new Color3(0.1, 0.9, 1.0);
-    neonLightA.specular = new Color3(0.1, 0.9, 1.0);
-    neonLightA.intensity = 0.79;
-
-    const neonLightB = new PointLight("neonLightB", new Vector3(-140, 28, 60), scene);
-    neonLightB.diffuse = new Color3(1.0, 0.2, 0.8);
-    neonLightB.specular = new Color3(1.0, 0.2, 0.8);
-    neonLightB.intensity = 0.76;
-
     const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
     ambientLight.intensity = 0.08;
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
@@ -544,97 +552,17 @@ const BabylonWorld: React.FC = () => {
       return tex;
     };
 
-    // Ground (large) with smooth elevation
-    const heightMapUrl = createHeightMapUrl();
-    const ground = MeshBuilder.CreateGroundFromHeightMap(
-      "ground",
-      heightMapUrl,
-      { width: 800, height: 800, subdivisions: 128, minHeight: -2, maxHeight: 6 },
-      scene
-    );
-    ground.scaling.y = 0.05;
-    const asphaltMat = new PBRMaterial("asphaltMat", scene);
-    const asphaltAlbedo = new Texture("/textures/asphalt_color.jpg", scene);
-    const asphaltNormal = new Texture("/textures/asphalt_normal.jpg", scene);
-    const asphaltAO = new Texture("/textures/asphalt_ao.jpg", scene);
-    asphaltMat.albedoTexture = asphaltAlbedo;
-    asphaltMat.bumpTexture = asphaltNormal;
-    asphaltMat.ambientTexture = asphaltAO;
-    asphaltMat.roughness = 0.85;
-    asphaltMat.metallic = 0.0;
-    asphaltAlbedo.uScale = 12;
-    asphaltAlbedo.vScale = 12;
-    asphaltNormal.uScale = 12;
-    asphaltNormal.vScale = 12;
-    asphaltAO.uScale = 12;
-    asphaltAO.vScale = 12;
-    ground.material = asphaltMat;
+    // Ground (flat black plane)
+    const ground = MeshBuilder.CreateGround("ground", { width: 800, height: 800 }, scene);
+    const groundMat = new StandardMaterial("groundMat", scene);
+    groundMat.diffuseColor = new Color3(0.02, 0.02, 0.02);
+    groundMat.specularColor = new Color3(0, 0, 0);
+    ground.material = groundMat;
 
-    // Streets (smooth concrete)
-    const roadMat = new PBRMaterial("roadMat", scene);
-    const roadAlbedo = new Texture("/textures/concrete_color.jpg", scene);
-    const roadNormal = new Texture("/textures/concrete_normal.jpg", scene);
-    const roadAO = new Texture("/textures/concrete_ao.jpg", scene);
-    roadMat.albedoTexture = roadAlbedo;
-    roadMat.bumpTexture = roadNormal;
-    roadMat.ambientTexture = roadAO;
-    roadMat.roughness = 0.55;
-    roadMat.metallic = 0.0;
-    roadAlbedo.uScale = 12;
-    roadAlbedo.vScale = 1;
-    roadNormal.uScale = 12;
-    roadNormal.vScale = 1;
-    roadAO.uScale = 12;
-    roadAO.vScale = 1;
-
-    const roadMeshes: any[] = [];
     const zRoads = [-260, -180, -100, -20, 60, 140, 220, 300];
-    zRoads.forEach((z, i) => {
-      const road = MeshBuilder.CreateGround(`road_z_${i}`, { width: 70, height: 800 }, scene);
-      road.position = new Vector3(0, 0.2, z);
-      road.material = roadMat;
-      roadMeshes.push(road);
-    });
-
     const xRoads = [-300, -220, -140, -60, 20, 100, 180, 260];
-    xRoads.forEach((x, i) => {
-      const road = MeshBuilder.CreateGround(`road_x_${i}`, { width: 800, height: 60 }, scene);
-      road.position = new Vector3(x, 0.21, 40);
-      road.material = roadMat;
-      roadMeshes.push(road);
-    });
 
-    // Cracked concrete sidewalks
-    const concreteMat = new PBRMaterial("concreteMat", scene);
-    const concreteAlbedo = new Texture("/textures/concrete_color.jpg", scene);
-    const concreteNormal = new Texture("/textures/concrete_normal.jpg", scene);
-    const concreteAO = new Texture("/textures/concrete_ao.jpg", scene);
-    concreteMat.albedoTexture = concreteAlbedo;
-    concreteMat.bumpTexture = concreteNormal;
-    concreteMat.ambientTexture = concreteAO;
-    concreteMat.roughness = 0.9;
-    concreteMat.metallic = 0.0;
-    concreteAlbedo.uScale = 1;
-    concreteAlbedo.vScale = 12;
-    concreteNormal.uScale = 1;
-    concreteNormal.vScale = 12;
-    concreteAO.uScale = 1;
-    concreteAO.vScale = 12;
-
-    const sidewalkLeft = MeshBuilder.CreateGround("sidewalkLeft", { width: 120, height: 800 }, scene);
-    sidewalkLeft.position = new Vector3(-240, 0.18, 40);
-    sidewalkLeft.material = concreteMat;
-
-    const sidewalkRight = MeshBuilder.CreateGround("sidewalkRight", { width: 120, height: 800 }, scene);
-    sidewalkRight.position = new Vector3(240, 0.18, 40);
-    sidewalkRight.material = concreteMat;
-
-    const walkMeshes = new Set([
-      ground.name,
-      sidewalkLeft.name,
-      sidewalkRight.name,
-      ...roadMeshes.map((mesh) => mesh.name),
-    ]);
+    const walkMeshes = new Set([ground.name]);
 
     // Distant mountains removed for now
 
@@ -689,8 +617,6 @@ const BabylonWorld: React.FC = () => {
       if (!detail) return;
       if (typeof detail.hemi === "number") hemi.intensity = detail.hemi;
       if (typeof detail.ambient === "number") ambientLight.intensity = detail.ambient;
-      if (typeof detail.neonA === "number") neonLightA.intensity = detail.neonA;
-      if (typeof detail.neonB === "number") neonLightB.intensity = detail.neonB;
       if (typeof detail.moon === "number") moonLight.intensity = detail.moon;
       if (typeof detail.glow === "number") glowLayer.intensity = detail.glow;
     };
@@ -1465,6 +1391,10 @@ const BabylonWorld: React.FC = () => {
     const moveSpeed = 24; // world units per second (tune as needed)
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
+      if (lookPointerActive) {
+        camera.rotation.y += lookInputX * lookHoldSpeed * dt;
+        camera.rotation.x = clampPitch(camera.rotation.x + lookInputY * lookHoldSpeed * dt);
+      }
       // forward vector: camera look direction flattened to XZ plane
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       forward.y = 0;

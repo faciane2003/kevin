@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useHUD } from "./HUDContext";
+import { TABS } from "./MenuTabs";
 import "./HUD.css";
 
 const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
@@ -15,7 +16,6 @@ const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
   Journal: {
     title: "Journal",
     body: [
-      "How am I going to pay all these bills?",
       "Had that dream again...the one where I was in a Jacuzzi.",
       "I heard the most interesting music by a guy banging on the side of the subway. I looked at him and smiled and he looked back and felt heard. I can't imagine night after night screaming and no one cares. Anyway, it was a good song.",
     ],
@@ -28,24 +28,15 @@ const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
       "Ninja en route..."
     ],
   },
-  Spells: {
-    title: "Tech",
-    body: [
-      "Camera",
-      "Rollerblades",
-      "Fake Lightsaber",
-    ],
-  },
   Items: {
     title: "Items",
     body: [
       "Not much toilet paper",
       "SEPTA Transit Keycard",
-      "Two Joints",
       "Half a pound of bananas and peanut butter (each)",
     ],
   },
-  Magic: {
+  Skills: {
     title: "Skills",
     body: [
       "Composite",
@@ -58,7 +49,7 @@ const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
     body: [
       "Camera",
       "Rollerblades",
-      "Fake Lightsaber",
+      "Broken Lightsaber",
     ],
   },
 };
@@ -90,14 +81,40 @@ const JournalPanel: React.FC = () => {
   const { activeTab, setActiveTab, inventory } = useHUD();
   if (!activeTab) return null;
 
+  const tabKey = activeTab.toLowerCase();
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number }>({
+    top: 12,
+    left: 70,
+  });
+
+  useEffect(() => {
+    const updatePos = () => {
+      const isMobile = window.matchMedia("(max-width: 600px)").matches;
+      const baseTop = isMobile ? 10 : 12;
+      const baseLeft = isMobile ? 10 : 12;
+      const buttonSize = isMobile ? 36 : 40;
+      const gap = isMobile ? 6 : 8;
+      const idx = Math.max(0, TABS.indexOf(activeTab as (typeof TABS)[number]));
+      setPanelPos({
+        top: baseTop + idx * (buttonSize + gap),
+        left: baseLeft + buttonSize + 14,
+      });
+    };
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    return () => window.removeEventListener("resize", updatePos);
+  }, [activeTab]);
   const content =
     activeTab === "Items"
-      ? { title: "Inventory", body: inventory.length ? inventory : ["No items collected yet."] }
+      ? { title: "Items", body: inventory.length ? inventory : ["No items collected yet."] }
       : TAB_CONTENT[activeTab] ?? { title: activeTab, body: ["No entries yet."] };
 
   return (
     <div className="journal-overlay" role="dialog" aria-label={`${activeTab} Journal`}>
-      <div className="journal-panel">
+      <div
+        className={`journal-panel journal-panel-${tabKey}`}
+        style={{ top: `${panelPos.top}px`, left: `${panelPos.left}px` }}
+      >
         <div className="hud-sparkles hud-sparkles-back" aria-hidden="true">
           {SPARKLE_POSITIONS.map((pos, idx) => (
             <span
@@ -113,9 +130,6 @@ const JournalPanel: React.FC = () => {
         </div>
         <div className={`journal-header journal-header-${activeTab?.toLowerCase() ?? ""}`}>
           <span className="journal-title">{content.title}</span>
-          <button className="journal-close" onClick={() => setActiveTab(null)} aria-label="Close journal">
-            Close
-          </button>
         </div>
         <div className={`journal-body journal-body-${activeTab?.toLowerCase() ?? ""}`}>
           {content.body.map((line) => (

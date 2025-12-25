@@ -29,7 +29,6 @@ const defaultItems: HotbarItem[] = new Array(10).fill(null).map((_, i) => ({
 const defaultInventory: string[] = [
   "Not much toilet paper",
   "SEPTA Transit Keycard",
-  "Two Joints",
   "Half a pound of bananas and peanut butter (each)",
 ];
 

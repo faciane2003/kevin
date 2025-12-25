@@ -3,13 +3,13 @@ import React from "react";
 import "./HUD.css";
 import { useHUD } from "./HUDContext";
 
-const TABS = ["Quests", "Journal", "Map", "Items", "Magic", "Tech"] as const;
-const TAB_COLORS: Record<(typeof TABS)[number], string> = {
+export const TABS = ["Quests", "Journal", "Map", "Items", "Skills", "Tech"] as const;
+export const TAB_COLORS: Record<(typeof TABS)[number], string> = {
   Quests: "gold",
   Journal: "red",
   Map: "blue",
   Items: "green",
-  Magic: "purple",
+  Skills: "purple",
   Tech: "pink",
 };
 const TAB_ICONS: Record<(typeof TABS)[number], string> = {
@@ -17,7 +17,7 @@ const TAB_ICONS: Record<(typeof TABS)[number], string> = {
   Journal: "/icons/journal.png",
   Map: "/icons/map.png",
   Items: "/icons/items.png",
-  Magic: "/icons/magic.png",
+  Skills: "/icons/magic.png",
   Tech: "/icons/tech.png",
 };
 
@@ -39,7 +39,7 @@ const MenuTabs: React.FC = () => {
             title={t}
           >
             <img src={TAB_ICONS[t]} alt={t} className="menu-tab-icon" />
-            <span className="menu-tab-tooltip">{t}</span>
+            {!active && <span className="menu-tab-tooltip">{t}</span>}
           </button>
         );
       })}
