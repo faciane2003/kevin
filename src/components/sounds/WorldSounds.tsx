@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { AudioEngine, Engine, Scene, Sound, Vector3 } from "@babylonjs/core";
 import "@babylonjs/core/Audio/audioEngine";
 import "@babylonjs/core/Audio/audioSceneComponent";
@@ -21,7 +21,7 @@ const DEFAULT_LEVELS = {
 };
 
 const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
-  const [levels, setLevels] = useState(DEFAULT_LEVELS);
+  const levels = DEFAULT_LEVELS;
   const levelsRef = useRef(DEFAULT_LEVELS);
 
   const htmlAmbientRef = useRef<HTMLAudioElement | null>(null);
@@ -420,147 +420,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     if (htmlTracks[1]) htmlTracks[1].volume = clamp01(lv.musicSycamore);
     if (htmlTracks[2]) htmlTracks[2].volume = clamp01(lv.musicSynth1);
     if (htmlTracks[3]) htmlTracks[3].volume = clamp01(lv.musicSynth2);
-  }, [levels]);
-
-  const setLevel = (key: keyof typeof DEFAULT_LEVELS, value: number) => {
-    setLevels((prev) => ({ ...prev, [key]: clamp01(value) }));
-  };
-
-  const playSound = (key: string, index?: number) => {
-    if (useHtmlAudioRef.current) {
-      const map: Record<string, HTMLAudioElement | null> = {
-        ambient: htmlAmbientRef.current,
-        people: htmlPeopleRef.current,
-        footsteps: htmlFootstepsRef.current,
-        airplane: htmlAirplaneRef.current,
-        cat: htmlCatRef.current,
-        wind: htmlWindRef.current,
-      };
-      if (key.startsWith("music") && typeof index === "number") {
-        const track = htmlMusicRefs.current[index];
-        if (track) {
-          track.currentTime = 0;
-          track.play();
-          playlistIndexRef.current = index;
-        }
-        return;
-      }
-      const audio = map[key];
-      if (audio) {
-        if (key === "ambient" || key === "people" || key === "footsteps") {
-          audio.play().catch(() => {});
-        } else {
-          audio.currentTime = 0;
-          audio.play().catch(() => {});
-        }
-      }
-      return;
-    }
-    const map: Record<string, Sound | null> = {
-      ambient: ambientCityRef.current,
-      people: peopleTalkingRef.current,
-      footsteps: footstepsRef.current,
-      airplane: airplaneFxRef.current,
-      cat: catMeowFxRef.current,
-      wind: windFxRef.current,
-    };
-    if (key.startsWith("music") && typeof index === "number") {
-      const track = musicTracksRef.current[index];
-      if (track) {
-        track.stop();
-        track.play();
-        playlistIndexRef.current = index;
-      }
-      return;
-    }
-    const sound = map[key];
-    if (!sound) return;
-    if (key === "ambient" || key === "people" || key === "footsteps") {
-      if (!sound.isPlaying) sound.play();
-    } else {
-      sound.stop();
-      sound.play();
-    }
-  };
-
-  const stopSound = (key: string, index?: number) => {
-    if (useHtmlAudioRef.current) {
-      const map: Record<string, HTMLAudioElement | null> = {
-        ambient: htmlAmbientRef.current,
-        people: htmlPeopleRef.current,
-        footsteps: htmlFootstepsRef.current,
-        airplane: htmlAirplaneRef.current,
-        cat: htmlCatRef.current,
-        wind: htmlWindRef.current,
-      };
-      if (key.startsWith("music") && typeof index === "number") {
-        const track = htmlMusicRefs.current[index];
-        if (track) {
-          track.pause();
-          track.currentTime = 0;
-        }
-        return;
-      }
-      const audio = map[key];
-      if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
-      return;
-    }
-    const map: Record<string, Sound | null> = {
-      ambient: ambientCityRef.current,
-      people: peopleTalkingRef.current,
-      footsteps: footstepsRef.current,
-      airplane: airplaneFxRef.current,
-      cat: catMeowFxRef.current,
-      wind: windFxRef.current,
-    };
-    if (key.startsWith("music") && typeof index === "number") {
-      const track = musicTracksRef.current[index];
-      if (track) track.stop();
-      return;
-    }
-    const sound = map[key];
-    if (sound) sound.stop();
-  };
-
-  const copyLevels = async () => {
-    const text = JSON.stringify(levels, null, 2);
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-  };
-
-  const controls: Array<{
-    key: keyof typeof DEFAULT_LEVELS;
-    label: string;
-    min: number;
-    max: number;
-    step: number;
-    playKey: string;
-    index?: number;
-  }> = [
-    { key: "ambient", label: "Ambient", min: 0, max: 1.2, step: 0.01, playKey: "ambient" },
-    { key: "people", label: "People", min: 0, max: 1.2, step: 0.01, playKey: "people" },
-    { key: "footsteps", label: "Footsteps", min: 0, max: 1.2, step: 0.01, playKey: "footsteps" },
-    { key: "airplane", label: "Airplane", min: 0, max: 1.2, step: 0.01, playKey: "airplane" },
-    { key: "cat", label: "Cat", min: 0, max: 1.2, step: 0.01, playKey: "cat" },
-    { key: "wind", label: "Wind", min: 0, max: 1.2, step: 0.01, playKey: "wind" },
-    { key: "musicElliot", label: "Elliot", min: 0, max: 1.0, step: 0.01, playKey: "music", index: 0 },
-    { key: "musicSycamore", label: "Sycamore", min: 0, max: 1.0, step: 0.01, playKey: "music", index: 1 },
-    { key: "musicSynth1", label: "Synthwave 1", min: 0, max: 1.0, step: 0.01, playKey: "music", index: 2 },
-    { key: "musicSynth2", label: "Synthwave 2", min: 0, max: 1.0, step: 0.01, playKey: "music", index: 3 },
-  ];
+  }, []);
 
   return null;
 };
