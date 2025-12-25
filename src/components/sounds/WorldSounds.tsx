@@ -71,8 +71,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     const playlistDefs = [
       { name: "music-elliot", file: "elliot.m4a", volume: 0.225 },
       { name: "music-sycamore", file: "sycamore.m4a", volume: 0.225 },
-      { name: "music-synthwave1", file: "synthwave1.m4a", volume: 0.1575 },
-      { name: "music-synthwave2", file: "synthwave2.m4a", volume: 0.1575 },
+      { name: "music-synthwave1", file: "synthwave1.m4a", volume: 0.07875 },
+      { name: "music-synthwave2", file: "synthwave2.m4a", volume: 0.07875 },
     ];
     const musicTracks = playlistDefs.map(
       (track) =>

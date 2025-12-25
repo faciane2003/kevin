@@ -10,6 +10,7 @@ import {
   HemisphericLight,
   DirectionalLight,
   PointLight,
+  SpotLight,
   GlowLayer,
   DefaultRenderingPipeline,
   ColorCurves,
@@ -79,6 +80,21 @@ const BabylonWorld: React.FC = () => {
     window.addEventListener("keydown", onToggleDebugOverlay);
 
     const buildingTilingState = { u: 1, v: 2.5 };
+    const parseHexColor = (hex: string) => {
+      const cleaned = hex.replace("#", "");
+      const expanded =
+        cleaned.length === 3
+          ? cleaned
+              .split("")
+              .map((c) => `${c}${c}`)
+              .join("")
+          : cleaned;
+      const value = parseInt(expanded, 16);
+      const r = (value >> 16) & 255;
+      const g = (value >> 8) & 255;
+      const b = value & 255;
+      return new Color3(r / 255, g / 255, b / 255);
+    };
 
 
     const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -452,6 +468,7 @@ const BabylonWorld: React.FC = () => {
     moonMat.emissiveColor = new Color3(0.35, 0.35, 0.3);
     moonMat.specularColor = new Color3(0, 0, 0);
     moonMat.disableLighting = false;
+    moonMat.fogEnabled = false;
     moon.material = moonMat;
     moon.position = new Vector3(700, 450, -130);
     moon.isPickable = false;
@@ -460,6 +477,31 @@ const BabylonWorld: React.FC = () => {
     moonLight.position = moon.position;
     moonLight.intensity = 0.3;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
+
+    const moonSpot = new SpotLight(
+      "moonSpot",
+      new Vector3(700, 450, -130),
+      new Vector3(-0.8, -0.5, 0.2),
+      0.6,
+      2,
+      scene
+    );
+    moonSpot.intensity = 0.7;
+    moonSpot.diffuse = new Color3(0.85, 0.9, 1.0);
+
+    let moonSpotYaw = -79;
+    let moonSpotPitch = -32;
+    const updateMoonSpotDirection = () => {
+      const yaw = (moonSpotYaw * Math.PI) / 180;
+      const pitch = (moonSpotPitch * Math.PI) / 180;
+      const dir = new Vector3(
+        Math.sin(yaw) * Math.cos(pitch),
+        Math.sin(pitch),
+        Math.cos(yaw) * Math.cos(pitch)
+      );
+      moonSpot.direction = dir;
+    };
+    updateMoonSpotDirection();
 
 
     moon.scaling.set(2.3, 2.3, 2.3);
@@ -526,9 +568,16 @@ const BabylonWorld: React.FC = () => {
 
     // Sky texture already applied above.
     // Neon haze for atmosphere
-    scene.fogMode = Scene.FOGMODE_EXP;
+    const fogSettings = {
+      enabled: false,
+      density: 0,
+      intensity: 1,
+      heightFalloff: 0.002,
+      color: parseHexColor("#0d1426"),
+    };
+    scene.fogMode = Scene.FOGMODE_EXP2;
     scene.fogDensity = 0;
-    scene.fogColor = new Color3(0.05, 0.08, 0.16);
+    scene.fogColor = fogSettings.color;
 
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
@@ -570,13 +619,53 @@ const BabylonWorld: React.FC = () => {
       glowLayer.intensity = 0.6;
     }
 
+    const lampLights: PointLight[] = [];
+    const amberLights: PointLight[] = [];
+    const lampBaseIntensity = 0.6;
+    const amberBaseIntensity = 0.35;
+    let lampScale = 1;
+    let amberScale = 1;
+
     const onLightSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
       if (typeof detail.hemi === "number") hemi.intensity = detail.hemi;
       if (typeof detail.ambient === "number") ambientLight.intensity = detail.ambient;
       if (typeof detail.moon === "number") moonLight.intensity = detail.moon;
+      if (typeof detail.moonSpotIntensity === "number") moonSpot.intensity = detail.moonSpotIntensity;
+      if (typeof detail.moonSpotAngle === "number") moonSpot.angle = detail.moonSpotAngle;
+      if (typeof detail.moonSpotX === "number") moonSpot.position.x = detail.moonSpotX;
+      if (typeof detail.moonSpotY === "number") moonSpot.position.y = detail.moonSpotY;
+      if (typeof detail.moonSpotZ === "number") moonSpot.position.z = detail.moonSpotZ;
+      if (typeof detail.moonSpotYaw === "number") {
+        moonSpotYaw = detail.moonSpotYaw;
+        updateMoonSpotDirection();
+      }
+      if (typeof detail.moonSpotPitch === "number") {
+        moonSpotPitch = detail.moonSpotPitch;
+        updateMoonSpotDirection();
+      }
+      if (typeof detail.lamp === "number") {
+        lampScale = detail.lamp;
+        lampLights.forEach((light) => {
+          light.intensity = lampBaseIntensity * lampScale;
+        });
+      }
+      if (typeof detail.amber === "number") {
+        amberScale = detail.amber;
+        amberLights.forEach((light) => {
+          light.intensity = amberBaseIntensity * amberScale;
+        });
+      }
       if (typeof detail.glow === "number") glowLayer.intensity = detail.glow;
+      if (typeof detail.fogEnabled === "boolean") fogSettings.enabled = detail.fogEnabled;
+      if (typeof detail.fogDensity === "number") fogSettings.density = detail.fogDensity;
+      if (typeof detail.fogIntensity === "number") fogSettings.intensity = detail.fogIntensity;
+      if (typeof detail.fogHeightFalloff === "number") fogSettings.heightFalloff = detail.fogHeightFalloff;
+      if (typeof detail.fogColor === "string") {
+        fogSettings.color = parseHexColor(detail.fogColor);
+        scene.fogColor = fogSettings.color;
+      }
     };
     window.addEventListener("light-settings", onLightSettings as EventListener);
 
@@ -747,9 +836,16 @@ const BabylonWorld: React.FC = () => {
           if ((tnode as any).scaling) tnode.scaling = new Vector3(1.9, 1.9, 1.9);
         });
         const lampLight = new PointLight(`lamp_light_${idx}`, new Vector3(pos.x, 8, pos.z), scene);
-        lampLight.intensity = 0.6;
+        lampLight.intensity = lampBaseIntensity * lampScale;
         lampLight.diffuse = new Color3(1.0, 0.9, 0.7);
         lampLight.range = 40;
+        lampLights.push(lampLight);
+
+        const amberLight = new PointLight(`lamp_amber_${idx}`, new Vector3(pos.x, 9, pos.z), scene);
+        amberLight.intensity = amberBaseIntensity * amberScale;
+        amberLight.diffuse = new Color3(1.0, 0.55, 0.2);
+        amberLight.range = 22;
+        amberLights.push(amberLight);
       });
     };
     loadLampPosts();
@@ -880,6 +976,7 @@ const BabylonWorld: React.FC = () => {
       const base = MeshBuilder.CreateCylinder(`kiosk_base_${i}`, { height: 3, diameter: 4 }, scene);
       base.position = new Vector3(-80 + i * 40, 1.5, -40);
       base.material = metalMat;
+      glowLayer.addExcludedMesh(base);
 
       const holo = MeshBuilder.CreatePlane(`kiosk_holo_${i}`, { width: 6, height: 8 }, scene);
       holo.position = new Vector3(-80 + i * 40, 6.8, -40);
@@ -891,6 +988,7 @@ const BabylonWorld: React.FC = () => {
       adMat.backFaceCulling = false;
       holo.material = adMat;
       holo.billboardMode = 7;
+      glowLayer.addExcludedMesh(holo);
     }
 
     // Benches
@@ -1169,6 +1267,7 @@ const BabylonWorld: React.FC = () => {
     const planeMat = new StandardMaterial("planeMat", scene);
     planeMat.diffuseColor = new Color3(0.9, 0.92, 0.95);
     planeMat.emissiveColor = new Color3(0.1, 0.1, 0.12);
+    planeMat.fogEnabled = false;
     const planeBounds = { minX: -520, maxX: 520, minZ: -520, maxZ: 520 };
     const planes: {
       root: TransformNode;
@@ -1215,6 +1314,7 @@ const BabylonWorld: React.FC = () => {
       );
       trail.color = new Color3(1, 1, 1);
       trail.alpha = 0.6;
+      trail.fogEnabled = false;
       planes.push({ root, angle, radius, center, speed, height, drift, trail, trailPoints });
     }
 
@@ -1241,6 +1341,13 @@ const BabylonWorld: React.FC = () => {
     // Animation updates: people, drones, pickups
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
+      const heightFactor =
+        fogSettings.heightFalloff > 0
+          ? Math.max(0, 1 - camera.position.y * fogSettings.heightFalloff)
+          : 1;
+      const effectiveFog = fogSettings.density * fogSettings.intensity * heightFactor;
+      scene.fogDensity = fogSettings.enabled ? effectiveFog : 0;
+
       people.forEach((p) => {
         p.angle += p.speed * dt;
         const px = p.center.x + Math.cos(p.angle) * p.radius;

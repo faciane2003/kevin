@@ -4,19 +4,43 @@ import "./HUD.css";
 type LightSettings = {
   hemi: number;
   ambient: number;
-  neonA: number;
-  neonB: number;
   moon: number;
+  moonSpotIntensity: number;
+  moonSpotAngle: number;
+  moonSpotX: number;
+  moonSpotY: number;
+  moonSpotZ: number;
+  moonSpotYaw: number;
+  moonSpotPitch: number;
+  lamp: number;
+  amber: number;
   glow: number;
+  fogEnabled: boolean;
+  fogDensity: number;
+  fogIntensity: number;
+  fogHeightFalloff: number;
+  fogColor: string;
 };
 
 const DEFAULTS: LightSettings = {
-  hemi: 0,
-  ambient: 0.45,
-  neonA: 1.7,
-  neonB: 1.1,
-  moon: 0.85,
-  glow: 0.15,
+  hemi: 0.5,
+  ambient: 0.9,
+  moon: 0,
+  moonSpotIntensity: 1.55,
+  moonSpotAngle: 1.6,
+  moonSpotX: 1273,
+  moonSpotY: 381,
+  moonSpotZ: 1367,
+  moonSpotYaw: -131,
+  moonSpotPitch: -9,
+  lamp: 1.05,
+  amber: 0.9,
+  glow: 0.45,
+  fogEnabled: true,
+  fogDensity: 0.01,
+  fogIntensity: 0.1,
+  fogHeightFalloff: 0.0035,
+  fogColor: "#3b3e45",
 };
 
 const LightControlPanel: React.FC = () => {
@@ -41,35 +65,130 @@ const LightControlPanel: React.FC = () => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const onToggle = (key: keyof LightSettings, value: boolean) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const onColorChange = (key: keyof LightSettings, value: string) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const copySettings = async () => {
+    const text = JSON.stringify(settings, null, 2);
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  };
+
   return (
     <div className="light-panel">
       <div className="light-panel-header">
         <span>Lighting</span>
-        <button onClick={() => setOpen(false)}>Close</button>
+        <div style={{ display: "flex", gap: "6px" }}>
+          <button onClick={copySettings}>Copy</button>
+          <button onClick={() => setOpen(false)}>Close</button>
+        </div>
       </div>
       {(
         [
-          ["hemi", "Hemi"],
-          ["ambient", "Ambient"],
-          ["neonA", "Neon A"],
-          ["neonB", "Neon B"],
-          ["moon", "Moon"],
-          ["glow", "Glow"],
-        ] as Array<[keyof LightSettings, string]>
-      ).map(([key, label]) => (
+          ["hemi", "Hemi", 0, 2.5, 0.05],
+          ["ambient", "Ambient", 0, 2.5, 0.05],
+          ["moon", "Moon", 0, 2.5, 0.05],
+          ["lamp", "Lamp", 0, 3, 0.05],
+          ["amber", "Amber", 0, 3, 0.05],
+          ["glow", "Glow", 0, 2, 0.05],
+        ] as Array<[keyof LightSettings, string, number, number, number]>
+      ).map(([key, label, min, max, step]) => (
         <label key={key} className="light-row">
           <span>{label}</span>
           <input
             type="range"
-            min="0"
-            max={key === "glow" ? "2" : "2.5"}
-            step="0.05"
-            value={settings[key]}
+            min={min}
+            max={max}
+            step={step}
+            value={settings[key] as number}
             onChange={(e) => onChange(key, parseFloat(e.target.value))}
           />
-          <span className="light-value">{settings[key].toFixed(2)}</span>
+          <span className="light-value">{(settings[key] as number).toFixed(2)}</span>
         </label>
       ))}
+
+      <div className="light-panel-header" style={{ marginTop: 8 }}>
+        <span>Moon Spotlight</span>
+      </div>
+      {(
+        [
+          ["moonSpotIntensity", "Intensity", 0, 5, 0.05],
+          ["moonSpotAngle", "Angle", 0.1, 1.6, 0.01],
+          ["moonSpotX", "Pos X", -2000, 2000, 1],
+          ["moonSpotY", "Pos Y", 0, 2000, 1],
+          ["moonSpotZ", "Pos Z", -2000, 2000, 1],
+          ["moonSpotYaw", "Yaw", -180, 180, 1],
+          ["moonSpotPitch", "Pitch", -89, 89, 1],
+        ] as Array<[keyof LightSettings, string, number, number, number]>
+      ).map(([key, label, min, max, step]) => (
+        <label key={key} className="light-row">
+          <span>{label}</span>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={settings[key] as number}
+            onChange={(e) => onChange(key, parseFloat(e.target.value))}
+          />
+          <span className="light-value">{(settings[key] as number).toFixed(2)}</span>
+        </label>
+      ))}
+
+      <div className="light-panel-header" style={{ marginTop: 8 }}>
+        <span>Fog</span>
+      </div>
+      <label className="light-row">
+        <span>Enabled</span>
+        <input
+          type="checkbox"
+          checked={settings.fogEnabled}
+          onChange={(e) => onToggle("fogEnabled", e.target.checked)}
+        />
+      </label>
+      {(
+        [
+          ["fogDensity", "Density", 0, 0.08, 0.0005],
+          ["fogIntensity", "Intensity", 0, 3, 0.05],
+          ["fogHeightFalloff", "Height", 0, 0.02, 0.0005],
+        ] as Array<[keyof LightSettings, string, number, number, number]>
+      ).map(([key, label, min, max, step]) => (
+        <label key={key} className="light-row">
+          <span>{label}</span>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={settings[key] as number}
+            onChange={(e) => onChange(key, parseFloat(e.target.value))}
+          />
+          <span className="light-value">{(settings[key] as number).toFixed(3)}</span>
+        </label>
+      ))}
+      <label className="light-row">
+        <span>Color</span>
+        <input
+          type="color"
+          value={settings.fogColor}
+          onChange={(e) => onColorChange("fogColor", e.target.value)}
+        />
+      </label>
     </div>
   );
 };
