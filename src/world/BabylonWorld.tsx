@@ -555,7 +555,7 @@ const BabylonWorld: React.FC = () => {
     // Ground (flat black plane)
     const ground = MeshBuilder.CreateGround("ground", { width: 800, height: 800 }, scene);
     const groundMat = new StandardMaterial("groundMat", scene);
-    groundMat.diffuseColor = new Color3(0.02, 0.02, 0.02);
+    groundMat.diffuseColor = new Color3(0.14, 0.14, 0.14);
     groundMat.specularColor = new Color3(0, 0, 0);
     ground.material = groundMat;
 
