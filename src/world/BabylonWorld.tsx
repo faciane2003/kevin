@@ -14,7 +14,6 @@ import {
   DefaultRenderingPipeline,
   ColorCurves,
   MeshBuilder,
-  PBRMaterial,
   StandardMaterial,
   Color3,
   Color4,
@@ -461,50 +460,6 @@ const BabylonWorld: React.FC = () => {
 
 
     moon.scaling.set(2.3, 2.3, 2.3);
-
-    const createHeightMapUrl = () => {
-      const tex = new DynamicTexture("heightMap", { width: 512, height: 512 }, scene, false);
-      const ctx = tex.getContext() as CanvasRenderingContext2D;
-      const size = tex.getSize();
-      ctx.fillStyle = "rgb(120,120,120)";
-      ctx.fillRect(0, 0, size.width, size.height);
-      // Large rolling hills
-      for (let i = 0; i < 14; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const r = 160 + Math.random() * 240;
-        const light = Math.random() > 0.5;
-        ctx.fillStyle = light ? "rgba(210,210,210,0.12)" : "rgba(60,60,60,0.12)";
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // Mid-frequency terrain detail
-      for (let i = 0; i < 140; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const r = 40 + Math.random() * 120;
-        const light = Math.random() > 0.5;
-        ctx.fillStyle = light ? "rgba(200,200,200,0.1)" : "rgba(60,60,60,0.1)";
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // Fine variation
-      for (let i = 0; i < 400; i++) {
-        const x = Math.random() * size.width;
-        const y = Math.random() * size.height;
-        const r = 8 + Math.random() * 30;
-        const light = Math.random() > 0.5;
-        ctx.fillStyle = light ? "rgba(200,200,200,0.12)" : "rgba(60,60,60,0.12)";
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      tex.update();
-      const canvas = (ctx as any).canvas as HTMLCanvasElement;
-      return canvas.toDataURL("image/png");
-    };
 
     const createNeonSignTexture = (name: string, label: string, glow: string, flipX = false) => {
       const tex = new DynamicTexture(name, { width: 512, height: 256 }, scene, false);
