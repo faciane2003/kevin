@@ -121,7 +121,7 @@ const BabylonWorld: React.FC = () => {
       walkLabelZone.style.alignItems = "center";
       walkLabelZone.style.justifyContent = "flex-start";
       walkLabelZone.style.paddingTop = "70vh";
-      walkLabelZone.style.paddingLeft = "24px";
+      walkLabelZone.style.paddingLeft = "8px";
       walkLabelZone.style.color = "#38e26f";
       walkLabelZone.style.fontFamily = "Consolas, Menlo, monospace";
       walkLabelZone.style.fontSize = "18px";
@@ -165,7 +165,7 @@ const BabylonWorld: React.FC = () => {
       lookZone.style.alignItems = "center";
       lookZone.style.justifyContent = "flex-start";
       lookZone.style.paddingTop = "70vh";
-      lookZone.style.paddingRight = "24px";
+      lookZone.style.paddingRight = "8px";
       lookZone.style.color = "#38e26f";
       lookZone.style.fontFamily = "Consolas, Menlo, monospace";
       lookZone.style.fontSize = "18px";

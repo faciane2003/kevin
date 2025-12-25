@@ -10,6 +10,45 @@ type DialogueOption = { text: string; next?: string };
 type DialogueNode = { text: string; options: DialogueOption[] };
 type DialogueTree = { name: string; nodes: Record<string, DialogueNode> };
 
+const NPC_PORTRAITS: Record<string, string> = {
+  aria: "/portraits/aria.jpg",
+  kade: "/portraits/kade.jpg",
+  mira: "/portraits/mira.jpg",
+  vex: "/portraits/vex.jpg",
+  lux: "/portraits/lux.jpg",
+  zed: "/portraits/zed.jpg",
+};
+
+const DIALOGUE_SPARKLES = [
+  { left: "8%", top: "8px" },
+  { left: "32%", top: "8px" },
+  { right: "8%", top: "8px" },
+  { right: "8px", top: "40%" },
+  { right: "8px", bottom: "12px" },
+  { left: "50%", bottom: "8px" },
+  { left: "8px", bottom: "12px" },
+  { left: "8px", top: "40%" },
+];
+
+const PORTRAIT_SPARKLES = [
+  { left: "6%", top: "6%" },
+  { left: "50%", top: "4%" },
+  { right: "6%", top: "8%" },
+  { right: "4%", top: "50%" },
+  { right: "8%", bottom: "8%" },
+  { left: "50%", bottom: "4%" },
+  { left: "6%", bottom: "8%" },
+  { left: "4%", top: "50%" },
+  { left: "18%", top: "10%" },
+  { left: "72%", top: "12%" },
+  { right: "18%", top: "14%" },
+  { left: "86%", top: "32%" },
+  { right: "14%", bottom: "16%" },
+  { left: "68%", bottom: "12%" },
+  { left: "16%", bottom: "18%" },
+  { left: "12%", top: "68%" },
+];
+
 const NPC_DIALOGUE: Record<string, DialogueTree> = {
   aria: {
     name: "Aria Vex",
@@ -170,40 +209,107 @@ const DialoguePanel: React.FC<{
   onClose: () => void;
 }> = ({ npcId, onClose }) => {
   const [nodeId, setNodeId] = useState("start");
+  const [isClosing, setIsClosing] = useState(false);
   const tree = npcId ? NPC_DIALOGUE[npcId] : null;
+  const node = tree?.nodes[nodeId];
+  const visibleOptions = node ? node.options.filter((opt) => opt.next) : [];
+  const isTerminal = !!node && visibleOptions.length === 0;
 
   useEffect(() => {
     setNodeId("start");
+    setIsClosing(false);
   }, [npcId]);
 
-  if (!tree) return null;
-  const node = tree.nodes[nodeId];
-  if (!node) return null;
+  useEffect(() => {
+    if (!isTerminal) return;
+    let fadeTimer: number | undefined;
+    let closeTimer: number | undefined;
+    fadeTimer = window.setTimeout(() => {
+      setIsClosing(true);
+      closeTimer = window.setTimeout(() => onClose(), 450);
+    }, 1000);
+    return () => {
+      if (fadeTimer) window.clearTimeout(fadeTimer);
+      if (closeTimer) window.clearTimeout(closeTimer);
+    };
+  }, [isTerminal, onClose, nodeId]);
+
+  if (!tree || !node) return null;
+  const portraitSrc = npcId ? NPC_PORTRAITS[npcId] : undefined;
 
   return (
-    <div className="dialogue-overlay" role="dialog" aria-label="NPC Dialogue">
-      <div className="dialogue-panel">
+    <div
+      className={`dialogue-overlay${isClosing ? " dialogue-overlay-closing" : ""}`}
+      role="dialog"
+      aria-label="NPC Dialogue"
+    >
+      <div className="dialogue-stack">
+        {portraitSrc ? (
+          <div className="dialogue-portrait dialogue-portrait-floating">
+            <div className="portrait-sparkles" aria-hidden="true">
+              {PORTRAIT_SPARKLES.map((pos, idx) => (
+                <span
+                  key={`portrait-${idx}`}
+                  className="portrait-sparkle"
+                  style={{
+                    ...pos,
+                    animationDelay: `${idx * 0.15}s`,
+                    animationDuration: `${2.4 + (idx % 4) * 0.4}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <img src={portraitSrc} alt={tree.name} />
+          </div>
+        ) : null}
+        <div className="dialogue-panel">
+        <div className="dialogue-sparkles dialogue-sparkles-back" aria-hidden="true">
+          {DIALOGUE_SPARKLES.map((pos, idx) => (
+            <span
+              key={`back-${idx}`}
+              className="dialogue-sparkle"
+              style={{
+                ...pos,
+                animationDelay: `${idx * 0.18}s`,
+                animationDuration: `${2.6 + (idx % 4) * 0.35}s`,
+              }}
+            />
+          ))}
+        </div>
         <div className="dialogue-header">
           <span className="dialogue-name">{tree.name}</span>
-          <button className="dialogue-close" onClick={onClose} aria-label="Close dialogue">
-            Close
-          </button>
         </div>
         <div className="dialogue-body">{node.text}</div>
         <div className="dialogue-options">
-          {node.options.map((opt) => (
+          {visibleOptions.map((opt) => (
             <button
               key={opt.text}
               className="dialogue-option"
               onClick={() => {
-                if (opt.next) setNodeId(opt.next);
-                else onClose();
+                if (opt.next) {
+                  setNodeId(opt.next);
+                  setIsClosing(false);
+                }
               }}
             >
               {opt.text}
             </button>
           ))}
         </div>
+        <div className="dialogue-sparkles dialogue-sparkles-front" aria-hidden="true">
+          {DIALOGUE_SPARKLES.map((pos, idx) => (
+            <span
+              key={`front-${idx}`}
+              className="dialogue-sparkle"
+              style={{
+                ...pos,
+                animationDelay: `${0.08 + idx * 0.14}s`,
+                animationDuration: `${2.2 + (idx % 5) * 0.32}s`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
       </div>
     </div>
   );
