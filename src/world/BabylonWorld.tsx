@@ -79,6 +79,7 @@ const BabylonWorld: React.FC = () => {
     };
     window.addEventListener("keydown", onToggleDebugOverlay);
 
+
     const buildingTilingState = { u: 1, v: 2.5 };
     const parseHexColor = (hex: string) => {
       const cleaned = hex.replace("#", "");
@@ -535,25 +536,8 @@ const BabylonWorld: React.FC = () => {
       return tex;
     };
 
-    const createPickupTexture = (name: string, label: string, color: string) => {
-      const tex = new DynamicTexture(name, { width: 256, height: 256 }, scene, false);
-      const ctx = tex.getContext() as CanvasRenderingContext2D;
-      const size = tex.getSize();
-      ctx.clearRect(0, 0, size.width, size.height);
-      ctx.fillStyle = color;
-      ctx.font = "bold 72px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 20;
-      ctx.fillText(label, size.width / 2, size.height / 2);
-      tex.update();
-      tex.hasAlpha = true;
-      return tex;
-    };
-
     // Ground (flat black plane)
-    const ground = MeshBuilder.CreateGround("ground", { width: 800, height: 800 }, scene);
+    const ground = MeshBuilder.CreateGround("ground", { width: 2400, height: 2400 }, scene);
     const groundMat = new StandardMaterial("groundMat", scene);
     groundMat.diffuseColor = new Color3(0.14, 0.14, 0.14);
     groundMat.specularColor = new Color3(0, 0, 0);
@@ -834,6 +818,9 @@ const BabylonWorld: React.FC = () => {
           tnode.parent = root;
           if ((tnode as any).position) tnode.position = new Vector3(0, 0, 0);
           if ((tnode as any).scaling) tnode.scaling = new Vector3(1.9, 1.9, 1.9);
+          if ((tnode as any).getChildMeshes) {
+            tnode.getChildMeshes().forEach((mesh) => glowLayer.addExcludedMesh(mesh as any));
+          }
         });
         const lampLight = new PointLight(`lamp_light_${idx}`, new Vector3(pos.x, 8, pos.z), scene);
         lampLight.intensity = lampBaseIntensity * lampScale;
@@ -965,31 +952,111 @@ const BabylonWorld: React.FC = () => {
     addBillboardBulbs(signB, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_front", 0.6);
     addBillboardBulbs(signB_back, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_back", 0.6);
 
-    // Holo kiosks
-    const kioskAds = [
-      new Texture("/ads/ad_sunglasses.jpg", scene),
-      new Texture("/ads/ad_cyborg.jpg", scene),
-      new Texture("/ads/ad_child_apple.jpg", scene),
-      new Texture("/ads/ad_mech_goat.jpg", scene),
+    const adNames = [
+      "Fellowship! (10).jpg",
+      "Fellowship! (103).jpg",
+      "Fellowship! (117).jpg",
+      "Fellowship! (125).jpg",
+      "Fellowship! (126).jpg",
+      "Fellowship! (127).jpg",
+      "Fellowship! (13).jpg",
+      "Fellowship! (131).jpg",
+      "Fellowship! (134).jpg",
+      "Fellowship! (137).jpg",
+      "Fellowship! (138).jpg",
+      "Fellowship! (144).jpg",
+      "Fellowship! (145).jpg",
+      "Fellowship! (148).jpg",
+      "Fellowship! (172).jpg",
+      "Fellowship! (179).jpg",
+      "Fellowship! (18).jpg",
+      "Fellowship! (188).jpg",
+      "Fellowship! (195).jpg",
+      "Fellowship! (196).jpg",
+      "Fellowship! (199).jpg",
+      "Fellowship! (202).jpg",
+      "Fellowship! (208).jpg",
+      "Fellowship! (215).jpg",
+      "Fellowship! (223).jpg",
+      "Fellowship! (224).jpg",
+      "Fellowship! (237).jpg",
+      "Fellowship! (241).jpg",
+      "Fellowship! (246).jpg",
+      "Fellowship! (253).jpg",
+      "Fellowship! (256).jpg",
+      "Fellowship! (257).jpg",
+      "Fellowship! (260).jpg",
+      "Fellowship! (277).jpg",
+      "Fellowship! (282).jpg",
+      "Fellowship! (290).jpg",
+      "Fellowship! (32).jpg",
+      "Fellowship! (34).jpg",
+      "Fellowship! (43).jpg",
+      "Fellowship! (5).jpg",
+      "Fellowship! (54).jpg",
+      "Fellowship! (57).jpg",
+      "Fellowship! (7).jpg",
+      "Fellowship! (94).jpg",
     ];
-    for (let i = 0; i < 5; i++) {
-      const base = MeshBuilder.CreateCylinder(`kiosk_base_${i}`, { height: 3, diameter: 4 }, scene);
-      base.position = new Vector3(-80 + i * 40, 1.5, -40);
-      base.material = metalMat;
-      glowLayer.addExcludedMesh(base);
+    const adPlaneBaseHeight = 18;
+    const adSettings = {
+      x: 425,
+      y: 330,
+      z: 45,
+      scale: 10,
+      rotX: (28 * Math.PI) / 180,
+      rotY: (-90 * Math.PI) / 180,
+      rotZ: (180 * Math.PI) / 180,
+    };
+    const adAnchor = new Vector3(adSettings.x, adSettings.y, adSettings.z);
+    const adPlane = MeshBuilder.CreatePlane("ad_plane_main", { width: adPlaneBaseHeight, height: adPlaneBaseHeight }, scene);
+    adPlane.position = adAnchor.clone();
+    adPlane.rotation = new Vector3(adSettings.rotX, adSettings.rotY, adSettings.rotZ);
+    const adMaterial = new StandardMaterial("ad_plane_main_mat", scene);
+    adMaterial.emissiveColor = new Color3(0.4, 0.4, 0.4);
+    adMaterial.backFaceCulling = false;
+    adMaterial.disableLighting = true;
+    adPlane.material = adMaterial;
+    glowLayer.addExcludedMesh(adPlane);
 
-      const holo = MeshBuilder.CreatePlane(`kiosk_holo_${i}`, { width: 6, height: 8 }, scene);
-      holo.position = new Vector3(-80 + i * 40, 6.8, -40);
-      const adTex = kioskAds[i % kioskAds.length];
-      const adMat = new StandardMaterial(`kiosk_ad_mat_${i}`, scene);
-      adMat.diffuseTexture = adTex;
-      adMat.emissiveTexture = adTex;
-      adMat.emissiveColor = new Color3(0.25, 0.25, 0.25);
-      adMat.backFaceCulling = false;
-      holo.material = adMat;
-      holo.billboardMode = 7;
-      glowLayer.addExcludedMesh(holo);
+    const shuffledAds = [...adNames];
+    for (let i = shuffledAds.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledAds[i], shuffledAds[j]] = [shuffledAds[j], shuffledAds[i]];
     }
+    let adIndex = 0;
+    let currentAdTexture: Texture | null = null;
+    const applyAdTexture = (name: string) => {
+      const adUrl = encodeURI(`/ads/small/${name}`);
+      const tex = new Texture(adUrl, scene, true, false, Texture.TRILINEAR_SAMPLINGMODE, () => {
+        const size = tex.getSize();
+        if (size.height > 0) {
+          const aspect = size.width / size.height;
+          adPlane.scaling.x = adSettings.scale * aspect;
+          adPlane.scaling.y = adSettings.scale;
+          adPlane.scaling.z = adSettings.scale;
+          adPlane.rotation.set(adSettings.rotX, adSettings.rotY, adSettings.rotZ);
+        }
+      });
+      if (currentAdTexture) currentAdTexture.dispose();
+      currentAdTexture = tex;
+      adMaterial.diffuseTexture = tex;
+      adMaterial.emissiveTexture = tex;
+    };
+    applyAdTexture(shuffledAds[adIndex]);
+    const adTimer = window.setInterval(() => {
+      adIndex = (adIndex + 1) % shuffledAds.length;
+      applyAdTexture(shuffledAds[adIndex]);
+    }, 6000);
+
+    const updateAdTransform = () => {
+      adPlane.position.set(adSettings.x, adSettings.y, adSettings.z);
+      adPlane.rotation.set(adSettings.rotX, adSettings.rotY, adSettings.rotZ);
+      adPlane.scaling.set(adSettings.scale, adSettings.scale, adSettings.scale);
+    };
+    updateAdTransform();
+
+ 
 
     // Benches
     for (let i = 0; i < 6; i++) {
@@ -1005,36 +1072,11 @@ const BabylonWorld: React.FC = () => {
       crate.material = metalMat;
     }
 
-    // Barriers
-    for (let i = 0; i < 8; i++) {
-      const barrier = MeshBuilder.CreateBox(`barrier_${i}`, { width: 6, height: 2, depth: 1 }, scene);
-      barrier.position = new Vector3(80 + i * 6, 1, -20);
-      barrier.material = neonGreen;
-    }
-
-    // Street signs
-    for (let i = 0; i < 5; i++) {
-      const pole = MeshBuilder.CreateCylinder(`sign_pole_${i}`, { height: 6, diameter: 0.6 }, scene);
-      pole.position = new Vector3(120, 3, -120 + i * 35);
-      pole.material = metalMat;
-      const plate = MeshBuilder.CreatePlane(`sign_plate_${i}`, { width: 8, height: 3 }, scene);
-      plate.position = new Vector3(120, 6, -120 + i * 35);
-      plate.material = neonCyan;
-      plate.rotation = new Vector3(0, Math.PI / 2, 0);
-    }
-
     // Vent stacks
     for (let i = 0; i < 6; i++) {
       const vent = MeshBuilder.CreateCylinder(`vent_${i}`, { height: 4, diameter: 2.4 }, scene);
       vent.position = new Vector3(-160 + i * 30, 2, 120);
       vent.material = metalMat;
-    }
-
-    // Neon floor beacons
-    for (let i = 0; i < 10; i++) {
-      const beacon = MeshBuilder.CreateCylinder(`beacon_${i}`, { height: 0.4, diameter: 3 }, scene);
-      beacon.position = new Vector3(-140 + i * 28, 0.2, 20);
-      beacon.material = neonMagenta;
     }
 
     // Power pylons
@@ -1047,32 +1089,6 @@ const BabylonWorld: React.FC = () => {
       cap.material = neonCyan;
     }
 
-    // Floating pickups (swords, potions, gold)
-    const pickupMatSword = new StandardMaterial("pickupSwordMat", scene);
-    pickupMatSword.emissiveTexture = createPickupTexture("pickupSwordTex", "S", "#7cffb0");
-    pickupMatSword.emissiveTexture.hasAlpha = true;
-    pickupMatSword.opacityTexture = pickupMatSword.emissiveTexture;
-    pickupMatSword.useAlphaFromDiffuseTexture = true;
-    pickupMatSword.disableLighting = true;
-    pickupMatSword.alpha = 0.95;
-    pickupMatSword.backFaceCulling = false;
-    const pickupMatPotion = new StandardMaterial("pickupPotionMat", scene);
-    pickupMatPotion.emissiveTexture = createPickupTexture("pickupPotionTex", "P", "#6af6ff");
-    pickupMatPotion.emissiveTexture.hasAlpha = true;
-    pickupMatPotion.opacityTexture = pickupMatPotion.emissiveTexture;
-    pickupMatPotion.useAlphaFromDiffuseTexture = true;
-    pickupMatPotion.disableLighting = true;
-    pickupMatPotion.alpha = 0.95;
-    pickupMatPotion.backFaceCulling = false;
-    const pickupMatGold = new StandardMaterial("pickupGoldMat", scene);
-    pickupMatGold.emissiveTexture = createPickupTexture("pickupGoldTex", "G", "#ffd16a");
-    pickupMatGold.emissiveTexture.hasAlpha = true;
-    pickupMatGold.opacityTexture = pickupMatGold.emissiveTexture;
-    pickupMatGold.useAlphaFromDiffuseTexture = true;
-    pickupMatGold.disableLighting = true;
-    pickupMatGold.alpha = 0.95;
-    pickupMatGold.backFaceCulling = false;
-
     const pickups: { mesh: any; baseY: number; phase: number }[] = [];
     const flickerMats: { mat: StandardMaterial; base: Color3 }[] = [
       { mat: neonCyan, base: new Color3(0.1, 0.9, 1.0) },
@@ -1084,63 +1100,6 @@ const BabylonWorld: React.FC = () => {
     signBulbMats.forEach((mat) => {
       flickerMats.push({ mat, base: mat.emissiveColor.clone() });
     });
-    const pickupDefs = [
-      { id: "Sword", mat: pickupMatSword },
-      { id: "Potion", mat: pickupMatPotion },
-      { id: "Gold", mat: pickupMatGold },
-    ];
-    for (let i = 0; i < 12; i++) {
-      const def = pickupDefs[i % pickupDefs.length];
-      const base = new TransformNode(`pickup_${def.id}_${i}`, scene);
-      base.position = new Vector3(-60 + i * 12, 3.5, -10 + (i % 3) * 10);
-
-      const badge = MeshBuilder.CreatePlane(`pickup_badge_${def.id}_${i}`, { size: 4 }, scene);
-      badge.material = def.mat;
-      badge.billboardMode = 7;
-      badge.parent = base;
-      badge.position.y = 1.2;
-
-      if (def.id === "Sword") {
-        const blade = MeshBuilder.CreateBox(`pickup_sword_blade_${i}`, { width: 0.5, height: 4, depth: 0.2 }, scene);
-        blade.position = new Vector3(0, 2.2, 0);
-        blade.material = neonCyan;
-        blade.parent = base;
-        blade.isVisible = false;
-        const hilt = MeshBuilder.CreateBox(`pickup_sword_hilt_${i}`, { width: 1.4, height: 0.3, depth: 0.4 }, scene);
-        hilt.position = new Vector3(0, 0.6, 0);
-        hilt.material = metalMat;
-        hilt.parent = base;
-        hilt.isVisible = false;
-      }
-
-      if (def.id === "Potion") {
-        const bottle = MeshBuilder.CreateCylinder(`pickup_potion_bottle_${i}`, { height: 2.4, diameter: 1.2 }, scene);
-        bottle.position = new Vector3(0, 1.4, 0);
-        bottle.material = neonMagenta;
-        bottle.parent = base;
-        bottle.isVisible = false;
-        const cap = MeshBuilder.CreateCylinder(`pickup_potion_cap_${i}`, { height: 0.4, diameter: 0.7 }, scene);
-        cap.position = new Vector3(0, 2.8, 0);
-        cap.material = metalMat;
-        cap.parent = base;
-        cap.isVisible = false;
-      }
-
-      if (def.id === "Gold") {
-        const coin = MeshBuilder.CreateCylinder(`pickup_gold_coin_${i}`, { height: 0.4, diameter: 1.6 }, scene);
-        coin.position = new Vector3(0, 1.1, 0);
-        coin.material = neonGreen;
-        coin.parent = base;
-        coin.isVisible = false;
-      }
-
-      base.getChildMeshes().forEach((m) => {
-        m.isPickable = true;
-        m.metadata = { type: "pickup", item: def.id };
-      });
-      base.metadata = { type: "pickup", item: def.id };
-      pickups.push({ mesh: base, baseY: base.position.y, phase: Math.random() * Math.PI * 2 });
-    }
 
     // NPCs with dialogue
     const npcMat = new StandardMaterial("npcMat", scene);
@@ -1150,7 +1109,7 @@ const BabylonWorld: React.FC = () => {
     const npcWalkers: { mesh: any; angle: number; radius: number; center: Vector3; speed: number }[] = [];
     npcIds.forEach((id, idx) => {
       const npc = MeshBuilder.CreateCylinder(`npc_${id}`, { height: 5, diameter: 2.8 }, scene);
-      npc.position = new Vector3(-30 + idx * 12, 2.5, -60 + (idx % 2) * 10);
+      npc.position = new Vector3(-30 + idx * 12, 2.8, -60 + (idx % 2) * 10);
       npc.material = npcMat;
       npc.isPickable = true;
       npc.metadata = { type: "npc", id };
@@ -1210,43 +1169,6 @@ const BabylonWorld: React.FC = () => {
     });
 
     // Groundcover disabled for neon city vibe
-
-    // People (glb pedestrians) - circular waypoint movement
-    type Pedestrian = { root: any; angle: number; radius: number; center: Vector3; speed: number };
-    const people: Pedestrian[] = [];
-    for (let i = 0; i < 28; i++) {
-      const root = MeshBuilder.CreateCylinder(`person_${i}`, { height: 3, diameter: 1.2 }, scene);
-      const center = new Vector3((Math.random() - 0.5) * 420, 0, (Math.random() - 0.5) * 420 - 80);
-      const radius = 6 + Math.random() * 26;
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 0.5 + Math.random() * 0.9;
-      root.position = center.clone();
-      root.visibility = 0;
-      people.push({ root, angle, radius, center, speed });
-    }
-
-    const pedestrianModels = ["/models/RiggedFigure.glb", "/models/CesiumMan.glb"];
-    const pedestrianScales = [1.6, 1.4];
-    const loadPedestrians = async () => {
-      const containers = await Promise.all(
-        pedestrianModels.map((url) => SceneLoader.LoadAssetContainerAsync("", url, scene))
-      );
-      people.forEach((p, idx) => {
-        const container = containers[idx % containers.length];
-        const scale = pedestrianScales[idx % pedestrianScales.length];
-        const inst = container.instantiateModelsToScene((name) => `${p.root.name}_${name}`);
-        inst.rootNodes.forEach((node) => {
-          const tnode = node as TransformNode;
-          tnode.parent = p.root;
-          if ((tnode as any).position) tnode.position = new Vector3(0, -1.6, 0);
-          if ((tnode as any).scaling) tnode.scaling = new Vector3(scale, scale, scale);
-        });
-        if (inst.animationGroups && inst.animationGroups.length > 0) {
-          inst.animationGroups.forEach((group) => group.start(true));
-        }
-      });
-    };
-    loadPedestrians();
 
     // Drones (flying) - simple circular paths with bobbing
     const drones: { mesh: any; angle: number; radius: number; center: Vector3; speed: number; height: number }[] = [];
@@ -1314,7 +1236,7 @@ const BabylonWorld: React.FC = () => {
       );
       trail.color = new Color3(1, 1, 1);
       trail.alpha = 0.6;
-      trail.fogEnabled = false;
+      (trail as any).fogEnabled = false;
       planes.push({ root, angle, radius, center, speed, height, drift, trail, trailPoints });
     }
 
@@ -1325,6 +1247,7 @@ const BabylonWorld: React.FC = () => {
     treeTrunkMat.diffuseColor = new Color3(0.25, 0.18, 0.1);
     const treeLeafMat = new StandardMaterial("treeLeafMat", scene);
     treeLeafMat.diffuseColor = new Color3(0.08, 0.35, 0.18);
+    const treeBlacklist = new Vector3(-207, 0, -7);
     for (let i = 0; i < 50; i++) {
       const base = new TransformNode(`tree_${i}`, scene);
       const trunk = MeshBuilder.CreateCylinder(`tree_trunk_${i}`, { height: 5, diameter: 1.2 }, scene);
@@ -1336,6 +1259,10 @@ const BabylonWorld: React.FC = () => {
       crown.position = new Vector3(0, 6, 0);
       crown.parent = base;
       base.position = new Vector3((Math.random() - 0.5) * 700, 0, (Math.random() - 0.5) * 700 - 100);
+      if (Vector3.Distance(base.position, treeBlacklist) < 12) {
+        base.dispose();
+        continue;
+      }
     }
 
     // Animation updates: people, drones, pickups
@@ -1347,14 +1274,6 @@ const BabylonWorld: React.FC = () => {
           : 1;
       const effectiveFog = fogSettings.density * fogSettings.intensity * heightFactor;
       scene.fogDensity = fogSettings.enabled ? effectiveFog : 0;
-
-      people.forEach((p) => {
-        p.angle += p.speed * dt;
-        const px = p.center.x + Math.cos(p.angle) * p.radius;
-        const pz = p.center.z + Math.sin(p.angle) * p.radius;
-        p.root.position.set(px, 0.9, pz);
-        p.root.rotation.y = -p.angle + Math.PI / 2;
-      });
 
       drones.forEach((d) => {
         d.angle += d.speed * dt * 0.6;
@@ -1556,6 +1475,8 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { window.removeEventListener("keydown", onChatFocusKey); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
+      try { window.clearInterval(adTimer); } catch {}
+      try { currentAdTexture?.dispose(); } catch {}
       try { if (lookZone) document.body.removeChild(lookZone); } catch {}
       try { if (walkLabelZone) document.body.removeChild(walkLabelZone); } catch {}
       try { document.body.removeChild(chatPanel); } catch {}
