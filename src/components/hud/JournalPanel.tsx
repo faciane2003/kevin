@@ -78,7 +78,7 @@ const SPARKLE_POSITIONS = [
 ];
 
 const JournalPanel: React.FC = () => {
-  const { activeTab, setActiveTab, inventory } = useHUD();
+  const { activeTab, inventory } = useHUD();
   if (!activeTab) return null;
 
   const tabKey = activeTab.toLowerCase();
