@@ -113,7 +113,7 @@ const MenuTabs: React.FC = () => {
       style={
         {
           "--power-index": powerIndex,
-          "--power-offset": "calc(66vh - 12px)",
+          "--power-offset": "66vh",
         } as React.CSSProperties
       }
     >

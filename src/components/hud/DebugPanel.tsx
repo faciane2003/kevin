@@ -37,6 +37,18 @@ type BuildingSettings = {
   scale: number;
 };
 
+type TopFogSettings = {
+  enabled: boolean;
+  opacity: number;
+  height: number;
+  radius: number;
+  fadeTop: number;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  color: string;
+};
+
 type GroundFogSettings = {
   enabled: boolean;
   opacity: number;
@@ -50,13 +62,8 @@ type GroundFogSettings = {
 };
 
 type SkySettings = {
-  birdsEnabled: boolean;
-  flocks: number;
-  birdsPerFlock: number;
   shootingStarsEnabled: boolean;
   shootingStarsCount: number;
-  newspapersEnabled: boolean;
-  newspaperCount: number;
 };
 
 type PerfSettings = {
@@ -65,8 +72,6 @@ type PerfSettings = {
   collisions: boolean;
   windowFlicker: boolean;
   borderFog: boolean;
-  birds: boolean;
-  newspapers: boolean;
   gargoyles: boolean;
   shootingStars: boolean;
 };
@@ -116,7 +121,7 @@ const DEFAULT_BUILDINGS: BuildingSettings = {
   scale: 1.4,
 };
 
-const DEFAULT_GROUND_FOG: GroundFogSettings = {
+const DEFAULT_TOP_FOG: TopFogSettings = {
   enabled: true,
   opacity: 0.08,
   height: 5,
@@ -129,13 +134,8 @@ const DEFAULT_GROUND_FOG: GroundFogSettings = {
 };
 
 const DEFAULT_SKY: SkySettings = {
-  birdsEnabled: true,
-  flocks: 24,
-  birdsPerFlock: 6,
   shootingStarsEnabled: true,
   shootingStarsCount: 6,
-  newspapersEnabled: true,
-  newspaperCount: 24,
 };
 
 const DEFAULT_PERF: PerfSettings = {
@@ -144,10 +144,20 @@ const DEFAULT_PERF: PerfSettings = {
   collisions: true,
   windowFlicker: true,
   borderFog: true,
-  birds: true,
-  newspapers: true,
   gargoyles: true,
   shootingStars: true,
+};
+
+const DEFAULT_GROUND_FOG: GroundFogSettings = {
+  enabled: true,
+  opacity: 0.08,
+  height: 5,
+  radius: 830,
+  fadeTop: 1,
+  offsetX: 14,
+  offsetY: -4,
+  offsetZ: 0,
+  color: "#223366",
 };
 
 const DEFAULT_STARS: StarSettings = {
@@ -163,6 +173,7 @@ const DebugPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [lights, setLights] = useState<LightSettings>(DEFAULT_LIGHTS);
   const [buildings, setBuildings] = useState<BuildingSettings>(DEFAULT_BUILDINGS);
+  const [topFog, setTopFog] = useState<TopFogSettings>(DEFAULT_TOP_FOG);
   const [groundFog, setGroundFog] = useState<GroundFogSettings>(DEFAULT_GROUND_FOG);
   const [sky, setSky] = useState<SkySettings>(DEFAULT_SKY);
   const [perf, setPerf] = useState<PerfSettings>(DEFAULT_PERF);
@@ -185,8 +196,8 @@ const DebugPanel: React.FC = () => {
   }, [buildings]);
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("ground-fog-settings", { detail: groundFog }));
-  }, [groundFog]);
+    window.dispatchEvent(new CustomEvent("top-fog-settings", { detail: topFog }));
+  }, [topFog]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("sky-effects-settings", { detail: sky }));
@@ -200,10 +211,15 @@ const DebugPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent("star-settings", { detail: stars }));
   }, [stars]);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("ground-fog-settings", { detail: groundFog }));
+  }, [groundFog]);
+
   const copyAll = async () => {
     const payload = {
       lighting: lights,
       buildings,
+      topFog,
       groundFog,
       sky,
       stars,
@@ -386,13 +402,13 @@ const DebugPanel: React.FC = () => {
       </div>
 
       <div className="debug-section">
-        <div className="debug-section-title">Ground Fog</div>
+        <div className="debug-section-title">Top Fog</div>
         <label className="light-row">
           <span>Enabled</span>
           <input
             type="checkbox"
-            checked={groundFog.enabled}
-            onChange={(e) => setGroundFog((prev) => ({ ...prev, enabled: e.target.checked }))}
+            checked={topFog.enabled}
+            onChange={(e) => setTopFog((prev) => ({ ...prev, enabled: e.target.checked }))}
           />
         </label>
         {(
@@ -404,7 +420,7 @@ const DebugPanel: React.FC = () => {
             ["offsetX", "Offset X", -300, 300, 1],
             ["offsetY", "Offset Y", -50, 150, 1],
             ["offsetZ", "Offset Z", -300, 300, 1],
-          ] as Array<[keyof GroundFogSettings, string, number, number, number]>
+          ] as Array<[keyof TopFogSettings, string, number, number, number]>
         ).map(([key, label, min, max, step]) => (
           <label key={key} className="light-row">
             <span>{label}</span>
@@ -413,20 +429,20 @@ const DebugPanel: React.FC = () => {
               min={min}
               max={max}
               step={step}
-              value={groundFog[key] as number}
+              value={topFog[key] as number}
               onChange={(e) =>
-                setGroundFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                setTopFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
               }
             />
-            <span className="light-value">{(groundFog[key] as number).toFixed(2)}</span>
+            <span className="light-value">{(topFog[key] as number).toFixed(2)}</span>
           </label>
         ))}
         <label className="light-row">
           <span>Color</span>
           <input
             type="color"
-            value={groundFog.color}
-            onChange={(e) => setGroundFog((prev) => ({ ...prev, color: e.target.value }))}
+            value={topFog.color}
+            onChange={(e) => setTopFog((prev) => ({ ...prev, color: e.target.value }))}
           />
         </label>
       </div>
@@ -472,42 +488,6 @@ const DebugPanel: React.FC = () => {
       <div className="debug-section">
         <div className="debug-section-title">Sky Effects</div>
         <label className="light-row">
-          <span>Birds</span>
-          <input
-            type="checkbox"
-            checked={sky.birdsEnabled}
-            onChange={(e) => setSky((prev) => ({ ...prev, birdsEnabled: e.target.checked }))}
-          />
-        </label>
-        <label className="light-row">
-          <span>Flocks</span>
-          <input
-            type="range"
-            min={1}
-            max={48}
-            step={1}
-            value={sky.flocks}
-            onChange={(e) =>
-              setSky((prev) => ({ ...prev, flocks: parseInt(e.target.value, 10) }))
-            }
-          />
-          <span className="light-value">{sky.flocks}</span>
-        </label>
-        <label className="light-row">
-          <span>Birds/Flock</span>
-          <input
-            type="range"
-            min={1}
-            max={16}
-            step={1}
-            value={sky.birdsPerFlock}
-            onChange={(e) =>
-              setSky((prev) => ({ ...prev, birdsPerFlock: parseInt(e.target.value, 10) }))
-            }
-          />
-          <span className="light-value">{sky.birdsPerFlock}</span>
-        </label>
-        <label className="light-row">
           <span>Shooting Stars</span>
           <input
             type="checkbox"
@@ -531,29 +511,51 @@ const DebugPanel: React.FC = () => {
           />
           <span className="light-value">{sky.shootingStarsCount}</span>
         </label>
+      </div>
+
+      <div className="debug-section">
+        <div className="debug-section-title">Ground Fog</div>
         <label className="light-row">
-          <span>Newspapers</span>
+          <span>Enabled</span>
           <input
             type="checkbox"
-            checked={sky.newspapersEnabled}
-            onChange={(e) =>
-              setSky((prev) => ({ ...prev, newspapersEnabled: e.target.checked }))
-            }
+            checked={groundFog.enabled}
+            onChange={(e) => setGroundFog((prev) => ({ ...prev, enabled: e.target.checked }))}
           />
         </label>
+        {(
+          [
+            ["opacity", "Opacity", 0, 1, 0.02],
+            ["height", "Height", 2, 200, 1],
+            ["radius", "Radius", 100, 1200, 10],
+            ["fadeTop", "Top Fade", 0, 1, 0.02],
+            ["offsetX", "Offset X", -300, 300, 1],
+            ["offsetY", "Offset Y", -50, 150, 1],
+            ["offsetZ", "Offset Z", -300, 300, 1],
+          ] as Array<[keyof GroundFogSettings, string, number, number, number]>
+        ).map(([key, label, min, max, step]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={groundFog[key] as number}
+              onChange={(e) =>
+                setGroundFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="light-value">{(groundFog[key] as number).toFixed(2)}</span>
+          </label>
+        ))}
         <label className="light-row">
-          <span>Paper Count</span>
+          <span>Color</span>
           <input
-            type="range"
-            min={0}
-            max={80}
-            step={1}
-            value={sky.newspaperCount}
-            onChange={(e) =>
-              setSky((prev) => ({ ...prev, newspaperCount: parseInt(e.target.value, 10) }))
-            }
+            type="color"
+            value={groundFog.color}
+            onChange={(e) => setGroundFog((prev) => ({ ...prev, color: e.target.value }))}
           />
-          <span className="light-value">{sky.newspaperCount}</span>
         </label>
       </div>
 
@@ -612,8 +614,6 @@ const DebugPanel: React.FC = () => {
             ["collisions", "Collisions"],
             ["windowFlicker", "Window Flicker"],
             ["borderFog", "Border Fog"],
-            ["birds", "Bird Flocks"],
-            ["newspapers", "Newspapers"],
             ["gargoyles", "Gargoyles"],
             ["shootingStars", "Shooting Stars"],
           ] as Array<[keyof PerfSettings, string]>

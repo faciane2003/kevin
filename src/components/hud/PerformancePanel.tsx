@@ -7,8 +7,6 @@ type PerfSettings = {
   collisions: boolean;
   windowFlicker: boolean;
   borderFog: boolean;
-  birds: boolean;
-  newspapers: boolean;
   gargoyles: boolean;
   shootingStars: boolean;
 };
@@ -19,8 +17,6 @@ const DEFAULTS: PerfSettings = {
   collisions: true,
   windowFlicker: true,
   borderFog: true,
-  birds: true,
-  newspapers: true,
   gargoyles: true,
   shootingStars: true,
 };
@@ -62,18 +58,16 @@ const PerformancePanel: React.FC = () => {
         <span>Performance</span>
         <button onClick={() => setOpen(false)}>Close</button>
       </div>
-      {(
-        [
-          ["glow", "Glow Layer"],
-          ["postFx", "Post FX Pipeline"],
-          ["collisions", "Collisions"],
-          ["windowFlicker", "Window Flicker"],
-          ["borderFog", "Border Fog"],
-          ["birds", "Bird Flocks"],
-          ["newspapers", "Newspapers"],
-          ["gargoyles", "Gargoyles"],
-          ["shootingStars", "Shooting Stars"],
-        ] as Array<[keyof PerfSettings, string]>
+        {(
+          [
+            ["glow", "Glow Layer"],
+            ["postFx", "Post FX Pipeline"],
+            ["collisions", "Collisions"],
+            ["windowFlicker", "Window Flicker"],
+            ["borderFog", "Border Fog"],
+            ["gargoyles", "Gargoyles"],
+            ["shootingStars", "Shooting Stars"],
+          ] as Array<[keyof PerfSettings, string]>
       ).map(([key, label]) => (
         <label key={key} className="light-row">
           <span>{label}</span>

@@ -393,6 +393,16 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     };
     const computePanelPos = (index: number) => {
       const isMobile = window.matchMedia("(max-width: 600px)").matches;
+      const button = document.querySelector(
+        `.menu-tab-button[title="Music"]`
+      ) as HTMLElement | null;
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        return {
+          top: rect.top,
+          left: rect.right + (isMobile ? 10 : 14),
+        };
+      }
       const baseTop = isMobile ? 10 : 12;
       const baseLeft = isMobile ? 10 : 12;
       const buttonSize = isMobile ? 36 : 40;

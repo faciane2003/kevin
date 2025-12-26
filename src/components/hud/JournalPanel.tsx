@@ -90,6 +90,17 @@ const JournalPanel: React.FC = () => {
   useEffect(() => {
     const updatePos = () => {
       const isMobile = window.matchMedia("(max-width: 600px)").matches;
+      const button = document.querySelector(
+        `.menu-tab-button[title="${activeTab}"]`
+      ) as HTMLElement | null;
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        setPanelPos({
+          top: rect.top,
+          left: rect.right + (isMobile ? 10 : 14),
+        });
+        return;
+      }
       const baseTop = isMobile ? 10 : 12;
       const baseLeft = isMobile ? 10 : 12;
       const buttonSize = isMobile ? 36 : 40;

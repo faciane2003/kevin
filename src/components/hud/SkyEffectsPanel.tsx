@@ -2,23 +2,13 @@ import React, { useEffect, useState } from "react";
 import "./HUD.css";
 
 type SkySettings = {
-  birdsEnabled: boolean;
-  flocks: number;
-  birdsPerFlock: number;
   shootingStarsEnabled: boolean;
   shootingStarsCount: number;
-  newspapersEnabled: boolean;
-  newspaperCount: number;
 };
 
 const DEFAULTS: SkySettings = {
-  birdsEnabled: true,
-  flocks: 24,
-  birdsPerFlock: 6,
   shootingStarsEnabled: true,
   shootingStarsCount: 6,
-  newspapersEnabled: true,
-  newspaperCount: 24,
 };
 
 const SkyEffectsPanel: React.FC = () => {
@@ -82,38 +72,6 @@ const SkyEffectsPanel: React.FC = () => {
         </div>
       </div>
       <label className="light-row">
-        <span>Birds</span>
-        <input
-          type="checkbox"
-          checked={settings.birdsEnabled}
-          onChange={(e) => onToggle("birdsEnabled", e.target.checked)}
-        />
-      </label>
-      <label className="light-row">
-        <span>Flocks</span>
-        <input
-          type="range"
-          min={1}
-          max={48}
-          step={1}
-          value={settings.flocks}
-          onChange={(e) => onChange("flocks", parseInt(e.target.value, 10))}
-        />
-        <span className="light-value">{settings.flocks}</span>
-      </label>
-      <label className="light-row">
-        <span>Birds/Flock</span>
-        <input
-          type="range"
-          min={1}
-          max={12}
-          step={1}
-          value={settings.birdsPerFlock}
-          onChange={(e) => onChange("birdsPerFlock", parseInt(e.target.value, 10))}
-        />
-        <span className="light-value">{settings.birdsPerFlock}</span>
-      </label>
-      <label className="light-row">
         <span>Shooting Stars</span>
         <input
           type="checkbox"
@@ -132,26 +90,6 @@ const SkyEffectsPanel: React.FC = () => {
           onChange={(e) => onChange("shootingStarsCount", parseInt(e.target.value, 10))}
         />
         <span className="light-value">{settings.shootingStarsCount}</span>
-      </label>
-      <label className="light-row">
-        <span>Newspapers</span>
-        <input
-          type="checkbox"
-          checked={settings.newspapersEnabled}
-          onChange={(e) => onToggle("newspapersEnabled", e.target.checked)}
-        />
-      </label>
-      <label className="light-row">
-        <span>Paper Count</span>
-        <input
-          type="range"
-          min={0}
-          max={60}
-          step={1}
-          value={settings.newspaperCount}
-          onChange={(e) => onChange("newspaperCount", parseInt(e.target.value, 10))}
-        />
-        <span className="light-value">{settings.newspaperCount}</span>
       </label>
       <div className="perf-panel-hint">Toggle: K</div>
     </div>

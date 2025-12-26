@@ -1,5 +1,13 @@
 import { useEffect } from "react";
-import { Color3, MeshBuilder, Scene, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
+import {
+  Color3,
+  DynamicTexture,
+  MeshBuilder,
+  Scene,
+  StandardMaterial,
+  TransformNode,
+  Vector3,
+} from "@babylonjs/core";
 
 type Props = {
   scene: Scene | null;
@@ -13,13 +21,42 @@ const TreeField: React.FC<Props> = ({ scene, count = 100, scale = 4, buildings =
   useEffect(() => {
     if (!scene) return;
     const treeTrunkMat = new StandardMaterial("treeTrunkMat", scene);
-    treeTrunkMat.diffuseColor = new Color3(0.25, 0.18, 0.1);
-    const treeLeafMats = Array.from({ length: 6 }, (_, idx) => {
+    treeTrunkMat.diffuseColor = new Color3(1, 1, 1);
+    treeTrunkMat.specularColor = new Color3(0.03, 0.03, 0.03);
+    const trunkTexture = new DynamicTexture("treeTrunkTex", { width: 32, height: 256 }, scene, false);
+    const trunkCtx = trunkTexture.getContext();
+    const trunkGrad = trunkCtx.createLinearGradient(0, 0, 0, 256);
+    trunkGrad.addColorStop(0, "#5c3a1b");
+    trunkGrad.addColorStop(1, "#0b0a0a");
+    trunkCtx.fillStyle = trunkGrad;
+    trunkCtx.fillRect(0, 0, 32, 256);
+    trunkTexture.update();
+    treeTrunkMat.diffuseTexture = trunkTexture;
+
+    const leafTextures: DynamicTexture[] = [];
+    const leafPalette = ["#6c8f2f", "#8fa13b", "#b5702c", "#d2a23a", "#8c6a3e", "#5f7a2b"];
+    const treeLeafMats = Array.from({ length: 8 }, (_, idx) => {
       const mat = new StandardMaterial(`treeLeafMat_${idx}`, scene);
-      const base = 0.06 + Math.random() * 0.08;
-      const green = 0.28 + Math.random() * 0.18;
-      const blue = 0.12 + Math.random() * 0.08;
-      mat.diffuseColor = new Color3(base, green, blue);
+      mat.diffuseColor = new Color3(1, 1, 1);
+      mat.specularColor = new Color3(0.02, 0.02, 0.02);
+      const texture = new DynamicTexture(`treeLeafTex_${idx}`, { width: 256, height: 256 }, scene, false);
+      const ctx = texture.getContext();
+      const base = leafPalette[Math.floor(Math.random() * leafPalette.length)];
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, 256, 256);
+      for (let d = 0; d < 140; d += 1) {
+        const radius = 4 + Math.random() * 10;
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const dot = leafPalette[Math.floor(Math.random() * leafPalette.length)];
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = dot;
+        ctx.fill();
+      }
+      texture.update();
+      mat.diffuseTexture = texture;
+      leafTextures.push(texture);
       return mat;
     });
     const treeBlacklist = new Vector3(-207, 0, -7);
@@ -55,43 +92,51 @@ const TreeField: React.FC<Props> = ({ scene, count = 100, scale = 4, buildings =
       const scaleJitter = 0.75 + Math.random() * 0.5;
       const treeScale = scale * scaleJitter;
       const trunkHeight = (4.5 + Math.random() * 2.2) * treeScale;
-      const trunkScale = 0.7 + Math.random() * 0.9;
+      const trunkScale = 0.4 + Math.random() * 1.2;
       const trunk = MeshBuilder.CreateCylinder(
         `tree_trunk_${i}`,
-        { height: trunkHeight, diameter: 1.2 * treeScale * trunkScale },
+        { height: trunkHeight, diameter: 0.6 * treeScale * trunkScale },
         scene
       );
       trunk.material = treeTrunkMat;
       trunk.position = new Vector3(0, trunkHeight / 2, 0);
       trunk.parent = base;
       const leafMat = treeLeafMats[i % treeLeafMats.length];
-      const variant = i % 3;
+      const variant = i % 5;
       let crownHeight = 6 * treeScale;
       if (variant === 0) {
-        const crown = MeshBuilder.CreateSphere(`tree_crown_${i}`, { diameter: 6 * treeScale }, scene);
+        const size = 5.2 * treeScale * (0.85 + Math.random() * 0.6);
+        const crown = MeshBuilder.CreateSphere(`tree_crown_${i}`, { diameter: size }, scene);
         crown.material = leafMat;
-        crown.position = new Vector3(0, 6 * treeScale, 0);
+        crown.position = new Vector3(0, 5.5 * treeScale, 0);
         crown.parent = base;
+        crownHeight = 6 * treeScale;
       } else if (variant === 1) {
         const crown = MeshBuilder.CreateCylinder(
           `tree_crown_${i}`,
-          { height: 6.5 * treeScale, diameterTop: 0, diameterBottom: 6 * treeScale },
+          { height: 7.2 * treeScale, diameterTop: 0, diameterBottom: 6.2 * treeScale },
           scene
         );
         crown.material = leafMat;
-        crown.position = new Vector3(0, 6.5 * treeScale, 0);
+        crown.position = new Vector3(0, 6.4 * treeScale, 0);
         crown.parent = base;
-        crownHeight = 6.5 * treeScale;
+        crownHeight = 7.2 * treeScale;
       } else {
-        const crownA = MeshBuilder.CreateSphere(`tree_crown_a_${i}`, { diameter: 4.5 * treeScale }, scene);
+        const crownA = MeshBuilder.CreateSphere(`tree_crown_a_${i}`, { diameter: 4.2 * treeScale }, scene);
         crownA.material = leafMat;
-        crownA.position = new Vector3(0, 5.5 * treeScale, 0);
+        crownA.position = new Vector3(0, 5.2 * treeScale, 0);
         crownA.parent = base;
-        const crownB = MeshBuilder.CreateSphere(`tree_crown_b_${i}`, { diameter: 3.5 * treeScale }, scene);
+        const crownB = MeshBuilder.CreateSphere(`tree_crown_b_${i}`, { diameter: 3.4 * treeScale }, scene);
         crownB.material = leafMat;
-        crownB.position = new Vector3(0.6 * treeScale, 7 * treeScale, 0.3 * treeScale);
+        crownB.position = new Vector3(0.8 * treeScale, 6.9 * treeScale, 0.4 * treeScale);
         crownB.parent = base;
-        crownHeight = 7 * treeScale;
+        if (variant === 3) {
+          const crownC = MeshBuilder.CreateSphere(`tree_crown_c_${i}`, { diameter: 3 * treeScale }, scene);
+          crownC.material = leafMat;
+          crownC.position = new Vector3(-0.8 * treeScale, 6.3 * treeScale, -0.2 * treeScale);
+          crownC.parent = base;
+        }
+        crownHeight = 7.2 * treeScale;
       }
       const collider = MeshBuilder.CreateCylinder(
         `tree_collider_${i}`,
@@ -139,7 +184,9 @@ const TreeField: React.FC<Props> = ({ scene, count = 100, scale = 4, buildings =
     return () => {
       nodes.forEach((node) => node.dispose());
       treeTrunkMat.dispose();
+      trunkTexture.dispose();
       treeLeafMats.forEach((mat) => mat.dispose());
+      leafTextures.forEach((tex) => tex.dispose());
     };
   }, [scene, count, scale, buildings, signPositions]);
 

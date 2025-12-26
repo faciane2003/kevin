@@ -28,6 +28,12 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 h1 {

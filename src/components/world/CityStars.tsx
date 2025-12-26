@@ -38,7 +38,11 @@ const CityStars: React.FC<Props> = ({
 
     for (let i = 0; i < count; i += 1) {
       const size = Math.max(0.4, scale) * 1.1;
-      const star = MeshBuilder.CreatePlane(`city_star_${i}`, { width: size, height: size }, scene);
+      const star = MeshBuilder.CreateSphere(
+        `city_star_${i}`,
+        { diameter: size, segments: 6 },
+        scene
+      );
       star.material = mat;
       star.isPickable = false;
       star.position = new Vector3(
@@ -46,7 +50,6 @@ const CityStars: React.FC<Props> = ({
         minHeight + Math.random() * (maxHeight - minHeight),
         (Math.random() - 0.5) * radius * 2
       );
-      star.rotation.y = Math.random() * Math.PI * 2;
       glowLayer?.addExcludedMesh(star);
       stars.push({
         mesh: star,
