@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AudioEngine, Engine, Scene, Sound, Vector3 } from "@babylonjs/core";
+import { AudioEngine, Engine, Scene, Sound } from "@babylonjs/core";
 import "@babylonjs/core/Audio/audioEngine";
 import "@babylonjs/core/Audio/audioSceneComponent";
 
@@ -14,13 +14,13 @@ const DEFAULT_LEVELS = {
   airplane: 1,
   cat: 0.055,
   wind: 0.25,
-  musicElliot: 0.2,
   musicSycamore: 0.2,
-  musicSynth1: 0.2,
-  musicSynth2: 0.2,
+  musicSynthwave: 0.2,
   musicDropTheGame: 0.2,
   musicAfterDark: 0.2,
   musicDarkAllDay: 0.2,
+  musicMissMisery: 0.2,
+  musicEarthquake: 0.2,
 };
 
 const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
@@ -82,10 +82,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       Engine.audioEngine = new AudioEngine();
     }
     scene.audioEnabled = true;
-    const audioContextSupported =
-      typeof AudioEngine.isAudioContextSupported === "function"
-        ? AudioEngine.isAudioContextSupported()
-        : !!Engine.audioEngine?.audioContext;
+    const audioContextSupported = !!Engine.audioEngine?.audioContext;
 
     const soundUrl = (name: string) => `/sounds/${encodeURIComponent(name)}`;
 
@@ -140,13 +137,13 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     );
 
     const playlistDefs = [
-      { name: "music-miss-misery", title: "Miss Misery", file: "Miss Misery.m4a", volume: levelsRef.current.musicElliot },
+      { name: "music-miss-misery", title: "Miss Misery", file: "Miss Misery.m4a", volume: levelsRef.current.musicMissMisery },
       { name: "music-sycamore", title: "Sycamore", file: "sycamore.m4a", volume: levelsRef.current.musicSycamore },
-      { name: "music-synthwave1", title: "Synthwave 1", file: "synthwave1.m4a", volume: levelsRef.current.musicSynth1 },
-      { name: "music-synthwave2", title: "Synthwave 2", file: "synthwave2.m4a", volume: levelsRef.current.musicSynth2 },
+      { name: "music-synthwave", title: "Synthwave", file: "Synthwave.m4a", volume: levelsRef.current.musicSynthwave },
       { name: "music-drop-the-game", title: "Drop the Game", file: "Drop the Game.m4a", volume: levelsRef.current.musicDropTheGame },
       { name: "music-after-dark", title: "After Dark", file: "After Dark.m4a", volume: levelsRef.current.musicAfterDark },
       { name: "music-dark-all-day", title: "Dark All Day", file: "Dark All Day.m4a", volume: levelsRef.current.musicDarkAllDay },
+      { name: "music-earthquake", title: "Earthquake", file: "Earthquake.m4a", volume: levelsRef.current.musicEarthquake },
     ];
     const musicTracks = playlistDefs.map(
       (track) =>
@@ -572,41 +569,42 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     if (htmlCatRef.current) htmlCatRef.current.volume = clamp01(lv.cat);
     if (htmlWindRef.current) htmlWindRef.current.volume = clamp01(lv.wind);
     const tracks = musicTracksRef.current;
-    tracks[0]?.setVolume(lv.musicElliot);
+    tracks[0]?.setVolume(lv.musicMissMisery);
     tracks[1]?.setVolume(lv.musicSycamore);
-    tracks[2]?.setVolume(lv.musicSynth1);
-    tracks[3]?.setVolume(lv.musicSynth2);
-    tracks[4]?.setVolume(lv.musicDropTheGame);
-    tracks[5]?.setVolume(lv.musicAfterDark);
-    tracks[6]?.setVolume(lv.musicDarkAllDay);
+    tracks[2]?.setVolume(lv.musicSynthwave);
+    tracks[3]?.setVolume(lv.musicDropTheGame);
+    tracks[4]?.setVolume(lv.musicAfterDark);
+    tracks[5]?.setVolume(lv.musicDarkAllDay);
+    tracks[6]?.setVolume(lv.musicEarthquake);
     const htmlTracks = htmlMusicRefs.current;
-    if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicElliot);
+    if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicMissMisery);
     if (htmlTracks[1]) htmlTracks[1].volume = clamp01(lv.musicSycamore);
-    if (htmlTracks[2]) htmlTracks[2].volume = clamp01(lv.musicSynth1);
-    if (htmlTracks[3]) htmlTracks[3].volume = clamp01(lv.musicSynth2);
-    if (htmlTracks[4]) htmlTracks[4].volume = clamp01(lv.musicDropTheGame);
-    if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicAfterDark);
+    if (htmlTracks[2]) htmlTracks[2].volume = clamp01(lv.musicSynthwave);
+    if (htmlTracks[3]) htmlTracks[3].volume = clamp01(lv.musicDropTheGame);
+    if (htmlTracks[4]) htmlTracks[4].volume = clamp01(lv.musicAfterDark);
+    if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicDarkAllDay);
+    if (htmlTracks[6]) htmlTracks[6].volume = clamp01(lv.musicEarthquake);
   }, []);
 
   useEffect(() => {
     musicGainRef.current = clamp01(musicGain);
     const lv = levelsRef.current;
     const tracks = musicTracksRef.current;
-    tracks[0]?.setVolume(lv.musicElliot * musicGainRef.current);
+    tracks[0]?.setVolume(lv.musicMissMisery * musicGainRef.current);
     tracks[1]?.setVolume(lv.musicSycamore * musicGainRef.current);
-    tracks[2]?.setVolume(lv.musicSynth1 * musicGainRef.current);
-    tracks[3]?.setVolume(lv.musicSynth2 * musicGainRef.current);
-    tracks[4]?.setVolume(lv.musicDropTheGame * musicGainRef.current);
-    tracks[5]?.setVolume(lv.musicAfterDark * musicGainRef.current);
-    tracks[6]?.setVolume(lv.musicDarkAllDay * musicGainRef.current);
+    tracks[2]?.setVolume(lv.musicSynthwave * musicGainRef.current);
+    tracks[3]?.setVolume(lv.musicDropTheGame * musicGainRef.current);
+    tracks[4]?.setVolume(lv.musicAfterDark * musicGainRef.current);
+    tracks[5]?.setVolume(lv.musicDarkAllDay * musicGainRef.current);
+    tracks[6]?.setVolume(lv.musicEarthquake * musicGainRef.current);
     const htmlTracks = htmlMusicRefs.current;
-    if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicElliot * musicGainRef.current);
+    if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicMissMisery * musicGainRef.current);
     if (htmlTracks[1]) htmlTracks[1].volume = clamp01(lv.musicSycamore * musicGainRef.current);
-    if (htmlTracks[2]) htmlTracks[2].volume = clamp01(lv.musicSynth1 * musicGainRef.current);
-    if (htmlTracks[3]) htmlTracks[3].volume = clamp01(lv.musicSynth2 * musicGainRef.current);
-    if (htmlTracks[4]) htmlTracks[4].volume = clamp01(lv.musicDropTheGame * musicGainRef.current);
-    if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicAfterDark * musicGainRef.current);
-    if (htmlTracks[6]) htmlTracks[6].volume = clamp01(lv.musicDarkAllDay * musicGainRef.current);
+    if (htmlTracks[2]) htmlTracks[2].volume = clamp01(lv.musicSynthwave * musicGainRef.current);
+    if (htmlTracks[3]) htmlTracks[3].volume = clamp01(lv.musicDropTheGame * musicGainRef.current);
+    if (htmlTracks[4]) htmlTracks[4].volume = clamp01(lv.musicAfterDark * musicGainRef.current);
+    if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicDarkAllDay * musicGainRef.current);
+    if (htmlTracks[6]) htmlTracks[6].volume = clamp01(lv.musicEarthquake * musicGainRef.current);
   }, [musicGain]);
 
   if (!musicHudVisible) return null;
@@ -635,6 +633,20 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
             ))}
           </div>
           <div className="music-panel-track">{currentTrackName}</div>
+          <div className="music-panel-slider">
+            <label htmlFor="music-volume">Volume</label>
+            <input
+              id="music-volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={musicGain}
+              onChange={(evt) => setMusicGain(parseFloat(evt.target.value))}
+              onInput={(evt) => setMusicGain(parseFloat((evt.target as HTMLInputElement).value))}
+            />
+            <span>{musicGain.toFixed(2)}</span>
+          </div>
           <div className="music-panel-controls">
             <button type="button" onClick={() => musicControlsRef.current?.prev()}>
               {"<"}
