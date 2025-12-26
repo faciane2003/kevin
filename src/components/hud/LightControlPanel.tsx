@@ -20,6 +20,11 @@ type LightSettings = {
   fogIntensity: number;
   fogHeightFalloff: number;
   fogColor: string;
+  borderFogEnabled: boolean;
+  borderFogOpacity: number;
+  borderFogHeight: number;
+  borderFogInset: number;
+  borderFogColor: string;
 };
 
 const DEFAULTS: LightSettings = {
@@ -41,6 +46,11 @@ const DEFAULTS: LightSettings = {
   fogIntensity: 0.1,
   fogHeightFalloff: 0.0035,
   fogColor: "#3b3e45",
+  borderFogEnabled: true,
+  borderFogOpacity: 0.75,
+  borderFogHeight: 160,
+  borderFogInset: 40,
+  borderFogColor: "#2e3238",
 };
 
 const LightControlPanel: React.FC = () => {
@@ -187,6 +197,46 @@ const LightControlPanel: React.FC = () => {
           type="color"
           value={settings.fogColor}
           onChange={(e) => onColorChange("fogColor", e.target.value)}
+        />
+      </label>
+
+      <div className="light-panel-header" style={{ marginTop: 8 }}>
+        <span>Border Fog</span>
+      </div>
+      <label className="light-row">
+        <span>Enabled</span>
+        <input
+          type="checkbox"
+          checked={settings.borderFogEnabled}
+          onChange={(e) => onToggle("borderFogEnabled", e.target.checked)}
+        />
+      </label>
+      {(
+        [
+          ["borderFogOpacity", "Opacity", 0, 1, 0.02],
+          ["borderFogHeight", "Height", 20, 320, 2],
+          ["borderFogInset", "Inset", 0, 200, 2],
+        ] as Array<[keyof LightSettings, string, number, number, number]>
+      ).map(([key, label, min, max, step]) => (
+        <label key={key} className="light-row">
+          <span>{label}</span>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={settings[key] as number}
+            onChange={(e) => onChange(key, parseFloat(e.target.value))}
+          />
+          <span className="light-value">{(settings[key] as number).toFixed(2)}</span>
+        </label>
+      ))}
+      <label className="light-row">
+        <span>Color</span>
+        <input
+          type="color"
+          value={settings.borderFogColor}
+          onChange={(e) => onColorChange("borderFogColor", e.target.value)}
         />
       </label>
     </div>

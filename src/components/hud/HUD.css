@@ -43,8 +43,42 @@
 .menu-tabs-collapsed .menu-tab-button:not(.menu-tab-power) .menu-tab-tooltip{ opacity:0; }
 .menu-tabs-collapsed .menu-tab-power{ transform: translateY(calc(33vh - 12px)); }
 
-.startup-fade{ position:fixed; inset:0; background:#000; z-index: 30000; pointer-events:none; animation: startupFade 3s ease forwards; }
-@keyframes startupFade{ 0%,33%{ opacity:1; } 100%{ opacity:0; } }
+.intro-lightning { position:fixed; inset:0; z-index: 30000; pointer-events:none; }
+.intro-lightning-bg { position:absolute; inset:0; background:#000; animation: introFadeOut 3.2s ease forwards; }
+.intro-border { position:absolute; bottom:0; width:6px; height:0; background: linear-gradient(180deg, rgba(120,255,255,0.0), rgba(120,255,255,0.9)); box-shadow: 0 0 16px rgba(120,255,255,0.85); animation: introBorderRise 1.1s ease forwards; }
+.intro-border-left { left:0; }
+.intro-border-right { right:0; animation-delay: 0.06s; }
+.intro-arc { position:absolute; top:0; height:8px; width:0; background: radial-gradient(circle at center, rgba(140,255,255,0.9), rgba(30,80,120,0.0) 70%); box-shadow: 0 0 18px rgba(140,255,255,0.9); border-radius: 999px; animation: introArcGrow 0.5s ease forwards; animation-delay: 1.1s; }
+.intro-arc-left { left:0; }
+.intro-arc-right { right:0; animation-delay: 1.16s; }
+.intro-flash { position:absolute; inset:0; background: radial-gradient(circle at center, rgba(200,255,255,0.85), rgba(0,0,0,0)); opacity:0; animation: introFlash 0.35s ease forwards; animation-delay: 1.6s; }
+.intro-sparks { position:absolute; inset:0; }
+.intro-spark { position:absolute; width:6px; height:18px; border-radius: 999px; background: linear-gradient(180deg, rgba(180,255,255,0.95), rgba(180,255,255,0)); animation: introSparkFall 0.9s ease-in-out infinite; left: calc(10% + 80% * var(--spark-x, 0.1)); top: 8%; }
+.intro-spark:nth-child(odd) { left: 8%; }
+.intro-spark:nth-child(even) { right: 8%; }
+
+@keyframes introBorderRise {
+  0% { height: 0; opacity: 0; }
+  100% { height: 100%; opacity: 1; }
+}
+@keyframes introArcGrow {
+  0% { width: 0; opacity: 0; }
+  100% { width: 50%; opacity: 1; }
+}
+@keyframes introFlash {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes introSparkFall {
+  0% { transform: translateY(0) scale(0.7); opacity: 0; }
+  40% { transform: translateY(140px) scale(1); opacity: 1; }
+  100% { transform: translateY(260px) scale(0.6); opacity: 0; }
+}
+@keyframes introFadeOut {
+  0%, 65% { opacity: 1; }
+  100% { opacity: 0; }
+}
 
 /* Light panel */
 .light-panel-toggle { position: absolute; right: 20px; top: 20px; padding: 6px 10px; background: rgba(20,20,20,0.85); color: #fff; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; pointer-events: auto; }

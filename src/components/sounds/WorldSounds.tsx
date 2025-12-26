@@ -516,8 +516,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
           musicTracks.forEach((track) => {
             try { track.stop(); } catch {}
           });
-          safeHtmlPlay(htmlAmbient, "ambient-loop");
-          safeHtmlPlay(htmlPeopleTalking, "people-loop");
+          safeHtmlPlay(htmlAmbient);
+          safeHtmlPlay(htmlPeopleTalking);
           playMusic(playlistIndexRef.current);
         }
       }

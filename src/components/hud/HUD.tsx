@@ -4,6 +4,8 @@ import { HUDProvider, useHUD } from "./HUDContext";
 import MenuTabs from "./MenuTabs";
 import JournalPanel from "./JournalPanel";
 import LightControlPanel from "./LightControlPanel";
+import IntroLightning from "./IntroLightning";
+import RainControlPanel from "./RainControlPanel";
 import "./HUD.css";
 
 type DialogueOption = { text: string; next?: string };
@@ -366,12 +368,13 @@ const HUDInner: React.FC = () => {
 
   return (
     <div className="hud-container" aria-hidden={false}>
-      <div className="startup-fade" aria-hidden="true" />
+      <IntroLightning />
       {/* Stats bars hidden per request */}
       <MenuTabs />
       <JournalPanel />
       <DialoguePanel npcId={activeNpc} onClose={() => setActiveNpc(null)} />
       <LightControlPanel />
+      <RainControlPanel />
       {/* Hotbar removed from UI per request */}
     </div>
   );

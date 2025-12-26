@@ -27,10 +27,29 @@ import {
   ExecuteCodeAction,
 } from "@babylonjs/core";
 import WorldSounds from "../components/sounds/WorldSounds";
+import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
+import BorderFog from "../components/world/BorderFog";
+import GargoyleStatues from "../components/world/GargoyleStatues";
+import TreeField from "../components/world/TreeField";
+import NewspaperDrift from "../components/world/NewspaperDrift";
+import BirdFlocks from "../components/world/BirdFlocks";
+import TrainSystem from "../components/world/TrainSystem";
+import RainSystem from "../components/world/RainSystem";
+
+type BuildingInfo = { mesh: any; width: number; depth: number; height: number };
 
 const BabylonWorld: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [sceneInstance, setSceneInstance] = useState<Scene | null>(null);
+  const [buildingMaterials, setBuildingMaterials] = useState<StandardMaterial[]>([]);
+  const [buildingInfos, setBuildingInfos] = useState<BuildingInfo[]>([]);
+  const [borderFogSettings, setBorderFogSettings] = useState({
+    enabled: true,
+    opacity: 0.75,
+    height: 160,
+    inset: 40,
+    color: new Color3(0.18, 0.2, 0.22),
+  });
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -43,6 +62,10 @@ const BabylonWorld: React.FC = () => {
     // First-person camera
     const camera = new UniversalCamera("camera", new Vector3(-230.77, 2.18, -4.26), scene);
     camera.setTarget(new Vector3(-191.22, 7.88, -6.19));
+    scene.collisionsEnabled = true;
+    camera.checkCollisions = true;
+    camera.ellipsoid = new Vector3(0.6, 1.1, 0.6);
+    camera.ellipsoidOffset = new Vector3(0, 1.1, 0);
 
     // Attach default controls so mouse drag looks around.
     camera.attachControl(canvasRef.current, true);
@@ -687,7 +710,8 @@ const BabylonWorld: React.FC = () => {
     const sky = MeshBuilder.CreateSphere("sky", { diameter: 8000, segments: 16 }, scene);
     const skyMat = new StandardMaterial("skyMat", scene);
     skyMat.backFaceCulling = false;
-    skyMat.emissiveTexture = new Texture("/textures/sky_galaxy.png", scene);
+    skyMat.emissiveTexture = new Texture("/textures/sky_milkyway.jpg", scene);
+    skyMat.alphaMode = Engine.ALPHA_SCREENMODE;
     skyMat.diffuseColor = new Color3(0, 0, 0);
     skyMat.specularColor = new Color3(0, 0, 0);
     skyMat.disableLighting = true;
@@ -776,6 +800,7 @@ const BabylonWorld: React.FC = () => {
     groundMat.diffuseColor = new Color3(0.14, 0.14, 0.14);
     groundMat.specularColor = new Color3(0, 0, 0);
     ground.material = groundMat;
+    ground.checkCollisions = true;
 
     const zRoads = [-260, -180, -100, -20, 60, 140, 220, 300];
     const xRoads = [-300, -220, -140, -60, 20, 100, 180, 260];
@@ -884,6 +909,21 @@ const BabylonWorld: React.FC = () => {
         fogSettings.color = parseHexColor(detail.fogColor);
         scene.fogColor = fogSettings.color;
       }
+      if (
+        typeof detail.borderFogEnabled === "boolean" ||
+        typeof detail.borderFogOpacity === "number" ||
+        typeof detail.borderFogHeight === "number" ||
+        typeof detail.borderFogInset === "number" ||
+        typeof detail.borderFogColor === "string"
+      ) {
+        setBorderFogSettings((prev) => ({
+          enabled: typeof detail.borderFogEnabled === "boolean" ? detail.borderFogEnabled : prev.enabled,
+          opacity: typeof detail.borderFogOpacity === "number" ? detail.borderFogOpacity : prev.opacity,
+          height: typeof detail.borderFogHeight === "number" ? detail.borderFogHeight : prev.height,
+          inset: typeof detail.borderFogInset === "number" ? detail.borderFogInset : prev.inset,
+          color: typeof detail.borderFogColor === "string" ? parseHexColor(detail.borderFogColor) : prev.color,
+        }));
+      }
     };
     window.addEventListener("light-settings", onLightSettings as EventListener);
 
@@ -912,11 +952,13 @@ const BabylonWorld: React.FC = () => {
       const winH = 26;
       const gapX = 10;
       const gapY = 14;
+      const windowRects: { x: number; y: number; w: number; h: number; lit: boolean }[] = [];
       for (let y = 20; y < size.height - winH - 10; y += winH + gapY) {
         for (let x = 16; x < size.width - winW - 10; x += winW + gapX) {
           const lit = rand() > 0.3;
           ctx.fillStyle = lit ? windowOn : windowOff;
           ctx.fillRect(x, y, winW, winH);
+          windowRects.push({ x, y, w: winW, h: winH, lit });
         }
       }
       winTex.update();
@@ -932,7 +974,7 @@ const BabylonWorld: React.FC = () => {
       mat.useAlphaFromDiffuseTexture = false;
       mat.alpha = 1;
       mat.transparencyMode = Material.MATERIAL_OPAQUE;
-      (mat as any).metadata = { facadeTex: facade, windowTex: winTex };
+      (mat as any).metadata = { facadeTex: facade, windowTex: winTex, windowRects, windowOn, windowOff, ctx };
       return mat;
     };
 
@@ -970,6 +1012,7 @@ const BabylonWorld: React.FC = () => {
       buildingMats.forEach((mat) => mat.dispose(true, true));
       buildingMats = [];
       const rand = makeRng(seed);
+      const newBuildingInfos: BuildingInfo[] = [];
       buildingMats = [
         createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#c9c9c9", "#10131a", rand),
         createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0d12", rand),
@@ -977,9 +1020,9 @@ const BabylonWorld: React.FC = () => {
         createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", rand),
       ];
       for (let i = 0; i < count; i++) {
-        const w = 8 + rand() * 24;
-        const d = 8 + rand() * 24;
-        const h = 16 + rand() * 90;
+        const w = (8 + rand() * 24) * 2;
+        const d = (8 + rand() * 24) * 2;
+        const h = (16 + rand() * 90) * 2;
         const b = MeshBuilder.CreateBox(`building_${i}`, { width: w, depth: d, height: h }, scene);
         let x = 0;
         let z = 0;
@@ -993,9 +1036,13 @@ const BabylonWorld: React.FC = () => {
         b.rotation.y = rand() * Math.PI * 2;
         b.material = buildingMats[Math.floor(rand() * buildingMats.length)];
         b.isPickable = false;
+        b.checkCollisions = true;
         buildingMeshes.push(b);
+        newBuildingInfos.push({ mesh: b, width: w, depth: d, height: h });
       }
       applyBuildingTiling();
+      setBuildingMaterials([...buildingMats]);
+      setBuildingInfos(newBuildingInfos);
     };
 
     const buildingSeedState = { value: 18 };
@@ -1483,29 +1530,6 @@ const BabylonWorld: React.FC = () => {
 
     // Cars removed (car1.glb deleted).
 
-    // Trees (procedural clusters)
-    const treeTrunkMat = new StandardMaterial("treeTrunkMat", scene);
-    treeTrunkMat.diffuseColor = new Color3(0.25, 0.18, 0.1);
-    const treeLeafMat = new StandardMaterial("treeLeafMat", scene);
-    treeLeafMat.diffuseColor = new Color3(0.08, 0.35, 0.18);
-    const treeBlacklist = new Vector3(-207, 0, -7);
-    for (let i = 0; i < 50; i++) {
-      const base = new TransformNode(`tree_${i}`, scene);
-      const trunk = MeshBuilder.CreateCylinder(`tree_trunk_${i}`, { height: 5, diameter: 1.2 }, scene);
-      trunk.material = treeTrunkMat;
-      trunk.position = new Vector3(0, 2.5, 0);
-      trunk.parent = base;
-      const crown = MeshBuilder.CreateSphere(`tree_crown_${i}`, { diameter: 6 }, scene);
-      crown.material = treeLeafMat;
-      crown.position = new Vector3(0, 6, 0);
-      crown.parent = base;
-      base.position = new Vector3((Math.random() - 0.5) * 700, 0, (Math.random() - 0.5) * 700 - 100);
-      if (Vector3.Distance(base.position, treeBlacklist) < 12) {
-        base.dispose();
-        continue;
-      }
-    }
-
     // Animation updates: people, drones, pickups
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
@@ -1690,7 +1714,11 @@ const BabylonWorld: React.FC = () => {
       // Try to move while preventing going below the ground. We raycast down at the proposed
       // XZ position to find the ground height and then clamp the camera Y to stay above it.
       const tryMove = (delta: Vector3) => {
-        const proposedPos = camera.position.add(delta);
+        const horizontal = new Vector3(delta.x, 0, delta.z);
+        if (horizontal.lengthSquared() > 0) {
+          (camera as any).moveWithCollisions(horizontal);
+        }
+        const proposedPos = camera.position.clone();
 
         // Raycast down from a high point above the proposed position to find the ground
         const rayOrigin = new Vector3(proposedPos.x, 50, proposedPos.z);
@@ -1784,6 +1812,14 @@ const BabylonWorld: React.FC = () => {
     <>
       <canvas ref={canvasRef} style={{ width: "100vw", height: "100vh", display: "block" }} />
       <WorldSounds scene={sceneInstance} />
+      <BuildingWindowFlicker scene={sceneInstance} materials={buildingMaterials} />
+      <BorderFog scene={sceneInstance} groundSize={2400} settings={borderFogSettings} />
+      <GargoyleStatues scene={sceneInstance} buildings={buildingInfos} />
+      <TreeField scene={sceneInstance} />
+      <NewspaperDrift scene={sceneInstance} />
+      <BirdFlocks scene={sceneInstance} />
+      <TrainSystem scene={sceneInstance} />
+      <RainSystem scene={sceneInstance} />
     </>
   );
 };
