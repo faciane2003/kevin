@@ -234,6 +234,20 @@ const DialoguePanel: React.FC<{
     };
   }, [isTerminal, onClose, nodeId]);
 
+  useEffect(() => {
+    if (!node) return;
+    const onKey = (evt: KeyboardEvent) => {
+      if (!/^[1-4]$/.test(evt.key)) return;
+      const idx = parseInt(evt.key, 10) - 1;
+      const option = visibleOptions[idx];
+      if (!option?.next) return;
+      setNodeId(option.next);
+      setIsClosing(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [node, visibleOptions]);
+
   if (!tree || !node) return null;
   const portraitSrc = npcId ? NPC_PORTRAITS[npcId] : undefined;
 
@@ -321,7 +335,6 @@ const HUDInner: React.FC = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "m") setActiveTab((t) => (t === "Map" ? null : "Map"));
       if (e.key === "i") setActiveTab((t) => (t === "Items" ? null : "Items"));
       if (/^[1-9]$/.test(e.key) || e.key === "0") {
         // keep numeric shortcuts available but do not show the HUD hotbar

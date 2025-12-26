@@ -36,13 +36,14 @@
 .menu-tab-green .menu-tab-tooltip{ color:#6bff9d; border-color: rgba(107,255,157,0.55); box-shadow: 0 0 10px rgba(107,255,157,0.35); }
 .menu-tab-purple .menu-tab-tooltip{ color:#c99bff; border-color: rgba(201,155,255,0.55); box-shadow: 0 0 10px rgba(201,155,255,0.35); }
 .menu-tab-pink .menu-tab-tooltip{ color:#ff8de0; border-color: rgba(255,141,224,0.55); box-shadow: 0 0 10px rgba(255,141,224,0.35); }
-.menu-tab-power{ border-color: rgba(100,255,255,0.6); box-shadow: 0 0 18px rgba(100,255,255,0.45), 0 8px 18px rgba(0,0,0,0.6); background: rgba(8,18,28,0.9); z-index:2; }
+.menu-tab-power{ border-color: rgba(100,255,255,0.6); box-shadow: 0 0 18px rgba(100,255,255,0.45), 0 8px 18px rgba(0,0,0,0.6); background: rgba(8,18,28,0.9); z-index:2; transition: transform 500ms ease, opacity 240ms ease; }
 .menu-tab-icon-power{ filter: drop-shadow(0 0 10px rgba(100,255,255,0.85)); }
-.menu-tabs .menu-tab-button{ transition: transform 240ms ease, opacity 240ms ease; }
+.menu-tabs .menu-tab-button{ transition: transform 600ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 600ms ease; }
 .menu-tabs-collapsed .menu-tab-button:not(.menu-tab-power){ transform: translateY(var(--collapse-offset)) scale(0.96); opacity:0; pointer-events:none; z-index:0; }
 .menu-tabs-collapsed .menu-tab-button:not(.menu-tab-power) .menu-tab-tooltip{ opacity:0; }
+.menu-tabs-collapsed .menu-tab-power{ transform: translateY(calc(33vh - 12px)); }
 
-.startup-fade{ position:fixed; inset:0; background:#000; z-index: 20000; pointer-events:none; animation: startupFade 3s ease forwards; }
+.startup-fade{ position:fixed; inset:0; background:#000; z-index: 30000; pointer-events:none; animation: startupFade 3s ease forwards; }
 @keyframes startupFade{ 0%,33%{ opacity:1; } 100%{ opacity:0; } }
 
 /* Light panel */
@@ -62,9 +63,18 @@
 .audio-row { display:grid; grid-template-columns: 70px 1fr 46px 46px 46px; gap:6px; align-items:center; font-size: 12px; color:#cfe3ff; margin: 6px 0; }
 .audio-row input[type="range"] { width: 100%; }
 .audio-value { text-align: right; color:#9ad7ff; }
+.music-panel { position: absolute; left: 64px; top: 12px; min-width: 200px; padding: 10px 12px 12px; background: linear-gradient(160deg, rgba(6,12,22,0.98), rgba(8,10,18,0.98)); border: 1px solid var(--hud-accent); border-radius: 16px; color: #d7f8ff; pointer-events: auto; box-shadow: 0 0 24px rgba(0,0,0,0.55), 0 0 16px var(--hud-accent-soft), 0 18px 50px rgba(0,0,0,0.7); z-index: 10001; --hud-accent: #78fff0; --hud-accent-soft: rgba(80,255,200,0.6); touch-action: manipulation; user-select: none; }
+.music-panel-title { font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--hud-accent); margin-bottom: 4px; }
+.music-panel-track { font-size: 13px; color: #e6f3ff; margin-bottom: 14px; text-align:center; }
+.music-panel-controls { display:flex; gap:6px; justify-content:space-between; width:100%; }
+.music-panel-controls button { flex:1; background: rgba(20,26,40,0.85); color: #d7f8ff; border: 1px solid rgba(120,180,255,0.35); border-radius: 10px; padding: 6px 8px; cursor: pointer; font-size: 12px; }
+.music-panel-pink { --hud-accent: #ff8de0; --hud-accent-soft: rgba(255,141,224,0.55); color: #ffd8f3; }
+.music-panel-pink .music-panel-controls button { border-color: rgba(255,141,224,0.45); color: #ffd8f3; }
+.music-panel-slider { display:grid; grid-template-columns: 56px 1fr 44px; gap:6px; align-items:center; margin-bottom: 8px; font-size: 11px; color: rgba(255,218,243,0.9); }
+.music-panel-slider input[type="range"] { width: 100%; touch-action: pan-x; }
 
 /* Journal panel */
-.journal-overlay { position: absolute; inset: 0; background: rgba(4,8,14,0.35); pointer-events:none; z-index: 9000; }
+.journal-overlay { position: absolute; inset: 0; background: transparent; pointer-events: auto; z-index: 9000; }
 .journal-panel { width: min(240px, 34vw); min-height: 190px; background: linear-gradient(160deg, rgba(6,12,22,0.98), rgba(8,10,18,0.98)); border: 1px solid var(--hud-accent); border-radius: 16px; box-shadow: 0 0 24px rgba(0,0,0,0.55), 0 0 16px var(--hud-accent-soft), 0 18px 50px rgba(0,0,0,0.7); padding: 10px 12px 10px; color: #dbe8ff; display:flex; flex-direction:column; gap:8px; pointer-events:auto; position:absolute; overflow: hidden; resize: both; min-width: 220px; min-height: 180px; max-width: min(520px, 90vw); max-height: min(70vh, 520px); --hud-accent: #78fff0; --hud-accent-glow: rgba(120,255,240,0.9); --hud-accent-soft: rgba(80,255,200,0.6); scrollbar-width: none; }
 .journal-panel::-webkit-scrollbar { width: 0; height: 0; }
 .journal-panel-quests { --hud-accent: #ffd66b; --hud-accent-glow: rgba(255,214,107,0.9); --hud-accent-soft: rgba(255,214,107,0.55); }

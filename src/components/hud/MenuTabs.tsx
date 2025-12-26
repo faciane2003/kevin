@@ -20,6 +20,11 @@ const TAB_ICONS: Record<(typeof TABS)[number], string> = {
   Skills: "/icons/magic.png",
   Tech: "/icons/tech.png",
 };
+const MUSIC_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <path d="M42 10v28.5a9.5 9.5 0 1 1-4-7.8V18l-18 4.5V40a9.5 9.5 0 1 1-4-7.8V18.5L42 10z" fill="#ff8de0"/>
+  </svg>`
+)}`;
 const POWER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
     <circle cx="32" cy="32" r="24" fill="none" stroke="#6bfffb" stroke-width="6"/>
@@ -29,16 +34,76 @@ const POWER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
 
 const MenuTabs: React.FC = () => {
   const { activeTab, setActiveTab } = useHUD();
-  const [iconsExpanded, setIconsExpanded] = React.useState(true);
-  const powerIndex = TABS.length;
+  const [iconsExpanded, setIconsExpanded] = React.useState(false);
+  const [musicOpen, setMusicOpen] = React.useState(false);
+  const musicIndex = TABS.length;
+  const powerIndex = TABS.length + 1;
+  const collapseTimerRef = React.useRef<number | null>(null);
+
+  const collapseIcons = React.useCallback(() => {
+    setIconsExpanded(false);
+    setActiveTab(null);
+    setMusicOpen(false);
+    window.dispatchEvent(new CustomEvent("music-visibility", { detail: { visible: false } }));
+  }, [setActiveTab]);
 
   const togglePower = () => {
     setIconsExpanded((prev) => {
       const next = !prev;
-      if (!next) setActiveTab(null);
+      if (!next) {
+        collapseIcons();
+      }
       return next;
     });
   };
+
+  React.useEffect(() => {
+    const onHotkey = (evt: KeyboardEvent) => {
+      if (evt.key.toLowerCase() !== "m") return;
+      const active = document.activeElement;
+      if (active && ["input", "textarea"].includes(active.tagName.toLowerCase())) return;
+      setMusicOpen((prev) => !prev);
+    };
+    window.addEventListener("keydown", onHotkey);
+    return () => window.removeEventListener("keydown", onHotkey);
+  }, []);
+
+  React.useEffect(() => {
+    const scheduleCollapse = () => {
+      if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = window.setTimeout(() => {
+        collapseIcons();
+      }, 6000);
+    };
+    const onWalk = (event: Event) => {
+      const detail = (event as CustomEvent<{ active: boolean }>).detail;
+      if (!detail?.active) return;
+      scheduleCollapse();
+    };
+    window.addEventListener("walk-input", onWalk as EventListener);
+    return () => {
+      try { window.removeEventListener("walk-input", onWalk as EventListener); } catch {}
+      if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+    };
+  }, [collapseIcons]);
+
+  React.useEffect(() => {
+    if (!iconsExpanded && musicOpen) {
+      setMusicOpen(false);
+      window.dispatchEvent(new CustomEvent("music-visibility", { detail: { visible: false } }));
+      return;
+    }
+    if (activeTab && musicOpen) {
+      setMusicOpen(false);
+      window.dispatchEvent(new CustomEvent("music-visibility", { detail: { visible: false } }));
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent("music-visibility", {
+        detail: { visible: musicOpen, index: musicIndex },
+      })
+    );
+  }, [musicOpen, iconsExpanded, musicIndex, activeTab]);
 
   return (
     <div
@@ -55,7 +120,13 @@ const MenuTabs: React.FC = () => {
             aria-selected={active}
             tabIndex={0}
             className={`menu-tab-button menu-tab-${TAB_COLORS[t]} ${active ? "active" : ""}`}
-            onClick={() => setActiveTab(active ? null : t)}
+            onClick={() => {
+              setActiveTab(active ? null : t);
+              if (!active && musicOpen) {
+                setMusicOpen(false);
+                window.dispatchEvent(new CustomEvent("music-visibility", { detail: { visible: false } }));
+              }
+            }}
             title={t}
             style={
               {
@@ -70,6 +141,30 @@ const MenuTabs: React.FC = () => {
           </button>
         );
       })}
+      <button
+        type="button"
+        role="tab"
+        aria-selected={musicOpen}
+        className={`menu-tab-button menu-tab-pink ${musicOpen ? "active" : ""}`}
+        onClick={() => {
+          setMusicOpen((prev) => {
+            const next = !prev;
+            if (next) setActiveTab(null);
+            return next;
+          });
+        }}
+        title="Music"
+        style={
+          {
+            "--collapse-offset": `calc((var(--tab-size) + var(--tab-gap)) * ${
+              powerIndex - musicIndex
+            })`,
+          } as React.CSSProperties
+        }
+      >
+        <img src={MUSIC_ICON} alt="Music" className="menu-tab-icon" />
+        {!musicOpen && <span className="menu-tab-tooltip">Music</span>}
+      </button>
       <button
         type="button"
         role="tab"

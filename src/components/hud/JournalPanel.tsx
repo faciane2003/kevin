@@ -78,7 +78,7 @@ const SPARKLE_POSITIONS = [
 ];
 
 const JournalPanel: React.FC = () => {
-  const { activeTab, inventory } = useHUD();
+  const { activeTab, inventory, setActiveTab } = useHUD();
   if (!activeTab) return null;
 
   const tabKey = activeTab.toLowerCase();
@@ -110,7 +110,16 @@ const JournalPanel: React.FC = () => {
       : TAB_CONTENT[activeTab] ?? { title: activeTab, body: ["No entries yet."] };
 
   return (
-    <div className="journal-overlay" role="dialog" aria-label={`${activeTab} Journal`}>
+    <div
+      className="journal-overlay"
+      role="dialog"
+      aria-label={`${activeTab} Journal`}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          setActiveTab(null);
+        }
+      }}
+    >
       <div
         className={`journal-panel journal-panel-${tabKey}`}
         style={{ top: `${panelPos.top}px`, left: `${panelPos.left}px` }}

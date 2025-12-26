@@ -51,10 +51,15 @@ const BabylonWorld: React.FC = () => {
     };
     canvasRef.current?.addEventListener("click", requestLock);
 
+    const debugOverlayWrap = document.createElement("div");
+    debugOverlayWrap.style.position = "fixed";
+    debugOverlayWrap.style.top = "12px";
+    debugOverlayWrap.style.right = "12px";
+    debugOverlayWrap.style.display = "none";
+    debugOverlayWrap.style.zIndex = "20";
+    debugOverlayWrap.style.pointerEvents = "auto";
+
     const debugOverlay = document.createElement("div");
-    debugOverlay.style.position = "fixed";
-    debugOverlay.style.top = "12px";
-    debugOverlay.style.right = "12px";
     debugOverlay.style.padding = "8px 10px";
     debugOverlay.style.background = "rgba(0,0,0,0.6)";
     debugOverlay.style.color = "#e6f3ff";
@@ -62,9 +67,41 @@ const BabylonWorld: React.FC = () => {
     debugOverlay.style.fontSize = "12px";
     debugOverlay.style.whiteSpace = "pre";
     debugOverlay.style.pointerEvents = "none";
-    debugOverlay.style.zIndex = "20";
-    document.body.appendChild(debugOverlay);
-    debugOverlay.style.display = "none";
+
+    const copyDebugButton = document.createElement("button");
+    copyDebugButton.textContent = "Copy";
+    copyDebugButton.style.marginTop = "6px";
+    copyDebugButton.style.padding = "4px 8px";
+    copyDebugButton.style.borderRadius = "6px";
+    copyDebugButton.style.border = "1px solid rgba(255,255,255,0.2)";
+    copyDebugButton.style.background = "rgba(10,12,20,0.85)";
+    copyDebugButton.style.color = "#e6f3ff";
+    copyDebugButton.style.cursor = "pointer";
+    copyDebugButton.style.fontSize = "11px";
+    copyDebugButton.style.pointerEvents = "auto";
+    copyDebugButton.addEventListener("click", async () => {
+      const pos = camera.position;
+      const target = camera.getTarget();
+      const text =
+        `pos: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})\n` +
+        `target: (${target.x.toFixed(2)}, ${target.y.toFixed(2)}, ${target.z.toFixed(2)})`;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    });
+
+    debugOverlayWrap.appendChild(debugOverlay);
+    debugOverlayWrap.appendChild(copyDebugButton);
+    document.body.appendChild(debugOverlayWrap);
     let showDebugOverlay = false;
     const isTextInputActive = () => {
       const active = document.activeElement;
@@ -75,9 +112,18 @@ const BabylonWorld: React.FC = () => {
     const onToggleDebugOverlay = (evt: KeyboardEvent) => {
       if (evt.key.toLowerCase() !== "p") return;
       showDebugOverlay = !showDebugOverlay;
-      debugOverlay.style.display = showDebugOverlay ? "block" : "none";
+      debugOverlayWrap.style.display = showDebugOverlay ? "block" : "none";
     };
     window.addEventListener("keydown", onToggleDebugOverlay);
+
+    document.body.style.userSelect = "none";
+    (document.body.style as any).webkitUserSelect = "none";
+    (document.body.style as any).webkitTouchCallout = "none";
+    document.body.style.touchAction = "none";
+    const onDialogueOpen = () => {
+      try { document.exitPointerLock?.(); } catch {}
+    };
+    window.addEventListener("npc-dialogue", onDialogueOpen as EventListener);
 
 
     const buildingTilingState = { u: 1, v: 2.5 };
@@ -124,8 +170,10 @@ const BabylonWorld: React.FC = () => {
     let lastLookY = 0;
     let lookInputX = 0;
     let lookInputY = 0;
-    const lookSensitivity = 0.004;
-    const lookHoldSpeed = 1.6;
+    const hintTimers: number[] = [];
+    const hintAnimations: Animation[] = [];
+    const lookSensitivity = 0.002;
+    const lookHoldSpeed = 0.9;
     const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
     if (isTouchDevice) {
       interactZone = document.createElement("div");
@@ -252,6 +300,106 @@ const BabylonWorld: React.FC = () => {
       lookZone.appendChild(lookDown);
       document.body.appendChild(lookZone);
 
+      const addSparkles = (el: HTMLElement, count: number) => {
+        el.style.overflow = "visible";
+        el.style.position = "fixed";
+        const baseColor = "rgba(56,226,111,0.95)";
+        for (let i = 0; i < count; i += 1) {
+          const sparkle = document.createElement("span");
+          sparkle.style.position = "absolute";
+          sparkle.style.width = "3px";
+          sparkle.style.height = "3px";
+          sparkle.style.borderRadius = "999px";
+          sparkle.style.background = baseColor;
+          sparkle.style.boxShadow = "0 0 8px rgba(56,226,111,0.9), 0 0 14px rgba(56,226,111,0.6)";
+          sparkle.style.left = `${35 + Math.random() * 30}%`;
+          sparkle.style.top = `${30 + Math.random() * 30}%`;
+          el.appendChild(sparkle);
+          hintAnimations.push(
+            sparkle.animate(
+              [
+                { transform: "translate(0,0) scale(0.6)", opacity: 0 },
+                { transform: "translate(6px,-16px) scale(1)", opacity: 1 },
+                { transform: "translate(-6px,10px) scale(0.7)", opacity: 0 },
+              ],
+              {
+                duration: 2600 + Math.random() * 1200,
+                iterations: Infinity,
+                easing: "ease-in-out",
+                delay: Math.random() * 800,
+              }
+            )
+          );
+        }
+      };
+
+      const runHintAnimation = (el: HTMLElement) => {
+        const baseShadow = "0 2px 0 rgba(0,0,0,0.6), 0 0 12px rgba(56,226,111,0.7)";
+        const glowShadow = "0 2px 0 rgba(0,0,0,0.6), 0 0 20px rgba(56,226,111,0.95)";
+        el.style.opacity = "0";
+        el.style.transform = "translateY(40px) scale(1)";
+        el.style.textShadow = baseShadow;
+        hintAnimations.push(
+          el.animate(
+            [
+              { transform: "translateY(0) scale(1)" },
+              { transform: "translateY(-6px) scale(1)" },
+            ],
+            { duration: 2400, easing: "ease-in-out", direction: "alternate", iterations: Infinity }
+          )
+        );
+        const scheduleHide = (target: HTMLElement, delayMs: number) => {
+          const timer = window.setTimeout(() => {
+            hintAnimations.push(
+              target.animate(
+                [
+                  { opacity: 1, transform: "translateY(0) scale(1)", textShadow: baseShadow },
+                  { opacity: 0, transform: "translateY(40px) scale(0.98)", textShadow: baseShadow },
+                ],
+                { duration: 1200, easing: "ease-in", fill: "forwards" }
+              )
+            );
+          }, delayMs);
+          hintTimers.push(timer);
+        };
+
+        const start = window.setTimeout(() => {
+          hintAnimations.push(
+            el.animate(
+              [
+                { opacity: 0, transform: "translateY(40px) scale(1)", textShadow: baseShadow },
+                { opacity: 1, transform: "translateY(0) scale(1)", textShadow: baseShadow },
+              ],
+              { duration: 1000, easing: "ease-out", fill: "forwards" }
+            )
+          );
+          hintAnimations.push(
+            el.animate(
+              [
+                { transform: "translateY(0) scale(1)", textShadow: baseShadow },
+                { transform: "translateY(0) scale(1.05)", textShadow: glowShadow },
+                { transform: "translateY(0) scale(1)", textShadow: baseShadow },
+              ],
+              { duration: 1400, easing: "ease-in-out", fill: "forwards" }
+            )
+          );
+        }, 3000);
+        hintTimers.push(start);
+
+        let dismissed = false;
+        const dismiss = () => {
+          if (dismissed) return;
+          dismissed = true;
+          scheduleHide(el, 3000);
+        };
+
+        return { dismiss };
+      };
+      addSparkles(walkLabelZone, 18);
+      addSparkles(lookZone, 18);
+      const walkHint = runHintAnimation(walkLabelZone);
+      const lookHint = runHintAnimation(lookZone);
+
       const updateWalkInput = (evt: PointerEvent) => {
         if (!walkZone) return;
         const rect = walkZone.getBoundingClientRect();
@@ -267,6 +415,7 @@ const BabylonWorld: React.FC = () => {
         updateWalkInput(evt);
         walkZone?.setPointerCapture(evt.pointerId);
         window.dispatchEvent(new CustomEvent("walk-input", { detail: { active: true } }));
+        walkHint.dismiss();
       });
 
       walkZone.addEventListener("pointermove", (evt) => {
@@ -303,6 +452,8 @@ const BabylonWorld: React.FC = () => {
         lastLookY = evt.clientY;
         updateLookInput(evt);
         lookZone?.setPointerCapture(evt.pointerId);
+        lookHint.dismiss();
+        window.dispatchEvent(new CustomEvent("look-input", { detail: { active: true } }));
       });
 
       lookZone.addEventListener("pointermove", (evt) => {
@@ -322,6 +473,7 @@ const BabylonWorld: React.FC = () => {
         lookPointerId = null;
         lookInputX = 0;
         lookInputY = 0;
+        window.dispatchEvent(new CustomEvent("look-input", { detail: { active: false } }));
         try { lookZone?.releasePointerCapture(evt.pointerId); } catch {}
       };
 
@@ -414,6 +566,9 @@ const BabylonWorld: React.FC = () => {
     chatInput.style.width = "100%";
     chatInput.style.padding = "4px 6px";
     chatInput.style.borderRadius = "4px";
+    chatInput.style.userSelect = "text";
+    (chatInput.style as any).webkitUserSelect = "text";
+    chatInput.style.touchAction = "auto";
     chatInput.style.border = "1px solid rgba(255,255,255,0.15)";
     chatInput.style.background = "rgba(10,12,20,0.8)";
     chatInput.style.color = "#e6f3ff";
@@ -1031,6 +1186,7 @@ const BabylonWorld: React.FC = () => {
     addBillboardBulbs(signB, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_front", 0.6);
     addBillboardBulbs(signB_back, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_back", 0.6);
 
+    const adsEnabled = false;
     const adNames = [
       "Fellowship! (10).jpg",
       "Fellowship! (103).jpg",
@@ -1116,17 +1272,23 @@ const BabylonWorld: React.FC = () => {
           adPlane.scaling.z = adSettings.scale;
           adPlane.rotation.set(adSettings.rotX, adSettings.rotY, adSettings.rotZ);
         }
+        const previous = currentAdTexture;
+        currentAdTexture = tex;
+        adMaterial.diffuseTexture = tex;
+        adMaterial.emissiveTexture = tex;
+        if (previous && previous !== tex) previous.dispose();
       });
-      if (currentAdTexture) currentAdTexture.dispose();
-      currentAdTexture = tex;
-      adMaterial.diffuseTexture = tex;
-      adMaterial.emissiveTexture = tex;
     };
-    applyAdTexture(shuffledAds[adIndex]);
-    const adTimer = window.setInterval(() => {
-      adIndex = (adIndex + 1) % shuffledAds.length;
+    let adTimer: number | null = null;
+    if (adsEnabled) {
       applyAdTexture(shuffledAds[adIndex]);
-    }, 6000);
+      adTimer = window.setInterval(() => {
+        adIndex = (adIndex + 1) % shuffledAds.length;
+        applyAdTexture(shuffledAds[adIndex]);
+      }, 6000);
+    } else {
+      adPlane.isVisible = false;
+    }
 
     const updateAdTransform = () => {
       adPlane.position.set(adSettings.x, adSettings.y, adSettings.z);
@@ -1480,14 +1642,16 @@ const BabylonWorld: React.FC = () => {
         const touchMagnitude = Math.max(Math.abs(walkInputX), Math.abs(walkInputY));
         if (touchMagnitude > 0.05) {
           move.addInPlace(forward.scale(-walkInputY));
-          move.addInPlace(right.scale(walkInputX));
+          move.addInPlace(right.scale(-walkInputX));
         }
       }
 
       const isMoving = move.lengthSquared() > 0;
       if (isMoving) {
         move.normalize();
-        const speed = moveSpeed * (inputMap["shift"] ? 4 : 1);
+        const touchMagnitude = Math.max(Math.abs(walkInputX), Math.abs(walkInputY));
+        const touchSprintScale = isTouchDevice && touchMagnitude > 0.05 ? 1 + Math.min(1, touchMagnitude) : 1;
+        const speed = moveSpeed * (inputMap["shift"] ? 4 : 1) * touchSprintScale;
         move.scaleInPlace(speed * dt);
       }
       if (isMoving !== lastMoving) {
@@ -1559,14 +1723,23 @@ const BabylonWorld: React.FC = () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
+      try { window.removeEventListener("npc-dialogue", onDialogueOpen as EventListener); } catch {}
       try { window.removeEventListener("keydown", onChatFocusKey); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
-      try { window.clearInterval(adTimer); } catch {}
+      if (adTimer !== null) {
+        try { window.clearInterval(adTimer); } catch {}
+      }
       try { currentAdTexture?.dispose(); } catch {}
       try { if (lookZone) document.body.removeChild(lookZone); } catch {}
       try { if (walkZone) document.body.removeChild(walkZone); } catch {}
       try { if (walkLabelZone) document.body.removeChild(walkLabelZone); } catch {}
       try { if (interactZone) document.body.removeChild(interactZone); } catch {}
+      hintAnimations.forEach((anim) => {
+        try { anim.cancel(); } catch {}
+      });
+      hintTimers.forEach((timer) => {
+        try { window.clearTimeout(timer); } catch {}
+      });
       try { document.body.removeChild(chatPanel); } catch {}
       try { socket?.close(); } catch {}
       remotePlayers.forEach((entry) => entry.mesh.dispose());
