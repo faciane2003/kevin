@@ -9,7 +9,6 @@ import {
   Ray,
   HemisphericLight,
   DirectionalLight,
-  PointLight,
   SpotLight,
   GlowLayer,
   DefaultRenderingPipeline,
@@ -35,6 +34,7 @@ import TopFog from "../components/world/TopFog";
 import GroundFog from "../components/world/GroundFog";
 import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
+import CloudLayer from "../components/world/CloudLayer";
 import ShootingStars from "../components/world/ShootingStars";
 import CityStars from "../components/world/CityStars";
 
@@ -696,8 +696,8 @@ const BabylonWorld: React.FC = () => {
 
     const moonSpot = new SpotLight(
       "moonSpot",
-      new Vector3(1293, 194, 1367),
-      new Vector3(-0.8, -0.5, 0.2),
+      moon.position.clone(),
+      new Vector3(0, -1, 0),
       1.18,
       2,
       scene
@@ -705,8 +705,11 @@ const BabylonWorld: React.FC = () => {
     moonSpot.intensity = 2.8;
     moonSpot.diffuse = new Color3(0.85, 0.9, 1.0);
 
-    let moonSpotYaw = -119;
-    let moonSpotPitch = 5;
+    const cityCenter = new Vector3(0, 0, 0);
+    const baseDir = cityCenter.subtract(moonSpot.position).normalize();
+    let moonSpotYaw = (Math.atan2(baseDir.x, baseDir.z) * 180) / Math.PI;
+    let moonSpotPitch =
+      (Math.atan2(baseDir.y, Math.sqrt(baseDir.x * baseDir.x + baseDir.z * baseDir.z)) * 180) / Math.PI;
     const updateMoonSpotDirection = () => {
       const yaw = (moonSpotYaw * Math.PI) / 180;
       const pitch = (moonSpotPitch * Math.PI) / 180;
@@ -820,13 +823,6 @@ const BabylonWorld: React.FC = () => {
       glowLayer.intensity = 0.85;
     }
 
-    const lampLights: PointLight[] = [];
-    const amberLights: PointLight[] = [];
-    const lampBaseIntensity = 0.6;
-    const amberBaseIntensity = 0.35;
-    let lampScale = 1.3;
-    let amberScale = 0;
-
     const onLightSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -845,18 +841,6 @@ const BabylonWorld: React.FC = () => {
       if (typeof detail.moonSpotPitch === "number") {
         moonSpotPitch = detail.moonSpotPitch;
         updateMoonSpotDirection();
-      }
-      if (typeof detail.lamp === "number") {
-        lampScale = detail.lamp;
-        lampLights.forEach((light) => {
-          light.intensity = lampBaseIntensity * lampScale;
-        });
-      }
-      if (typeof detail.amber === "number") {
-        amberScale = detail.amber;
-        amberLights.forEach((light) => {
-          light.intensity = amberBaseIntensity * amberScale;
-        });
       }
       if (typeof detail.glow === "number") glowLayer.intensity = detail.glow;
       if (typeof detail.fogEnabled === "boolean") fogSettings.enabled = detail.fogEnabled;
@@ -1561,7 +1545,7 @@ const BabylonWorld: React.FC = () => {
         if (!isNearAvoid(center, radius + 20)) break;
       }
       const angle = Math.random() * Math.PI * 2;
-      const speed = 0.9 + Math.random() * 1.3;
+      const speed = (0.9 + Math.random() * 1.3) * 0.3;
       const height = 12 + Math.random() * 30;
       drones.push({ mesh: d, angle, radius, center, speed, height });
     }
@@ -2048,9 +2032,9 @@ const BabylonWorld: React.FC = () => {
         <BuildingWindowFlicker
           scene={sceneInstance}
           materials={buildingMaterials}
-          intervalMs={3000}
-          flickerPercent={0.7}
-          stepMs={400}
+          intervalMs={8000}
+          flickerPercent={0.05}
+          stepMs={2000}
           offDurationMs={10000}
         />
       ) : null}
@@ -2059,6 +2043,7 @@ const BabylonWorld: React.FC = () => {
         groundSize={2400}
         settings={borderFogSettingsMemo}
       />
+      <CloudLayer scene={sceneInstance} />
       <TopFog scene={sceneInstance} settings={topFogSettings} />
       <GroundFog scene={sceneInstance} settings={groundFogSettings} />
       {starSettings.enabled ? (

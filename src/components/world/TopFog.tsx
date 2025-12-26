@@ -41,6 +41,7 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
       const ctx = texture.getContext();
       const size = texture.getSize();
       ctx.clearRect(0, 0, size.width, size.height);
+      ctx.filter = "blur(6px)";
       const clampedFade = Math.min(1, Math.max(0.02, fadeTop));
       const fadeStart = Math.max(0, 1 - clampedFade);
       for (let y = 0; y < size.height; y += 1) {
@@ -52,6 +53,7 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
         ctx.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx.fillRect(0, size.height - y - 1, size.width, 1);
       }
+      ctx.filter = "none";
       texture.update();
     };
   }, []);

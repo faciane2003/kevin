@@ -12,8 +12,6 @@ type LightSettings = {
   moonSpotZ: number;
   moonSpotYaw: number;
   moonSpotPitch: number;
-  lamp: number;
-  amber: number;
   glow: number;
   fogEnabled: boolean;
   fogDensity: number;
@@ -33,13 +31,11 @@ const DEFAULTS: LightSettings = {
   moon: 0,
   moonSpotIntensity: 1.55,
   moonSpotAngle: 1.6,
-  moonSpotX: 1273,
-  moonSpotY: 381,
-  moonSpotZ: 1367,
-  moonSpotYaw: -131,
-  moonSpotPitch: -9,
-  lamp: 1.05,
-  amber: 0.9,
+  moonSpotX: 700,
+  moonSpotY: 450,
+  moonSpotZ: -130,
+  moonSpotYaw: -79.48,
+  moonSpotPitch: -32.29,
   glow: 0.45,
   fogEnabled: true,
   fogDensity: 0.01,
@@ -122,8 +118,6 @@ const LightControlPanel: React.FC = () => {
           ["hemi", "Hemi", 0, 2.5, 0.05],
           ["ambient", "Ambient", 0, 2.5, 0.05],
           ["moon", "Moon", 0, 2.5, 0.05],
-          ["lamp", "Lamp", 0, 3, 0.05],
-          ["amber", "Amber", 0, 3, 0.05],
           ["glow", "Glow", 0, 2, 0.05],
         ] as Array<[keyof LightSettings, string, number, number, number]>
       ).map(([key, label, min, max, step]) => (
