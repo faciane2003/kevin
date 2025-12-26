@@ -19,11 +19,6 @@ const IntroLightning: React.FC = () => {
       <div className="intro-arc intro-arc-left" />
       <div className="intro-arc intro-arc-right" />
       <div className="intro-flash" />
-      <div className="intro-sparks">
-        {Array.from({ length: 14 }).map((_, idx) => (
-          <span key={idx} className="intro-spark" style={{ animationDelay: `${idx * 0.08}s` }} />
-        ))}
-      </div>
     </div>
   );
 };

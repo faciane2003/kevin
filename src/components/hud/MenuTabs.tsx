@@ -13,12 +13,12 @@ export const TAB_COLORS: Record<(typeof TABS)[number], string> = {
   Tech: "pink",
 };
 const TAB_ICONS: Record<(typeof TABS)[number], string> = {
-  Quests: "/icons/quests.png",
-  Journal: "/icons/journal.png",
-  Map: "/icons/map.png",
-  Items: "/icons/items.png",
-  Skills: "/icons/magic.png",
-  Tech: "/icons/tech.png",
+  Quests: "/icons/quests.webp",
+  Journal: "/icons/journal.webp",
+  Map: "/icons/map.webp",
+  Items: "/icons/items.webp",
+  Skills: "/icons/magic.webp",
+  Tech: "/icons/tech.webp",
 };
 const MUSIC_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -110,6 +110,12 @@ const MenuTabs: React.FC = () => {
       className={`menu-tabs${iconsExpanded ? "" : " menu-tabs-collapsed"}`}
       role="tablist"
       aria-label="Game Menu Tabs"
+      style={
+        {
+          "--power-index": powerIndex,
+          "--power-offset": "calc(66vh - 12px)",
+        } as React.CSSProperties
+      }
     >
       {TABS.map((t, idx) => {
         const active = activeTab === t;

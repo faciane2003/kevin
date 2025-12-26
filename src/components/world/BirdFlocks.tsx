@@ -1,13 +1,25 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Scene, SceneLoader, TransformNode, Vector3 } from "@babylonjs/core";
 
 type Props = {
   scene: Scene | null;
   flocks?: number;
   birdsPerFlock?: number;
+  avoidPoints?: Array<{ position: Vector3; radius: number }>;
 };
 
-const BirdFlocks: React.FC<Props> = ({ scene, flocks = 6, birdsPerFlock = 6 }) => {
+const BirdFlocks: React.FC<Props> = ({
+  scene,
+  flocks = 6,
+  birdsPerFlock = 6,
+  avoidPoints = [],
+}) => {
+  const avoidPointsRef = useRef(avoidPoints);
+
+  useEffect(() => {
+    avoidPointsRef.current = avoidPoints;
+  }, [avoidPoints]);
+
   useEffect(() => {
     if (!scene) return;
     let disposed = false;
@@ -30,14 +42,33 @@ const BirdFlocks: React.FC<Props> = ({ scene, flocks = 6, birdsPerFlock = 6 }) =
         mesh.isVisible = false;
       });
 
+      const isNearAvoid = (pos: Vector3) =>
+        avoidPointsRef.current.some((p) => {
+          const dx = pos.x - p.position.x;
+          const dz = pos.z - p.position.z;
+          return dx * dx + dz * dz < p.radius * p.radius;
+        });
+
       for (let f = 0; f < flocks; f += 1) {
-        const center = new Vector3((Math.random() - 0.5) * 500, 90 + Math.random() * 60, (Math.random() - 0.5) * 500);
+        let center = new Vector3(
+          (Math.random() - 0.5) * 320,
+          80 + Math.random() * 50,
+          (Math.random() - 0.5) * 320
+        );
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          center = new Vector3(
+            (Math.random() - 0.5) * 320,
+            80 + Math.random() * 50,
+            (Math.random() - 0.5) * 320
+          );
+          if (!isNearAvoid(center)) break;
+        }
         for (let b = 0; b < birdsPerFlock; b += 1) {
           const base = baseMeshes[0];
           if (!base) break;
           const inst = base.createInstance(`bird_${f}_${b}`);
           inst.parent = root;
-          inst.scaling = new Vector3(0.7, 0.7, 0.7);
+          inst.scaling = new Vector3(2.1, 2.1, 2.1);
           instances.push(inst);
           birds.push({
             mesh: inst,

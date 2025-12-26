@@ -47,10 +47,10 @@ const DEFAULTS: LightSettings = {
   fogHeightFalloff: 0.0035,
   fogColor: "#3b3e45",
   borderFogEnabled: true,
-  borderFogOpacity: 0.75,
-  borderFogHeight: 160,
-  borderFogInset: 40,
-  borderFogColor: "#2e3238",
+  borderFogOpacity: 0.42,
+  borderFogHeight: 50,
+  borderFogInset: 26,
+  borderFogColor: "#1100ff",
 };
 
 const LightControlPanel: React.FC = () => {
@@ -63,6 +63,15 @@ const LightControlPanel: React.FC = () => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    const onDebug = (e: Event) => {
+      const detail = (e as CustomEvent<{ open?: boolean }>).detail;
+      if (detail?.open) setOpen(true);
+    };
+    window.addEventListener("debug-panels", onDebug as EventListener);
+    return () => window.removeEventListener("debug-panels", onDebug as EventListener);
   }, []);
 
   useEffect(() => {

@@ -3,9 +3,7 @@ import React, { useEffect, useState } from "react";
 import { HUDProvider, useHUD } from "./HUDContext";
 import MenuTabs from "./MenuTabs";
 import JournalPanel from "./JournalPanel";
-import LightControlPanel from "./LightControlPanel";
-import IntroLightning from "./IntroLightning";
-import RainControlPanel from "./RainControlPanel";
+import DebugPanel from "./DebugPanel";
 import "./HUD.css";
 
 type DialogueOption = { text: string; next?: string };
@@ -368,13 +366,11 @@ const HUDInner: React.FC = () => {
 
   return (
     <div className="hud-container" aria-hidden={false}>
-      <IntroLightning />
       {/* Stats bars hidden per request */}
       <MenuTabs />
       <JournalPanel />
       <DialoguePanel npcId={activeNpc} onClose={() => setActiveNpc(null)} />
-      <LightControlPanel />
-      <RainControlPanel />
+      <DebugPanel />
       {/* Hotbar removed from UI per request */}
     </div>
   );

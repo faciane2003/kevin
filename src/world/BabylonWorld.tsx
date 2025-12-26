@@ -1,5 +1,5 @@
 // File: src/world/BabylonWorld.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "@babylonjs/loaders";
 import {
   Engine,
@@ -19,6 +19,8 @@ import {
   Color3,
   Color4,
   Material,
+  Mesh,
+  ParticleSystem,
   Texture,
   DynamicTexture,
   TransformNode,
@@ -29,12 +31,13 @@ import {
 import WorldSounds from "../components/sounds/WorldSounds";
 import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
 import BorderFog from "../components/world/BorderFog";
+import GroundFog from "../components/world/GroundFog";
 import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
 import NewspaperDrift from "../components/world/NewspaperDrift";
 import BirdFlocks from "../components/world/BirdFlocks";
-import TrainSystem from "../components/world/TrainSystem";
-import RainSystem from "../components/world/RainSystem";
+import ShootingStars from "../components/world/ShootingStars";
+import CityStars from "../components/world/CityStars";
 
 type BuildingInfo = { mesh: any; width: number; depth: number; height: number };
 
@@ -43,29 +46,153 @@ const BabylonWorld: React.FC = () => {
   const [sceneInstance, setSceneInstance] = useState<Scene | null>(null);
   const [buildingMaterials, setBuildingMaterials] = useState<StandardMaterial[]>([]);
   const [buildingInfos, setBuildingInfos] = useState<BuildingInfo[]>([]);
+  const buildingInfosRef = useRef<BuildingInfo[]>([]);
   const [borderFogSettings, setBorderFogSettings] = useState({
     enabled: true,
-    opacity: 0.75,
-    height: 160,
-    inset: 40,
-    color: new Color3(0.18, 0.2, 0.22),
+    opacity: 0.42,
+    height: 50,
+    inset: 26,
+    fadeTop: 1,
+    offsetX: -4,
+    offsetY: -23,
+    offsetZ: 0,
+    color: new Color3(0.07, 0, 1),
   });
+  const [groundFogSettings, setGroundFogSettings] = useState({
+    enabled: true,
+    opacity: 0.08,
+    height: 5,
+    radius: 830,
+    fadeTop: 1,
+    offsetX: 14,
+    offsetY: -4,
+    offsetZ: 0,
+    color: new Color3(0.13, 0.2, 0.4),
+  });
+  const [perfSettings, setPerfSettings] = useState({
+    glow: true,
+    postFx: true,
+    collisions: true,
+    windowFlicker: true,
+    borderFog: true,
+    birds: true,
+    newspapers: true,
+    gargoyles: true,
+    shootingStars: true,
+  });
+  const [skySettings, setSkySettings] = useState({
+    birdsEnabled: true,
+    flocks: 24,
+    birdsPerFlock: 6,
+    shootingStarsEnabled: true,
+    shootingStarsCount: 6,
+    newspapersEnabled: true,
+    newspaperCount: 24,
+  });
+  const [starSettings, setStarSettings] = useState({
+    enabled: true,
+    count: 300,
+    radius: 1080,
+    minHeight: 170,
+    maxHeight: 310,
+    scale: 1,
+  });
+  const [treePositions, setTreePositions] = useState<Vector3[]>([]);
+  const treePositionsRef = useRef<Vector3[]>([]);
+  const glowLayerRef = useRef<GlowLayer | null>(null);
+  const signPositions = useMemo(() => [new Vector3(-120, 0, 20), new Vector3(180, 0, 10)], []);
+  const birdAvoidPoints = useMemo(() => {
+    const buildingCenters = buildingInfos.map((b) => ({
+      position: b.mesh.position,
+      radius: Math.max(b.width, b.depth) / 2 + 20,
+    }));
+    const treeCenters = treePositions.map((p) => ({ position: p, radius: 20 }));
+    const signCenters = signPositions.map((p) => ({ position: p, radius: 20 }));
+    return [...buildingCenters, ...treeCenters, ...signCenters];
+  }, [buildingInfos, treePositions, signPositions]);
+  const borderFogSettingsMemo = useMemo(
+    () => ({
+      ...borderFogSettings,
+      enabled: borderFogSettings.enabled && perfSettings.borderFog,
+    }),
+    [borderFogSettings, perfSettings.borderFog]
+  );
+
+  useEffect(() => {
+    treePositionsRef.current = treePositions;
+  }, [treePositions]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
     const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
+    scene.maxSimultaneousLights = 4;
     setSceneInstance(scene);
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
 
     // First-person camera
-    const camera = new UniversalCamera("camera", new Vector3(-230.77, 2.18, -4.26), scene);
-    camera.setTarget(new Vector3(-191.22, 7.88, -6.19));
+    const startPos = new Vector3(-230.77, 2.18, -4.26);
+    const startTarget = new Vector3(-191.22, 7.88, -6.19);
+    const camera = new UniversalCamera("camera", startPos.clone(), scene);
+    camera.setTarget(startTarget.clone());
     scene.collisionsEnabled = true;
     camera.checkCollisions = true;
     camera.ellipsoid = new Vector3(0.6, 1.1, 0.6);
     camera.ellipsoidOffset = new Vector3(0, 1.1, 0);
+
+    const sprintModeRef = { current: false };
+
+    const sparkleTexture = new DynamicTexture("sparkleTexture", { width: 64, height: 64 }, scene, true);
+    const sparkleCtx = sparkleTexture.getContext();
+    const sparkleGrad = sparkleCtx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    sparkleGrad.addColorStop(0, "rgba(255,255,255,1)");
+    sparkleGrad.addColorStop(0.4, "rgba(255,255,255,0.9)");
+    sparkleGrad.addColorStop(1, "rgba(255,255,255,0)");
+    sparkleCtx.clearRect(0, 0, 64, 64);
+    sparkleCtx.fillStyle = sparkleGrad;
+    sparkleCtx.fillRect(0, 0, 64, 64);
+    sparkleTexture.update();
+
+    const sparkleTimers: number[] = [];
+    const spawnFootSparkles = (color: Color4) => {
+      const system = new ParticleSystem("footSparkles", 90, scene);
+      system.particleTexture = sparkleTexture;
+      system.emitter = camera;
+      system.minEmitBox = new Vector3(-0.8, -1.2, -0.8);
+      system.maxEmitBox = new Vector3(0.8, -0.8, 0.8);
+      system.color1 = color;
+      system.color2 = color;
+      system.minSize = 0.3;
+      system.maxSize = 0.7;
+      system.minLifeTime = 0.7;
+      system.maxLifeTime = 1.4;
+      system.emitRate = 800;
+      system.gravity = new Vector3(0, 2.6, 0);
+      system.direction1 = new Vector3(-0.6, 1.2, -0.6);
+      system.direction2 = new Vector3(0.6, 1.6, 0.6);
+      system.minEmitPower = 0.6;
+      system.maxEmitPower = 1.4;
+      system.updateSpeed = 0.02;
+      system.blendMode = ParticleSystem.BLENDMODE_ADD;
+      system.start();
+      const timer = window.setTimeout(() => {
+        system.stop();
+        system.dispose();
+      }, 900);
+      sparkleTimers.push(timer);
+    };
+
+    const onHudItemClick = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ label?: string }>).detail;
+      if (!detail?.label) return;
+      if (detail.label !== "Rollerblades") return;
+      sprintModeRef.current = !sprintModeRef.current;
+      spawnFootSparkles(
+        sprintModeRef.current ? new Color4(1, 0.84, 0.2, 1) : new Color4(0.3, 0.6, 1, 1)
+      );
+    };
+    window.addEventListener("hud-item-click", onHudItemClick as EventListener);
 
     // Attach default controls so mouse drag looks around.
     camera.attachControl(canvasRef.current, true);
@@ -330,23 +457,24 @@ const BabylonWorld: React.FC = () => {
         for (let i = 0; i < count; i += 1) {
           const sparkle = document.createElement("span");
           sparkle.style.position = "absolute";
-          sparkle.style.width = "3px";
-          sparkle.style.height = "3px";
+          const size = 3 + Math.random() * 3;
+          sparkle.style.width = `${size}px`;
+          sparkle.style.height = `${size}px`;
           sparkle.style.borderRadius = "999px";
           sparkle.style.background = baseColor;
           sparkle.style.boxShadow = "0 0 8px rgba(56,226,111,0.9), 0 0 14px rgba(56,226,111,0.6)";
           sparkle.style.left = `${35 + Math.random() * 30}%`;
-          sparkle.style.top = `${30 + Math.random() * 30}%`;
+          sparkle.style.top = `${20 + Math.random() * 30}%`;
           el.appendChild(sparkle);
           hintAnimations.push(
             sparkle.animate(
               [
                 { transform: "translate(0,0) scale(0.6)", opacity: 0 },
-                { transform: "translate(6px,-16px) scale(1)", opacity: 1 },
-                { transform: "translate(-6px,10px) scale(0.7)", opacity: 0 },
+                { transform: "translate(6px,-22px) scale(1)", opacity: 1 },
+                { transform: "translate(-6px,12px) scale(0.7)", opacity: 0 },
               ],
               {
-                duration: 2600 + Math.random() * 1200,
+                duration: 2000 + Math.random() * 3000,
                 iterations: Infinity,
                 easing: "ease-in-out",
                 delay: Math.random() * 800,
@@ -525,184 +653,16 @@ const BabylonWorld: React.FC = () => {
 
     // Mouse look handled by default camera controls.
 
-    const localPlayerId =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `player-${Math.random().toString(36).slice(2, 10)}`;
-    const localPlayerName = "Frodo";
-    const remotePlayers = new Map<string, { mesh: any }>();
-    const remotePlayerMat = new StandardMaterial("remotePlayerMat", scene);
-    remotePlayerMat.diffuseColor = new Color3(0.2, 0.8, 0.9);
-    remotePlayerMat.emissiveColor = new Color3(0.05, 0.15, 0.2);
-
-    const createRemotePlayer = (id: string) => {
-      const mesh = MeshBuilder.CreateCylinder(`remote_${id}`, { height: 2.2, diameter: 1 }, scene);
-      mesh.material = remotePlayerMat;
-      mesh.isPickable = false;
-      remotePlayers.set(id, { mesh });
-      return mesh;
-    };
-
-    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const defaultWsUrl =
-      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-        ? `${wsProtocol}://${window.location.hostname}:8080`
-        : "wss://kevin-1-8541.onrender.com";
-    const wsUrl = (import.meta as any).env?.VITE_WS_URL || defaultWsUrl;
-    let socket: WebSocket | null = null;
-    try {
-      socket = new WebSocket(wsUrl);
-    } catch {
-      socket = null;
-    }
-
-    const sendSocketMessage = (payload: any) => {
-      if (!socket || socket.readyState !== WebSocket.OPEN) return;
-      socket.send(JSON.stringify(payload));
-    };
-    let lastNetworkSend = 0;
-    const networkSendIntervalMs = 120;
-
-    const chatPanel = document.createElement("div");
-    chatPanel.style.position = "fixed";
-    chatPanel.style.left = "12px";
-    chatPanel.style.bottom = "120px";
-    chatPanel.style.width = "260px";
-    chatPanel.style.background = "rgba(0,0,0,0.6)";
-    chatPanel.style.color = "#e6f3ff";
-    chatPanel.style.fontFamily = "Consolas, Menlo, monospace";
-    chatPanel.style.fontSize = "12px";
-    chatPanel.style.borderRadius = "6px";
-    chatPanel.style.padding = "8px";
-    chatPanel.style.zIndex = "20";
-    chatPanel.style.pointerEvents = "auto";
-
-    const chatLog = document.createElement("div");
-    chatLog.style.maxHeight = "160px";
-    chatLog.style.overflowY = "auto";
-    chatLog.style.marginBottom = "6px";
-    chatLog.style.whiteSpace = "pre-wrap";
-
-    const chatInput = document.createElement("input");
-    chatInput.type = "text";
-    chatInput.placeholder = "Press Enter to chat";
-    chatInput.style.width = "100%";
-    chatInput.style.padding = "4px 6px";
-    chatInput.style.borderRadius = "4px";
-    chatInput.style.userSelect = "text";
-    (chatInput.style as any).webkitUserSelect = "text";
-    chatInput.style.touchAction = "auto";
-    chatInput.style.border = "1px solid rgba(255,255,255,0.15)";
-    chatInput.style.background = "rgba(10,12,20,0.8)";
-    chatInput.style.color = "#e6f3ff";
-
-    const appendChatLine = (text: string) => {
-      const line = document.createElement("div");
-      line.textContent = text;
-      chatLog.appendChild(line);
-      chatLog.scrollTop = chatLog.scrollHeight;
-    };
-
-    chatInput.addEventListener("keydown", (evt) => {
-      if (evt.key === "Enter") {
-        const value = chatInput.value.trim();
-        if (value) {
-          appendChatLine(`${localPlayerName}: ${value}`);
-          sendSocketMessage({ type: "chat", id: localPlayerId, name: localPlayerName, message: value });
-        }
-        chatInput.value = "";
-        chatInput.blur();
-      }
-      if (evt.key === "Escape") {
-        chatInput.value = "";
-        chatInput.blur();
-      }
-    });
-
-    const onChatFocusKey = (evt: KeyboardEvent) => {
-      if (evt.key === "Enter" && !isTextInputActive()) {
-        chatInput.focus();
-        evt.preventDefault();
-      }
-    };
-    window.addEventListener("keydown", onChatFocusKey);
-
-    chatPanel.appendChild(chatLog);
-    chatPanel.appendChild(chatInput);
-    chatPanel.style.display = "none";
-    document.body.appendChild(chatPanel);
-
-    if (socket) {
-      socket.addEventListener("open", () => {
-        sendSocketMessage({
-          type: "join",
-          id: localPlayerId,
-          name: localPlayerName,
-          pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
-          rot: { y: camera.rotation.y },
-        });
-      });
-
-      socket.addEventListener("message", (event) => {
-        let msg: any;
-        try {
-          msg = JSON.parse(event.data);
-        } catch {
-          return;
-        }
-
-        if (msg.type === "init" && Array.isArray(msg.players)) {
-          msg.players.forEach((player: any) => {
-            if (!player?.id || player.id === localPlayerId) return;
-            const mesh = remotePlayers.get(player.id)?.mesh || createRemotePlayer(player.id);
-            if (player.pos) {
-              mesh.position.set(player.pos.x || 0, player.pos.y || 0, player.pos.z || 0);
-            }
-          });
-          return;
-        }
-
-        if (msg.type === "join" && msg.player?.id && msg.player.id !== localPlayerId) {
-          const mesh = remotePlayers.get(msg.player.id)?.mesh || createRemotePlayer(msg.player.id);
-          if (msg.player.pos) {
-            mesh.position.set(msg.player.pos.x || 0, msg.player.pos.y || 0, msg.player.pos.z || 0);
-          }
-          return;
-        }
-
-        if (msg.type === "move" && msg.id && msg.id !== localPlayerId) {
-          const mesh = remotePlayers.get(msg.id)?.mesh || createRemotePlayer(msg.id);
-          if (msg.pos) {
-            mesh.position.set(msg.pos.x || 0, msg.pos.y || 0, msg.pos.z || 0);
-          }
-          if (msg.rot && typeof msg.rot.y === "number") {
-            mesh.rotation.y = msg.rot.y;
-          }
-          return;
-        }
-
-        if (msg.type === "leave" && msg.id) {
-          const entry = remotePlayers.get(msg.id);
-          if (entry) {
-            entry.mesh.dispose();
-            remotePlayers.delete(msg.id);
-          }
-        }
-
-        if (msg.type === "chat" && msg.name && typeof msg.message === "string") {
-          appendChatLine(`${msg.name}: ${msg.message}`);
-        }
-      });
-    }
+    // Multiplayer disabled for now.
 
     // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0.33;
+    hemi.intensity = 0.3;
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
     hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
     const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.08;
+    ambientLight.intensity = 1.9;
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
@@ -710,8 +670,7 @@ const BabylonWorld: React.FC = () => {
     const sky = MeshBuilder.CreateSphere("sky", { diameter: 8000, segments: 16 }, scene);
     const skyMat = new StandardMaterial("skyMat", scene);
     skyMat.backFaceCulling = false;
-    skyMat.emissiveTexture = new Texture("/textures/sky_milkyway.jpg", scene);
-    skyMat.alphaMode = Engine.ALPHA_SCREENMODE;
+    skyMat.emissiveTexture = new Texture("/textures/sky_galaxy.png", scene);
     skyMat.diffuseColor = new Color3(0, 0, 0);
     skyMat.specularColor = new Color3(0, 0, 0);
     skyMat.disableLighting = true;
@@ -734,22 +693,22 @@ const BabylonWorld: React.FC = () => {
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 0.3;
+    moonLight.intensity = 1.25;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
     const moonSpot = new SpotLight(
       "moonSpot",
-      new Vector3(700, 450, -130),
+      new Vector3(1293, 194, 1367),
       new Vector3(-0.8, -0.5, 0.2),
-      0.6,
+      1.18,
       2,
       scene
     );
-    moonSpot.intensity = 0.7;
+    moonSpot.intensity = 2.8;
     moonSpot.diffuse = new Color3(0.85, 0.9, 1.0);
 
-    let moonSpotYaw = -79;
-    let moonSpotPitch = -32;
+    let moonSpotYaw = -119;
+    let moonSpotPitch = 5;
     const updateMoonSpotDirection = () => {
       const yaw = (moonSpotYaw * Math.PI) / 180;
       const pitch = (moonSpotPitch * Math.PI) / 180;
@@ -812,19 +771,20 @@ const BabylonWorld: React.FC = () => {
     // Sky texture already applied above.
     // Neon haze for atmosphere
     const fogSettings = {
-      enabled: false,
-      density: 0,
-      intensity: 1,
-      heightFalloff: 0.002,
-      color: parseHexColor("#0d1426"),
+      enabled: true,
+      density: 0.0045,
+      intensity: 0.25,
+      heightFalloff: 0.005,
+      color: parseHexColor("#282f3e"),
     };
     scene.fogMode = Scene.FOGMODE_EXP2;
-    scene.fogDensity = 0;
+    scene.fogDensity = fogSettings.density;
     scene.fogColor = fogSettings.color;
 
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
-    glowLayer.intensity = 0.31;
+    glowLayerRef.current = glowLayer;
+    glowLayer.intensity = 0.85;
     glowLayer.addExcludedMesh(moon);
 
     const pipeline = new DefaultRenderingPipeline(
@@ -859,15 +819,15 @@ const BabylonWorld: React.FC = () => {
     // Slightly reduce quality on touch devices
     if (isTouchDevice) {
       pipeline.depthOfFieldBlurLevel = 1;
-      glowLayer.intensity = 0.6;
+      glowLayer.intensity = 0.85;
     }
 
     const lampLights: PointLight[] = [];
     const amberLights: PointLight[] = [];
     const lampBaseIntensity = 0.6;
     const amberBaseIntensity = 0.35;
-    let lampScale = 1;
-    let amberScale = 1;
+    let lampScale = 1.3;
+    let amberScale = 0;
 
     const onLightSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
@@ -914,6 +874,10 @@ const BabylonWorld: React.FC = () => {
         typeof detail.borderFogOpacity === "number" ||
         typeof detail.borderFogHeight === "number" ||
         typeof detail.borderFogInset === "number" ||
+        typeof detail.borderFogFadeTop === "number" ||
+        typeof detail.borderFogOffsetX === "number" ||
+        typeof detail.borderFogOffsetY === "number" ||
+        typeof detail.borderFogOffsetZ === "number" ||
         typeof detail.borderFogColor === "string"
       ) {
         setBorderFogSettings((prev) => ({
@@ -921,11 +885,123 @@ const BabylonWorld: React.FC = () => {
           opacity: typeof detail.borderFogOpacity === "number" ? detail.borderFogOpacity : prev.opacity,
           height: typeof detail.borderFogHeight === "number" ? detail.borderFogHeight : prev.height,
           inset: typeof detail.borderFogInset === "number" ? detail.borderFogInset : prev.inset,
+          fadeTop: typeof detail.borderFogFadeTop === "number" ? detail.borderFogFadeTop : prev.fadeTop,
+          offsetX: typeof detail.borderFogOffsetX === "number" ? detail.borderFogOffsetX : prev.offsetX,
+          offsetY: typeof detail.borderFogOffsetY === "number" ? detail.borderFogOffsetY : prev.offsetY,
+          offsetZ: typeof detail.borderFogOffsetZ === "number" ? detail.borderFogOffsetZ : prev.offsetZ,
           color: typeof detail.borderFogColor === "string" ? parseHexColor(detail.borderFogColor) : prev.color,
         }));
       }
     };
     window.addEventListener("light-settings", onLightSettings as EventListener);
+    const onPerfSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setPerfSettings((prev) => ({
+        glow: typeof detail.glow === "boolean" ? detail.glow : prev.glow,
+        postFx: typeof detail.postFx === "boolean" ? detail.postFx : prev.postFx,
+        collisions: typeof detail.collisions === "boolean" ? detail.collisions : prev.collisions,
+        windowFlicker: typeof detail.windowFlicker === "boolean" ? detail.windowFlicker : prev.windowFlicker,
+        borderFog: typeof detail.borderFog === "boolean" ? detail.borderFog : prev.borderFog,
+        birds: typeof detail.birds === "boolean" ? detail.birds : prev.birds,
+        newspapers: typeof detail.newspapers === "boolean" ? detail.newspapers : prev.newspapers,
+        gargoyles: typeof detail.gargoyles === "boolean" ? detail.gargoyles : prev.gargoyles,
+        shootingStars: typeof detail.shootingStars === "boolean" ? detail.shootingStars : prev.shootingStars,
+      }));
+      if (typeof detail.glow === "boolean") {
+        glowLayer.isEnabled = detail.glow;
+      }
+      if (typeof detail.postFx === "boolean") {
+        (pipeline as any).enabled = detail.postFx;
+      }
+      if (typeof detail.collisions === "boolean") {
+        scene.collisionsEnabled = detail.collisions;
+        camera.checkCollisions = detail.collisions;
+        buildingMeshes.forEach((mesh) => {
+          mesh.checkCollisions = detail.collisions;
+        });
+      }
+    };
+    window.addEventListener("performance-settings", onPerfSettings as EventListener);
+    const onSkyEffectsSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setSkySettings((prev) => ({
+        birdsEnabled: typeof detail.birdsEnabled === "boolean" ? detail.birdsEnabled : prev.birdsEnabled,
+        flocks: typeof detail.flocks === "number" ? detail.flocks : prev.flocks,
+        birdsPerFlock: typeof detail.birdsPerFlock === "number" ? detail.birdsPerFlock : prev.birdsPerFlock,
+        shootingStarsEnabled:
+          typeof detail.shootingStarsEnabled === "boolean"
+            ? detail.shootingStarsEnabled
+            : prev.shootingStarsEnabled,
+        shootingStarsCount:
+          typeof detail.shootingStarsCount === "number" ? detail.shootingStarsCount : prev.shootingStarsCount,
+        newspapersEnabled:
+          typeof detail.newspapersEnabled === "boolean" ? detail.newspapersEnabled : prev.newspapersEnabled,
+        newspaperCount: typeof detail.newspaperCount === "number" ? detail.newspaperCount : prev.newspaperCount,
+      }));
+    };
+    window.addEventListener("sky-effects-settings", onSkyEffectsSettings as EventListener);
+    const onBorderFogSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setBorderFogSettings((prev) => ({
+        enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
+        opacity: typeof detail.opacity === "number" ? detail.opacity : prev.opacity,
+        height: typeof detail.height === "number" ? detail.height : prev.height,
+        inset: typeof detail.inset === "number" ? detail.inset : prev.inset,
+        fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
+        offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
+        offsetZ: typeof detail.offsetZ === "number" ? detail.offsetZ : prev.offsetZ,
+        color: typeof detail.color === "string" ? parseHexColor(detail.color) : prev.color,
+      }));
+    };
+    window.addEventListener("border-fog-settings", onBorderFogSettings as EventListener);
+    const onGroundFogSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setGroundFogSettings((prev) => ({
+        enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
+        opacity: typeof detail.opacity === "number" ? detail.opacity : prev.opacity,
+        height: typeof detail.height === "number" ? detail.height : prev.height,
+        radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
+        fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
+        offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
+        offsetZ: typeof detail.offsetZ === "number" ? detail.offsetZ : prev.offsetZ,
+        color: typeof detail.color === "string" ? parseHexColor(detail.color) : prev.color,
+      }));
+    };
+    window.addEventListener("ground-fog-settings", onGroundFogSettings as EventListener);
+    const onStarSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setStarSettings((prev) => ({
+        enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
+        count: typeof detail.count === "number" ? detail.count : prev.count,
+        radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
+        minHeight: typeof detail.minHeight === "number" ? detail.minHeight : prev.minHeight,
+        maxHeight: typeof detail.maxHeight === "number" ? detail.maxHeight : prev.maxHeight,
+        scale: typeof detail.scale === "number" ? detail.scale : prev.scale,
+      }));
+    };
+    window.addEventListener("star-settings", onStarSettings as EventListener);
+    const onBuildingSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      if (typeof detail.seed === "number") buildingSeedState.value = detail.seed;
+      if (typeof detail.count === "number") buildingCountState.value = detail.count;
+      if (typeof detail.scale === "number") buildingScaleState.value = detail.scale;
+      rebuildBuildings(buildingSeedState.value, buildingCountState.value, buildingScaleState.value);
+    };
+    window.addEventListener("building-settings", onBuildingSettings as EventListener);
+    const onTreePositions = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ x: number; y: number; z: number }[]>).detail;
+      if (!detail || !Array.isArray(detail)) return;
+      setTreePositions(detail.map((p) => new Vector3(p.x, p.y, p.z)));
+    };
+    window.addEventListener("tree-positions", onTreePositions as EventListener);
 
 
     // Procedural buildings (simple boxes with varied heights)
@@ -1006,13 +1082,19 @@ const BabylonWorld: React.FC = () => {
       });
     };
 
-    const rebuildBuildings = (seed: number, count: number) => {
+    const rebuildBuildings = (seed: number, count: number, scale: number) => {
       buildingMeshes.forEach((mesh) => mesh.dispose());
       buildingMeshes = [];
       buildingMats.forEach((mat) => mat.dispose(true, true));
       buildingMats = [];
       const rand = makeRng(seed);
       const newBuildingInfos: BuildingInfo[] = [];
+      const isNearSign = (x: number, z: number) =>
+        signPositions.some((s) => {
+          const dx = x - s.x;
+          const dz = z - s.z;
+          return dx * dx + dz * dz < 20 * 20;
+        });
       buildingMats = [
         createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#c9c9c9", "#10131a", rand),
         createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0d12", rand),
@@ -1020,9 +1102,30 @@ const BabylonWorld: React.FC = () => {
         createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", rand),
       ];
       for (let i = 0; i < count; i++) {
-        const w = (8 + rand() * 24) * 2;
-        const d = (8 + rand() * 24) * 2;
-        const h = (16 + rand() * 90) * 2;
+        const shapeRoll = rand();
+        let w = 0;
+        let d = 0;
+        let h = 0;
+        if (shapeRoll < 0.2) {
+          w = 6 + rand() * 10;
+          d = 6 + rand() * 10;
+          h = 70 + rand() * 150;
+        } else if (shapeRoll < 0.4) {
+          w = 24 + rand() * 40;
+          d = 24 + rand() * 40;
+          h = 18 + rand() * 50;
+        } else if (shapeRoll < 0.6) {
+          w = 10 + rand() * 18;
+          d = 22 + rand() * 46;
+          h = 30 + rand() * 90;
+        } else {
+          w = 8 + rand() * 24;
+          d = 8 + rand() * 24;
+          h = 16 + rand() * 90;
+        }
+        w *= scale;
+        d *= scale;
+        h *= scale;
         const b = MeshBuilder.CreateBox(`building_${i}`, { width: w, depth: d, height: h }, scene);
         let x = 0;
         let z = 0;
@@ -1031,23 +1134,34 @@ const BabylonWorld: React.FC = () => {
           x = (rand() - 0.5) * 760;
           z = (rand() - 0.5) * 760 - 120;
           attempts += 1;
-        } while (isNearRoad(x, z) && attempts < 40);
+        } while ((isNearRoad(x, z) || isNearSign(x, z)) && attempts < 40);
         b.position = new Vector3(x, h / 2, z);
         b.rotation.y = rand() * Math.PI * 2;
         b.material = buildingMats[Math.floor(rand() * buildingMats.length)];
         b.isPickable = false;
         b.checkCollisions = true;
+        const collider = MeshBuilder.CreateBox(
+          `building_collider_${i}`,
+          { width: w * 1.1, depth: d * 1.1, height: h * 1.1 },
+          scene
+        );
+        collider.isVisible = false;
+        collider.checkCollisions = true;
+        collider.parent = b;
+        collider.position = new Vector3(0, 0, 0);
         buildingMeshes.push(b);
         newBuildingInfos.push({ mesh: b, width: w, depth: d, height: h });
       }
       applyBuildingTiling();
       setBuildingMaterials([...buildingMats]);
+      buildingInfosRef.current = [...newBuildingInfos];
       setBuildingInfos(newBuildingInfos);
     };
 
-    const buildingSeedState = { value: 18 };
-    const buildingCountState = { value: 1200 };
-    rebuildBuildings(buildingSeedState.value, buildingCountState.value);
+    const buildingSeedState = { value: 4864 };
+    const buildingCountState = { value: 800 };
+    const buildingScaleState = { value: 1.4 };
+    rebuildBuildings(buildingSeedState.value, buildingCountState.value, buildingScaleState.value);
 
 
     // Street props and neon set dressing
@@ -1069,54 +1183,7 @@ const BabylonWorld: React.FC = () => {
     neonGreen.emissiveColor = new Color3(0.3, 1.0, 0.6);
     neonGreen.diffuseColor = new Color3(0.1, 0.5, 0.3);
 
-    // Realistic lamp posts (GLB) with point lights
-    const lampPositions = [
-      new Vector3(-300, 0, -140),
-      new Vector3(-220, 0, -140),
-      new Vector3(-140, 0, -140),
-      new Vector3(-60, 0, -140),
-      new Vector3(20, 0, -140),
-      new Vector3(100, 0, -140),
-      new Vector3(180, 0, -140),
-      new Vector3(260, 0, -140),
-      new Vector3(-300, 0, 100),
-      new Vector3(-220, 0, 100),
-      new Vector3(-140, 0, 100),
-      new Vector3(-60, 0, 100),
-      new Vector3(20, 0, 100),
-      new Vector3(100, 0, 100),
-      new Vector3(180, 0, 100),
-      new Vector3(260, 0, 100),
-    ];
-    const loadLampPosts = async () => {
-      const container = await SceneLoader.LoadAssetContainerAsync("", "/models/Lantern.glb", scene);
-      lampPositions.forEach((pos, idx) => {
-        const root = new TransformNode(`lamp_${idx}`, scene);
-        root.position = pos.clone();
-        const inst = container.instantiateModelsToScene((name) => `${root.name}_${name}`);
-        inst.rootNodes.forEach((node) => {
-          const tnode = node as TransformNode;
-          tnode.parent = root;
-          if ((tnode as any).position) tnode.position = new Vector3(0, 0, 0);
-          if ((tnode as any).scaling) tnode.scaling = new Vector3(1.9, 1.9, 1.9);
-          if ((tnode as any).getChildMeshes) {
-            tnode.getChildMeshes().forEach((mesh) => glowLayer.addExcludedMesh(mesh as any));
-          }
-        });
-        const lampLight = new PointLight(`lamp_light_${idx}`, new Vector3(pos.x, 8, pos.z), scene);
-        lampLight.intensity = lampBaseIntensity * lampScale;
-        lampLight.diffuse = new Color3(1.0, 0.9, 0.7);
-        lampLight.range = 40;
-        lampLights.push(lampLight);
-
-        const amberLight = new PointLight(`lamp_amber_${idx}`, new Vector3(pos.x, 9, pos.z), scene);
-        amberLight.intensity = amberBaseIntensity * amberScale;
-        amberLight.diffuse = new Color3(1.0, 0.55, 0.2);
-        amberLight.range = 22;
-        amberLights.push(amberLight);
-      });
-    };
-    loadLampPosts();
+    // Lamp post lights removed for performance.
 
     // Neon billboards
     const signBulbMats: StandardMaterial[] = [];
@@ -1344,6 +1411,87 @@ const BabylonWorld: React.FC = () => {
     };
     updateAdTransform();
 
+    const previewRoot = new TransformNode("asset_preview_root", scene);
+    const previewContainers: any[] = [];
+    const previewMeshes: any[] = [];
+    const previewTextures: DynamicTexture[] = [];
+
+    const previewForward = startTarget.subtract(startPos).normalize();
+    const previewBase = startPos.add(previewForward.scale(18));
+
+    const createPreviewLabel = (label: string, position: Vector3, color = "#bfefff") => {
+      const texture = new DynamicTexture(`preview_label_${label}`, { width: 256, height: 64 }, scene, false);
+      const ctx = texture.getContext();
+      ctx.clearRect(0, 0, 256, 64);
+      ctx.font = "bold 24px Arial";
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, 128, 32);
+      texture.update();
+      previewTextures.push(texture);
+
+      const mat = new StandardMaterial(`preview_label_mat_${label}`, scene);
+      mat.emissiveTexture = texture;
+      mat.opacityTexture = texture;
+      mat.disableLighting = true;
+      mat.backFaceCulling = false;
+      mat.transparencyMode = Material.MATERIAL_ALPHABLEND;
+      mat.alpha = 1;
+
+      const plane = MeshBuilder.CreatePlane(`preview_label_plane_${label}`, { width: 10, height: 2.5 }, scene);
+      plane.material = mat;
+      plane.position = position.clone();
+      plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+      plane.parent = previewRoot;
+      previewMeshes.push(plane);
+    };
+
+    const loadPreviewAsset = async (
+      url: string,
+      name: string,
+      position: Vector3,
+      scaling: Vector3
+    ) => {
+      const container = await SceneLoader.LoadAssetContainerAsync("", url, scene);
+      if (scene.isDisposed()) {
+        container.dispose();
+        return;
+      }
+      previewContainers.push(container);
+      container.addAllToScene();
+      const baseMeshes = container.meshes.filter((m) => (m as any).createInstance);
+      baseMeshes.forEach((mesh) => {
+        mesh.setEnabled(false);
+        mesh.isVisible = false;
+      });
+      const base = baseMeshes[0] ?? container.meshes.find((m) => m.name !== "__root__");
+      if (!base) return;
+      const inst = (base as any).createInstance
+        ? (base as any).createInstance(`${name}_preview`)
+        : base.clone(`${name}_preview`);
+      inst.parent = previewRoot;
+      inst.position = position.clone();
+      inst.scaling = scaling.clone();
+      previewMeshes.push(inst);
+    };
+
+    loadPreviewAsset(
+      "/models/bird.glb",
+      "bird",
+      previewBase.add(new Vector3(-6, 8, 0)),
+      new Vector3(2.1, 2.1, 2.1)
+    );
+    createPreviewLabel("Birds Preview", previewBase.add(new Vector3(-6, 12.5, 0)));
+
+    loadPreviewAsset(
+      "/models/box_textured.glb",
+      "newspaper",
+      previewBase.add(new Vector3(6, 3, 0)),
+      new Vector3(2.2, 0.2, 1.6)
+    );
+    createPreviewLabel("Newspaper Preview", previewBase.add(new Vector3(6, 7, 0)));
+
  
 
     // Benches
@@ -1411,7 +1559,7 @@ const BabylonWorld: React.FC = () => {
     });
 
     const npcModelUrls = ["/models/RiggedFigure.glb", "/models/CesiumMan.glb"];
-    const npcModelScales = [1.8, 1.6];
+    const npcModelScales = [3.6, 3.2];
     const loadNpcModels = async () => {
       const containers = await Promise.all(
         npcModelUrls.map((url) => SceneLoader.LoadAssetContainerAsync("", url, scene))
@@ -1460,17 +1608,125 @@ const BabylonWorld: React.FC = () => {
 
     // Drones (flying) - simple circular paths with bobbing
     const drones: { mesh: any; angle: number; radius: number; center: Vector3; speed: number; height: number }[] = [];
+    const getAvoidCenters = () => {
+      const buildingCenters = buildingInfosRef.current.map((b) => ({
+        position: b.mesh.position,
+        radius: Math.max(b.width, b.depth) / 2 + 20,
+      }));
+      const treeCenters = treePositionsRef.current.map((p) => ({ position: p, radius: 20 }));
+      const signCenters = signPositions.map((p) => ({ position: p, radius: 20 }));
+      return [...buildingCenters, ...treeCenters, ...signCenters];
+    };
+    const isNearAvoid = (pos: Vector3, padding = 0) => {
+      const centers = getAvoidCenters();
+      return centers.some((c) => {
+        const dx = pos.x - c.position.x;
+        const dz = pos.z - c.position.z;
+        const r = c.radius + padding;
+        return dx * dx + dz * dz < r * r;
+      });
+    };
     for (let i = 0; i < 10; i++) {
       const d = MeshBuilder.CreateSphere(`drone_${i}`, { diameter: 1.2 }, scene);
       const mat = new StandardMaterial(`droneMat_${i}`, scene);
       mat.emissiveColor = new Color3(0.3, 0.9, 1.0);
       d.material = mat;
-      const center = new Vector3((Math.random() - 0.5) * 260, 0, (Math.random() - 0.5) * 260 - 40);
+      let center = new Vector3((Math.random() - 0.5) * 260, 0, (Math.random() - 0.5) * 260 - 40);
       const radius = 18 + Math.random() * 80;
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        center = new Vector3((Math.random() - 0.5) * 260, 0, (Math.random() - 0.5) * 260 - 40);
+        if (!isNearAvoid(center, radius + 20)) break;
+      }
       const angle = Math.random() * Math.PI * 2;
       const speed = 0.9 + Math.random() * 1.3;
       const height = 12 + Math.random() * 30;
       drones.push({ mesh: d, angle, radius, center, speed, height });
+    }
+
+    // Cats (simple low-poly meshes) wandering around the city
+    const catMat = new StandardMaterial("catMat", scene);
+    catMat.diffuseColor = new Color3(0.18, 0.16, 0.2);
+    catMat.specularColor = new Color3(0.1, 0.1, 0.1);
+    const catParts: Mesh[] = [];
+    const catBody = MeshBuilder.CreateBox("cat_body", { width: 1.6, height: 0.5, depth: 0.6 }, scene);
+    catBody.material = catMat;
+    catBody.position = new Vector3(0, 0.3, 0);
+    catParts.push(catBody);
+    const catHead = MeshBuilder.CreateBox("cat_head", { width: 0.6, height: 0.5, depth: 0.5 }, scene);
+    catHead.material = catMat;
+    catHead.position = new Vector3(1.1, 0.35, 0);
+    catParts.push(catHead);
+    const catEarL = MeshBuilder.CreateBox("cat_ear_l", { width: 0.2, height: 0.25, depth: 0.2 }, scene);
+    catEarL.material = catMat;
+    catEarL.position = new Vector3(1.18, 0.7, 0.18);
+    catParts.push(catEarL);
+    const catEarR = MeshBuilder.CreateBox("cat_ear_r", { width: 0.2, height: 0.25, depth: 0.2 }, scene);
+    catEarR.material = catMat;
+    catEarR.position = new Vector3(1.18, 0.7, -0.18);
+    catParts.push(catEarR);
+    const catTail = MeshBuilder.CreateCylinder("cat_tail", { height: 0.9, diameter: 0.12 }, scene);
+    catTail.material = catMat;
+    catTail.position = new Vector3(-0.95, 0.45, 0);
+    catTail.rotation.z = Math.PI / 6;
+    catParts.push(catTail);
+    const baseCat = Mesh.MergeMeshes(catParts, true, true, undefined, false, true) as Mesh;
+    baseCat.name = "cat_base";
+    baseCat.isVisible = false;
+
+    const catBounds = { minX: -420, maxX: 420, minZ: -420, maxZ: 420 };
+    const cats: { mesh: Mesh; dir: Vector3; speed: number; nextTurn: number }[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      const inst = baseCat.createInstance(`cat_${i}`) as Mesh;
+      inst.position = new Vector3(
+        catBounds.minX + Math.random() * (catBounds.maxX - catBounds.minX),
+        0.35,
+        catBounds.minZ + Math.random() * (catBounds.maxZ - catBounds.minZ)
+      );
+      const scale = 0.7 + Math.random() * 0.5;
+      inst.scaling = new Vector3(scale, scale, scale);
+      const dir = new Vector3(Math.random() - 0.5, 0, Math.random() - 0.5);
+      dir.normalize();
+      cats.push({ mesh: inst, dir, speed: 1 + Math.random() * 0.6, nextTurn: performance.now() + 5000 });
+    }
+
+    // Glowing ground shapes
+    const groundGlowShapes: Mesh[] = [];
+    const glowColors = [
+      new Color3(0.1, 0.8, 1.0),
+      new Color3(1.0, 0.3, 0.7),
+      new Color3(0.6, 0.9, 0.2),
+      new Color3(1.0, 0.75, 0.2),
+      new Color3(0.7, 0.4, 1.0),
+    ];
+    for (let i = 0; i < 48; i += 1) {
+      const type = i % 4;
+      let shape: Mesh;
+      if (type === 0) {
+        shape = MeshBuilder.CreateTorus(`glow_torus_${i}`, { diameter: 3, thickness: 0.4, tessellation: 12 }, scene);
+      } else if (type === 1) {
+        shape = MeshBuilder.CreateSphere(`glow_sphere_${i}`, { diameter: 2.4, segments: 10 }, scene);
+      } else if (type === 2) {
+        shape = MeshBuilder.CreateBox(`glow_box_${i}`, { size: 2.2 }, scene);
+      } else {
+        shape = MeshBuilder.CreateCylinder(`glow_cyl_${i}`, { height: 0.6, diameter: 2.6, tessellation: 12 }, scene);
+      }
+      const mat = new StandardMaterial(`glow_mat_${i}`, scene);
+      const color = glowColors[Math.floor(Math.random() * glowColors.length)];
+      mat.emissiveColor = color;
+      mat.diffuseColor = color.scale(0.2);
+      mat.specularColor = new Color3(0, 0, 0);
+      mat.fogEnabled = true;
+      shape.material = mat;
+      shape.position = new Vector3(
+        (Math.random() - 0.5) * 520,
+        0.2 + Math.random() * 0.4,
+        (Math.random() - 0.5) * 520
+      );
+      const scale = 0.6 + Math.random() * 1.6;
+      shape.scaling = new Vector3(scale, scale, scale);
+      shape.rotation.y = Math.random() * Math.PI * 2;
+      shape.isPickable = false;
+      groundGlowShapes.push(shape);
     }
 
     // Airplanes with white trails
@@ -1489,6 +1745,7 @@ const BabylonWorld: React.FC = () => {
       drift: Vector3;
       trail: any;
       trailPoints: Vector3[];
+      trailColors: Color4[];
     }[] = [];
     for (let i = 0; i < 4; i++) {
       const root = new TransformNode(`plane_${i}`, scene);
@@ -1516,16 +1773,22 @@ const BabylonWorld: React.FC = () => {
       const driftAngle = Math.random() * Math.PI * 2;
       const driftSpeed = 6 + Math.random() * 8;
       const drift = new Vector3(Math.cos(driftAngle) * driftSpeed, 0, Math.sin(driftAngle) * driftSpeed);
-      const trailPoints = Array.from({ length: 18 }, () => new Vector3(0, height, 0));
+      const trailLength = 30;
+      const trailPoints = Array.from({ length: trailLength }, () => new Vector3(0, height, 0));
+      const trailColors = Array.from({ length: trailLength }, (_, idx) => {
+        const t = 1 - idx / (trailLength - 1);
+        const alpha = 0.9 * t;
+        return new Color4(1, 1, 1, alpha);
+      });
       const trail = MeshBuilder.CreateLines(
         `plane_trail_${i}`,
-        { points: trailPoints, updatable: true },
+        { points: trailPoints, updatable: true, colors: trailColors },
         scene
       );
       trail.color = new Color3(1, 1, 1);
-      trail.alpha = 0.6;
+      trail.alpha = 1;
       (trail as any).fogEnabled = false;
-      planes.push({ root, angle, radius, center, speed, height, drift, trail, trailPoints });
+      planes.push({ root, angle, radius, center, speed, height, drift, trail, trailPoints, trailColors });
     }
 
     // Cars removed (car1.glb deleted).
@@ -1544,7 +1807,27 @@ const BabylonWorld: React.FC = () => {
         d.angle += d.speed * dt * 0.6;
         const dx = d.center.x + Math.cos(d.angle) * d.radius;
         const dz = d.center.z + Math.sin(d.angle) * d.radius;
+        if (isNearAvoid(new Vector3(dx, 0, dz), 10)) {
+          d.center.x += (Math.random() - 0.5) * 20;
+          d.center.z += (Math.random() - 0.5) * 20;
+        }
         d.mesh.position.set(dx, d.height + Math.sin(d.angle * 2) * 2.0, dz);
+      });
+
+      const now = performance.now();
+      cats.forEach((cat) => {
+        if (now >= cat.nextTurn) {
+          const dir = new Vector3(Math.random() - 0.5, 0, Math.random() - 0.5);
+          dir.normalize();
+          cat.dir = dir;
+          cat.nextTurn = now + 5000;
+        }
+        const step = cat.dir.scale(cat.speed * dt);
+        const nextPos = cat.mesh.position.add(step);
+        if (nextPos.x < catBounds.minX || nextPos.x > catBounds.maxX) cat.dir.x *= -1;
+        if (nextPos.z < catBounds.minZ || nextPos.z > catBounds.maxZ) cat.dir.z *= -1;
+        cat.mesh.position.addInPlace(cat.dir.scale(cat.speed * dt));
+        cat.mesh.rotation.y = Math.atan2(cat.dir.x, cat.dir.z);
       });
 
       planes.forEach((p) => {
@@ -1562,7 +1845,11 @@ const BabylonWorld: React.FC = () => {
 
         p.trailPoints.pop();
         p.trailPoints.unshift(new Vector3(px, p.height, pz));
-        MeshBuilder.CreateLines("plane_trail_update", { points: p.trailPoints, instance: p.trail }, scene);
+        MeshBuilder.CreateLines(
+          "plane_trail_update",
+          { points: p.trailPoints, colors: p.trailColors, instance: p.trail },
+          scene
+        );
       });
 
       pickups.forEach((p) => {
@@ -1703,7 +1990,10 @@ const BabylonWorld: React.FC = () => {
         move.normalize();
         const touchMagnitude = Math.max(Math.abs(walkInputX), Math.abs(walkInputY));
         const touchSprintScale = isTouchDevice && touchMagnitude > 0.05 ? 1 + Math.min(1, touchMagnitude) : 1;
-        const speed = moveSpeed * (inputMap["shift"] ? 4 : 1) * touchSprintScale;
+        const sprintMultiplier = sprintModeRef.current ? 2 : 1;
+        const baseMultiplier = sprintModeRef.current ? sprintMultiplier : (inputMap["shift"] ? 4 : 1);
+        const touchMultiplier = sprintModeRef.current ? 1 : touchSprintScale;
+        const speed = moveSpeed * baseMultiplier * touchMultiplier;
         move.scaleInPlace(speed * dt);
       }
       if (isMoving !== lastMoving) {
@@ -1716,7 +2006,11 @@ const BabylonWorld: React.FC = () => {
       const tryMove = (delta: Vector3) => {
         const horizontal = new Vector3(delta.x, 0, delta.z);
         if (horizontal.lengthSquared() > 0) {
-          (camera as any).moveWithCollisions(horizontal);
+          if (camera.checkCollisions && scene.collisionsEnabled && typeof (camera as any)._collideWithWorld === "function") {
+            (camera as any)._collideWithWorld(horizontal);
+          } else {
+            camera.position.addInPlace(horizontal);
+          }
         }
         const proposedPos = camera.position.clone();
 
@@ -1755,16 +2049,6 @@ const BabylonWorld: React.FC = () => {
         window.dispatchEvent(new CustomEvent("player-heading", { detail: { heading } }));
       }
 
-      const now = performance.now();
-      if (socket && socket.readyState === WebSocket.OPEN && now - lastNetworkSend > networkSendIntervalMs) {
-        lastNetworkSend = now;
-        sendSocketMessage({
-          type: "move",
-          id: localPlayerId,
-          pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
-          rot: { y: headingRad },
-        });
-      }
     });
 
     engine.runRenderLoop(() => {
@@ -1778,17 +2062,34 @@ const BabylonWorld: React.FC = () => {
     return () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
+      try { window.removeEventListener("performance-settings", onPerfSettings as EventListener); } catch {}
+      try { window.removeEventListener("border-fog-settings", onBorderFogSettings as EventListener); } catch {}
+      try { window.removeEventListener("ground-fog-settings", onGroundFogSettings as EventListener); } catch {}
+      try { window.removeEventListener("star-settings", onStarSettings as EventListener); } catch {}
+      try { window.removeEventListener("building-settings", onBuildingSettings as EventListener); } catch {}
+      try { window.removeEventListener("sky-effects-settings", onSkyEffectsSettings as EventListener); } catch {}
+      try { window.removeEventListener("tree-positions", onTreePositions as EventListener); } catch {}
+      try { window.removeEventListener("hud-item-click", onHudItemClick as EventListener); } catch {}
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { window.removeEventListener("npc-dialogue", onDialogueOpen as EventListener); } catch {}
       try { window.removeEventListener("keyup", onKeyUpFallback); } catch {}
       try { window.removeEventListener("blur", onWindowBlur); } catch {}
       try { document.removeEventListener("visibilitychange", onVisibilityChange); } catch {}
-      try { window.removeEventListener("keydown", onChatFocusKey); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
       if (adTimer !== null) {
         try { window.clearInterval(adTimer); } catch {}
       }
       try { currentAdTexture?.dispose(); } catch {}
+      previewMeshes.forEach((mesh) => {
+        try { mesh.dispose(); } catch {}
+      });
+      previewTextures.forEach((tex) => {
+        try { tex.dispose(); } catch {}
+      });
+      previewContainers.forEach((container) => {
+        try { container.dispose(); } catch {}
+      });
+      try { previewRoot.dispose(); } catch {}
       try { if (lookZone) document.body.removeChild(lookZone); } catch {}
       try { if (walkZone) document.body.removeChild(walkZone); } catch {}
       try { if (walkLabelZone) document.body.removeChild(walkLabelZone); } catch {}
@@ -1799,9 +2100,19 @@ const BabylonWorld: React.FC = () => {
       hintTimers.forEach((timer) => {
         try { window.clearTimeout(timer); } catch {}
       });
-      try { document.body.removeChild(chatPanel); } catch {}
-      try { socket?.close(); } catch {}
-      remotePlayers.forEach((entry) => entry.mesh.dispose());
+      sparkleTimers.forEach((timer) => {
+        try { window.clearTimeout(timer); } catch {}
+      });
+      try { sparkleTexture.dispose(); } catch {}
+      cats.forEach((cat) => {
+        try { cat.mesh.dispose(); } catch {}
+      });
+      try { catMat.dispose(); } catch {}
+      try { baseCat.dispose(); } catch {}
+      groundGlowShapes.forEach((shape) => {
+        try { shape.material?.dispose(); } catch {}
+        try { shape.dispose(); } catch {}
+      });
       scene.dispose();
       engine.dispose();
       setSceneInstance(null);
@@ -1812,14 +2123,49 @@ const BabylonWorld: React.FC = () => {
     <>
       <canvas ref={canvasRef} style={{ width: "100vw", height: "100vh", display: "block" }} />
       <WorldSounds scene={sceneInstance} />
-      <BuildingWindowFlicker scene={sceneInstance} materials={buildingMaterials} />
-      <BorderFog scene={sceneInstance} groundSize={2400} settings={borderFogSettings} />
-      <GargoyleStatues scene={sceneInstance} buildings={buildingInfos} />
-      <TreeField scene={sceneInstance} />
-      <NewspaperDrift scene={sceneInstance} />
-      <BirdFlocks scene={sceneInstance} />
-      <TrainSystem scene={sceneInstance} />
-      <RainSystem scene={sceneInstance} />
+      {perfSettings.windowFlicker ? (
+        <BuildingWindowFlicker
+          scene={sceneInstance}
+          materials={buildingMaterials}
+          intervalMs={3000}
+          flickerPercent={0.35}
+          stepMs={400}
+          offDurationMs={10000}
+        />
+      ) : null}
+      <BorderFog
+        scene={sceneInstance}
+        groundSize={2400}
+        settings={borderFogSettingsMemo}
+      />
+      <GroundFog scene={sceneInstance} settings={groundFogSettings} />
+      {starSettings.enabled ? (
+        <CityStars
+          scene={sceneInstance}
+          glowLayer={glowLayerRef.current}
+          count={starSettings.count}
+          radius={starSettings.radius}
+          minHeight={starSettings.minHeight}
+          maxHeight={starSettings.maxHeight}
+          scale={starSettings.scale}
+        />
+      ) : null}
+      {perfSettings.gargoyles ? <GargoyleStatues scene={sceneInstance} buildings={buildingInfos} /> : null}
+      <TreeField scene={sceneInstance} buildings={buildingInfos} signPositions={signPositions} />
+      {perfSettings.newspapers && skySettings.newspapersEnabled ? (
+        <NewspaperDrift scene={sceneInstance} count={skySettings.newspaperCount} />
+      ) : null}
+      {perfSettings.birds && skySettings.birdsEnabled ? (
+        <BirdFlocks
+          scene={sceneInstance}
+          flocks={skySettings.flocks}
+          birdsPerFlock={skySettings.birdsPerFlock}
+          avoidPoints={birdAvoidPoints}
+        />
+      ) : null}
+      {perfSettings.shootingStars && skySettings.shootingStarsEnabled ? (
+        <ShootingStars scene={sceneInstance} count={skySettings.shootingStarsCount} />
+      ) : null}
     </>
   );
 };

@@ -109,6 +109,10 @@ const JournalPanel: React.FC = () => {
       ? { title: "Items", body: inventory.length ? inventory : ["No items collected yet."] }
       : TAB_CONTENT[activeTab] ?? { title: activeTab, body: ["No entries yet."] };
 
+  const onItemClick = (label: string) => {
+    window.dispatchEvent(new CustomEvent("hud-item-click", { detail: { label } }));
+  };
+
   return (
     <div
       className="journal-overlay"
@@ -142,7 +146,14 @@ const JournalPanel: React.FC = () => {
         </div>
         <div className={`journal-body journal-body-${activeTab?.toLowerCase() ?? ""}`}>
           {content.body.map((line) => (
-            <p key={line}>{line}</p>
+            <button
+              key={line}
+              type="button"
+              className="journal-item-button"
+              onClick={() => onItemClick(line)}
+            >
+              {line}
+            </button>
           ))}
         </div>
         <div className="hud-sparkles hud-sparkles-front" aria-hidden="true">

@@ -16,6 +16,10 @@ type BorderFogSettings = {
   opacity: number;
   height: number;
   inset: number;
+  fadeTop: number;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
   color: Color3;
 };
 
@@ -32,11 +36,14 @@ const BorderFog: React.FC<Props> = ({ scene, groundSize, settings }) => {
   const gradientRef = useRef<DynamicTexture | null>(null);
 
   const buildGradient = useMemo(() => {
-    return (texture: DynamicTexture, opacity: number) => {
+    return (texture: DynamicTexture, opacity: number, fadeTop: number) => {
       const ctx = texture.getContext();
       const size = texture.getSize();
-      const grad = ctx.createLinearGradient(0, 0, 0, size.height);
+      const grad = ctx.createLinearGradient(0, size.height, 0, 0);
+      const clampedFade = Math.min(1, Math.max(0, fadeTop));
+      const fadeStart = Math.max(0, 1 - clampedFade);
       grad.addColorStop(0, `rgba(255,255,255,${opacity})`);
+      grad.addColorStop(fadeStart, `rgba(255,255,255,${opacity})`);
       grad.addColorStop(1, "rgba(255,255,255,0)");
       ctx.clearRect(0, 0, size.width, size.height);
       ctx.fillStyle = grad;
@@ -97,7 +104,7 @@ const BorderFog: React.FC<Props> = ({ scene, groundSize, settings }) => {
     const zOffset = half - inset;
     const xOffset = half - inset;
 
-    buildGradient(gradientRef.current, settings.opacity);
+    buildGradient(gradientRef.current, settings.opacity, settings.fadeTop);
     matRef.current.emissiveColor = settings.color.clone();
     matRef.current.diffuseColor = settings.color.clone();
     matRef.current.alpha = settings.enabled ? 1 : 0;
@@ -110,10 +117,11 @@ const BorderFog: React.FC<Props> = ({ scene, groundSize, settings }) => {
     east.scaling = new Vector3(width, height, 1);
     west.scaling = new Vector3(width, height, 1);
 
-    north.position = new Vector3(0, height / 2, zOffset);
-    south.position = new Vector3(0, height / 2, -zOffset);
-    east.position = new Vector3(xOffset, height / 2, 0);
-    west.position = new Vector3(-xOffset, height / 2, 0);
+    const offset = new Vector3(settings.offsetX, settings.offsetY, settings.offsetZ);
+    north.position = new Vector3(0, height / 2, zOffset).addInPlace(offset);
+    south.position = new Vector3(0, height / 2, -zOffset).addInPlace(offset);
+    east.position = new Vector3(xOffset, height / 2, 0).addInPlace(offset);
+    west.position = new Vector3(-xOffset, height / 2, 0).addInPlace(offset);
 
     north.rotation.y = 0;
     south.rotation.y = Math.PI;

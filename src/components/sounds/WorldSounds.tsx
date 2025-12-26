@@ -21,6 +21,7 @@ const DEFAULT_LEVELS = {
   musicDarkAllDay: 1,
   musicMissMisery: 1,
   musicEarthquake: 1,
+  musicFlightOfTheNavigator: 1,
 };
 
 const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
@@ -29,7 +30,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const [musicHudVisible, setMusicHudVisible] = useState(false);
   const [currentTrackName, setCurrentTrackName] = useState("Unknown");
   const [musicPlaying, setMusicPlaying] = useState(false);
-  const [musicGain] = useState(0.3);
+  const [musicGain, setMusicGain] = useState(0.3);
   const musicControlsRef = useRef<{
     play: () => void;
     pause: () => void;
@@ -42,6 +43,13 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const musicPanelIndexRef = useRef(0);
   const musicHudVisibleRef = useRef(false);
   const audioUnlockedRef = useRef(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    setIsTouchDevice(
+      "ontouchstart" in window || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches
+    );
+  }, []);
 
   const MUSIC_SPARKLES = [
     { left: "10%", top: "6px" },
@@ -146,15 +154,14 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       { name: "music-after-dark", title: "After Dark", file: "After Dark.m4a", volume: levelsRef.current.musicAfterDark },
       { name: "music-dark-all-day", title: "Dark All Day", file: "Dark All Day.m4a", volume: levelsRef.current.musicDarkAllDay },
       { name: "music-earthquake", title: "Earthquake", file: "Earthquake.m4a", volume: levelsRef.current.musicEarthquake },
+      {
+        name: "music-flight-of-the-navigator",
+        title: "Flight of the Navigator",
+        file: "Flight of the Navigator.m4a",
+        volume: levelsRef.current.musicFlightOfTheNavigator,
+      },
     ];
-    const musicTracks = playlistDefs.map(
-      (track) =>
-        new Sound(track.name, soundUrl(track.file), scene, undefined, {
-          loop: false,
-          autoplay: false,
-          volume: track.volume,
-        })
-    );
+    const musicTracks: Sound[] = [];
 
     const htmlAmbient = new Audio(soundUrl("ambientcity.m4a"));
     htmlAmbient.loop = true;
@@ -171,11 +178,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     const htmlFootsteps = new Audio(soundUrl("footsteps.m4a"));
     htmlFootsteps.loop = true;
     htmlFootsteps.volume = footstepsTargetVolume;
-    const htmlMusicTracks = playlistDefs.map((track) => {
-      const audio = new Audio(soundUrl(track.file));
-      audio.volume = track.volume;
-      return audio;
-    });
+    const htmlMusicTracks: HTMLAudioElement[] = [];
+    const htmlEndedHandlers: Array<((event: Event) => void) | null> = Array(playlistDefs.length).fill(null);
 
     htmlAmbientRef.current = htmlAmbient;
     htmlAirplaneRef.current = htmlAirplane;
@@ -260,26 +264,55 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     const initialIndex = Math.floor(Math.random() * playlistDefs.length);
     let playlistIndex = initialIndex;
     playlistIndexRef.current = playlistIndex;
+    const ensureSoundTrack = (index: number) => {
+      let track = musicTracks[index];
+      if (!track) {
+        const def = playlistDefs[index];
+        track = new Sound(def.name, soundUrl(def.file), scene, undefined, {
+          loop: false,
+          autoplay: false,
+          volume: def.volume,
+        });
+        track.onEndedObservable.add(() => onTrackEnded(index));
+        musicTracks[index] = track;
+      }
+      return track;
+    };
+    const ensureHtmlTrack = (index: number) => {
+      let audio = htmlMusicTracks[index];
+      if (!audio) {
+        const def = playlistDefs[index];
+        audio = new Audio(soundUrl(def.file));
+        audio.volume = def.volume;
+        const handler = () => onTrackEnded(index);
+        audio.addEventListener("ended", handler);
+        htmlEndedHandlers[index] = handler;
+        htmlMusicTracks[index] = audio;
+      }
+      return audio;
+    };
     const stopCurrentMusic = (index: number) => {
       if (useHtmlAudioRef.current) {
-        const audio = htmlMusicRefs.current[index];
+        const audio = ensureHtmlTrack(index);
         if (!audio) return;
         audio.pause();
         audio.currentTime = 0;
         return;
       }
       const track = musicTracks[index];
+      if (!track) return;
       track.stop();
     };
 
     const pauseCurrentMusic = (index: number) => {
       if (useHtmlAudioRef.current) {
-        const audio = htmlMusicRefs.current[index];
+        const audio = ensureHtmlTrack(index);
         if (!audio) return;
         audio.pause();
         return;
       }
       const track = musicTracks[index] as any;
+      if (!track) return;
       if (track?.pause) {
         track.pause();
       } else {
@@ -289,7 +322,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
 
     const resumeCurrentMusic = (index: number) => {
       if (useHtmlAudioRef.current) {
-        const audio = htmlMusicRefs.current[index];
+        const audio = ensureHtmlTrack(index);
         if (!audio) return;
         if (audio.paused) {
           audio.play();
@@ -297,6 +330,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         return;
       }
       const track = musicTracks[index] as any;
+      if (!track) return;
       if (track?.isPaused && track?.play) {
         track.play();
         return;
@@ -312,7 +346,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       setCurrentTrackName(title);
       setMusicPlaying(true);
       if (useHtmlAudioRef.current) {
-        const audio = htmlMusicRefs.current[index];
+        const audio = ensureHtmlTrack(index);
         if (!audio) return;
         audio.currentTime = 0;
         audio.volume = 0;
@@ -320,26 +354,17 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         fadeInHtml(audio, target);
         return;
       }
-      const track = musicTracks[index];
+      const track = ensureSoundTrack(index);
       track.setVolume(0);
       track.play();
       fadeInSound(track, target);
     };
-    const onTrackEnded = (idx: number) => {
+    function onTrackEnded(idx: number) {
       if (!audioUnlocked) return;
       if (playlistIndexRef.current !== idx) return;
       playlistIndexRef.current = (idx + 1) % playlistDefs.length;
       playMusic(playlistIndexRef.current);
-    };
-    musicTracks.forEach((track, idx) => {
-      track.onEndedObservable.add(() => onTrackEnded(idx));
-    });
-    const htmlEndedHandlers: Array<(event: Event) => void> = [];
-    htmlMusicTracks.forEach((track, idx) => {
-      const handler = () => onTrackEnded(idx);
-      htmlEndedHandlers.push(handler);
-      track.addEventListener("ended", handler);
-    });
+    }
 
     musicControlsRef.current = {
       play: () => {
@@ -423,14 +448,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
           htmlFootsteps.currentTime = 0;
         })
         .catch(() => {});
-      if (htmlMusicTracks[0]) {
-        safeHtmlPlay(htmlMusicTracks[0])
-          .then(() => {
-            htmlMusicTracks[0].pause();
-            htmlMusicTracks[0].currentTime = 0;
-          })
-          .catch(() => {});
-      }
+      // Music tracks are lazy-loaded; no warm-up to avoid prefetching all audio.
 
       if (useHtmlAudioRef.current) {
         htmlAmbient.volume = 0;
@@ -614,6 +632,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     tracks[4]?.setVolume(lv.musicAfterDark);
     tracks[5]?.setVolume(lv.musicDarkAllDay);
     tracks[6]?.setVolume(lv.musicEarthquake);
+    tracks[7]?.setVolume(lv.musicFlightOfTheNavigator);
     const htmlTracks = htmlMusicRefs.current;
     if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicMissMisery);
     if (htmlTracks[1]) htmlTracks[1].volume = clamp01(lv.musicSycamore);
@@ -622,6 +641,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     if (htmlTracks[4]) htmlTracks[4].volume = clamp01(lv.musicAfterDark);
     if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicDarkAllDay);
     if (htmlTracks[6]) htmlTracks[6].volume = clamp01(lv.musicEarthquake);
+    if (htmlTracks[7]) htmlTracks[7].volume = clamp01(lv.musicFlightOfTheNavigator);
   }, []);
 
   useEffect(() => {
@@ -635,6 +655,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     tracks[4]?.setVolume(lv.musicAfterDark * musicGainRef.current);
     tracks[5]?.setVolume(lv.musicDarkAllDay * musicGainRef.current);
     tracks[6]?.setVolume(lv.musicEarthquake * musicGainRef.current);
+    tracks[7]?.setVolume(lv.musicFlightOfTheNavigator * musicGainRef.current);
     const htmlTracks = htmlMusicRefs.current;
     if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicMissMisery * musicGainRef.current);
     if (htmlTracks[1]) htmlTracks[1].volume = clamp01(lv.musicSycamore * musicGainRef.current);
@@ -643,6 +664,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     if (htmlTracks[4]) htmlTracks[4].volume = clamp01(lv.musicAfterDark * musicGainRef.current);
     if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicDarkAllDay * musicGainRef.current);
     if (htmlTracks[6]) htmlTracks[6].volume = clamp01(lv.musicEarthquake * musicGainRef.current);
+    if (htmlTracks[7]) htmlTracks[7].volume = clamp01(lv.musicFlightOfTheNavigator * musicGainRef.current);
   }, [musicGain]);
 
   if (!musicHudVisible) return null;
@@ -670,6 +692,20 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
               />
             ))}
           </div>
+          {!isTouchDevice && (
+            <label className="music-panel-slider">
+              <span>Volume</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={musicGain}
+                onChange={(e) => setMusicGain(parseFloat(e.target.value))}
+              />
+              <span>{musicGain.toFixed(2)}</span>
+            </label>
+          )}
           <div className="music-panel-track">{currentTrackName}</div>
           <div className="music-panel-controls">
             <button type="button" onClick={() => musicControlsRef.current?.prev()}>

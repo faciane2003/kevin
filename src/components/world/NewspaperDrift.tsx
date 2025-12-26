@@ -35,7 +35,11 @@ const NewspaperDrift: React.FC<Props> = ({ scene, count = 18 }) => {
         const inst = base.createInstance(`newspaper_${i}`);
         inst.parent = root;
         inst.scaling = new Vector3(2.2, 0.2, 1.6);
-        inst.position = new Vector3((Math.random() - 0.5) * 600, 1 + Math.random() * 2, (Math.random() - 0.5) * 600);
+        inst.position = new Vector3(
+          (Math.random() - 0.5) * 400,
+          1.5 + Math.random() * 3,
+          (Math.random() - 0.5) * 400
+        );
         inst.rotation = new Vector3(0, Math.random() * Math.PI * 2, Math.random() * Math.PI);
         instances.push(inst);
         drifts.push({
