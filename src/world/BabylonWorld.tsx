@@ -1614,6 +1614,34 @@ const BabylonWorld: React.FC = () => {
       })
     );
 
+    const clearWalkInput = () => {
+      inputMap["w"] = false;
+      inputMap["a"] = false;
+      inputMap["s"] = false;
+      inputMap["d"] = false;
+      window.dispatchEvent(new CustomEvent("walk-input", { detail: { active: false } }));
+    };
+
+    const onKeyUpFallback = (evt: KeyboardEvent) => {
+      const key = evt.key.toLowerCase();
+      if (key !== "w" && key !== "a" && key !== "s" && key !== "d") return;
+      inputMap[key] = false;
+      const walkActive = !!(inputMap["w"] || inputMap["a"] || inputMap["s"] || inputMap["d"]);
+      window.dispatchEvent(new CustomEvent("walk-input", { detail: { active: walkActive } }));
+    };
+
+    const onWindowBlur = () => {
+      clearWalkInput();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) clearWalkInput();
+    };
+
+    window.addEventListener("keyup", onKeyUpFallback);
+    window.addEventListener("blur", onWindowBlur);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     let lastHeading = 0;
     let lastMoving = false;
 
@@ -1724,6 +1752,9 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { window.removeEventListener("npc-dialogue", onDialogueOpen as EventListener); } catch {}
+      try { window.removeEventListener("keyup", onKeyUpFallback); } catch {}
+      try { window.removeEventListener("blur", onWindowBlur); } catch {}
+      try { document.removeEventListener("visibilitychange", onVisibilityChange); } catch {}
       try { window.removeEventListener("keydown", onChatFocusKey); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
       if (adTimer !== null) {

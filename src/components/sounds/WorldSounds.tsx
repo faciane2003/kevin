@@ -14,33 +14,34 @@ const DEFAULT_LEVELS = {
   airplane: 1,
   cat: 0.055,
   wind: 0.25,
-  musicSycamore: 0.2,
-  musicSynthwave: 0.2,
-  musicDropTheGame: 0.2,
-  musicAfterDark: 0.2,
-  musicDarkAllDay: 0.2,
-  musicMissMisery: 0.2,
-  musicEarthquake: 0.2,
+  musicSycamore: 1,
+  musicSynthwave: 1,
+  musicDropTheGame: 1,
+  musicAfterDark: 1,
+  musicDarkAllDay: 1,
+  musicMissMisery: 1,
+  musicEarthquake: 1,
 };
 
 const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const levels = DEFAULT_LEVELS;
   const levelsRef = useRef(DEFAULT_LEVELS);
   const [musicHudVisible, setMusicHudVisible] = useState(false);
-  const [currentTrackName, setCurrentTrackName] = useState("—");
+  const [currentTrackName, setCurrentTrackName] = useState("Unknown");
   const [musicPlaying, setMusicPlaying] = useState(false);
-  const [musicGain, setMusicGain] = useState(1);
+  const [musicGain] = useState(0.3);
   const musicControlsRef = useRef<{
     play: () => void;
     pause: () => void;
     next: () => void;
     prev: () => void;
   } | null>(null);
-  const musicGainRef = useRef(1);
+  const musicGainRef = useRef(0.3);
   const [musicPanelPos, setMusicPanelPos] = useState({ top: 12, left: 70 });
   const musicPanelRef = useRef<HTMLDivElement | null>(null);
   const musicPanelIndexRef = useRef(0);
   const musicHudVisibleRef = useRef(false);
+  const audioUnlockedRef = useRef(false);
 
   const MUSIC_SPARKLES = [
     { left: "10%", top: "6px" },
@@ -64,6 +65,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const htmlFootstepsRef = useRef<HTMLAudioElement | null>(null);
   const htmlMusicRefs = useRef<HTMLAudioElement[]>([]);
   const useHtmlAudioRef = useRef(false);
+  const htmlFootstepsActiveRef = useRef(false);
   const ambientCityRef = useRef<Sound | null>(null);
   const airplaneFxRef = useRef<Sound | null>(null);
   const catMeowFxRef = useRef<Sound | null>(null);
@@ -190,11 +192,19 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     footstepsRef.current = footsteps;
     musicTracksRef.current = musicTracks;
 
+    window.setTimeout(() => {
+      void ambientCity.isReady();
+      void peopleTalking.isReady();
+      void footsteps.isReady();
+      void musicTracks[0]?.isReady?.();
+    }, 2000);
+
     let audioUnlocked = false;
     let airplaneTimer: number | undefined;
     let catTimer: number | undefined;
     let windTimer: number | undefined;
     let startTimer: number | undefined;
+    let readinessTimer: number | undefined;
 
     const fadeInHtml = (audio: HTMLAudioElement, target: number) => {
       const start = performance.now();
@@ -218,11 +228,13 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       requestAnimationFrame(tick);
     };
 
+    const safeHtmlPlay = (audio: HTMLAudioElement) => audio.play().catch(() => {});
+
     const startLoopedSfx = () => {
       airplaneTimer = window.setInterval(() => {
         if (useHtmlAudioRef.current) {
           htmlAirplane.currentTime = 0;
-          htmlAirplane.play();
+          safeHtmlPlay(htmlAirplane);
           return;
         }
         if (!airplaneFx.isPlaying) airplaneFx.play();
@@ -230,7 +242,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       catTimer = window.setInterval(() => {
         if (useHtmlAudioRef.current) {
           htmlCat.currentTime = 0;
-          htmlCat.play();
+          safeHtmlPlay(htmlCat);
           return;
         }
         if (!catMeowFx.isPlaying) catMeowFx.play();
@@ -238,17 +250,14 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       windTimer = window.setInterval(() => {
         if (useHtmlAudioRef.current) {
           htmlWind.currentTime = 0;
-          htmlWind.play();
+          safeHtmlPlay(htmlWind);
           return;
         }
         if (!windFx.isPlaying) windFx.play();
       }, 20000);
     };
 
-    const initialIndex = Math.max(
-      0,
-      playlistDefs.findIndex((track) => track.name === "music-dark-all-day")
-    );
+    const initialIndex = Math.floor(Math.random() * playlistDefs.length);
     let playlistIndex = initialIndex;
     playlistIndexRef.current = playlistIndex;
     const stopCurrentMusic = (index: number) => {
@@ -299,7 +308,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
 
     const playMusic = (index: number) => {
       const target = (playlistDefs[index]?.volume ?? 0.2) * musicGainRef.current;
-      const title = playlistDefs[index]?.title ?? playlistDefs[index]?.name ?? "—";
+      const title = playlistDefs[index]?.title ?? playlistDefs[index]?.name ?? "Unknown";
       setCurrentTrackName(title);
       setMusicPlaying(true);
       if (useHtmlAudioRef.current) {
@@ -307,7 +316,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         if (!audio) return;
         audio.currentTime = 0;
         audio.volume = 0;
-        audio.play();
+        safeHtmlPlay(audio);
         fadeInHtml(audio, target);
         return;
       }
@@ -397,34 +406,37 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     const onUserGesture = () => {
       if (audioUnlocked) return;
       audioUnlocked = true;
+      audioUnlockedRef.current = true;
       try { Engine.audioEngine?.unlock(); } catch {}
       try { Engine.audioEngine?.audioContext?.resume(); } catch {}
       try { Engine.audioEngine?.setGlobalVolume(0.9); } catch {}
 
-      htmlAmbient
-        .play()
+      safeHtmlPlay(htmlAmbient)
         .then(() => {
           htmlAmbient.pause();
           htmlAmbient.currentTime = 0;
         })
         .catch(() => {});
-      htmlFootsteps
-        .play()
+      safeHtmlPlay(htmlFootsteps)
         .then(() => {
           htmlFootsteps.pause();
           htmlFootsteps.currentTime = 0;
         })
         .catch(() => {});
-      htmlMusicTracks[0]?.play().then(() => {
-        htmlMusicTracks[0].pause();
-        htmlMusicTracks[0].currentTime = 0;
-      }).catch(() => {});
+      if (htmlMusicTracks[0]) {
+        safeHtmlPlay(htmlMusicTracks[0])
+          .then(() => {
+            htmlMusicTracks[0].pause();
+            htmlMusicTracks[0].currentTime = 0;
+          })
+          .catch(() => {});
+      }
 
       if (useHtmlAudioRef.current) {
         htmlAmbient.volume = 0;
         htmlPeopleTalking.volume = 0;
-        htmlAmbient.play().catch(() => {});
-        htmlPeopleTalking.play().catch(() => {});
+        safeHtmlPlay(htmlAmbient);
+        safeHtmlPlay(htmlPeopleTalking);
         playMusic(playlistIndexRef.current);
       } else {
         ambientCity.setVolume(0);
@@ -445,8 +457,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
           });
           htmlAmbient.volume = 0;
           htmlPeopleTalking.volume = 0;
-          htmlAmbient.play().catch(() => {});
-          htmlPeopleTalking.play().catch(() => {});
+          safeHtmlPlay(htmlAmbient);
+          safeHtmlPlay(htmlPeopleTalking);
           playMusic(playlistIndexRef.current);
         }
       }, 250);
@@ -460,6 +472,27 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         }
         startLoopedSfx();
       }, fadeDelayMs);
+      readinessTimer = window.setTimeout(() => {
+        const anyReady =
+          ambientCity.isReady() ||
+          peopleTalking.isReady() ||
+          footsteps.isReady() ||
+          musicTracks.some((track) => track.isReady());
+        if (!anyReady) {
+          useHtmlAudioRef.current = true;
+          try { ambientCity.stop(); } catch {}
+          try { peopleTalking.stop(); } catch {}
+          try { footsteps.stop(); } catch {}
+          musicTracks.forEach((track) => {
+            try { track.stop(); } catch {}
+          });
+          htmlAmbient.volume = 0;
+          htmlPeopleTalking.volume = 0;
+          safeHtmlPlay(htmlAmbient);
+          safeHtmlPlay(htmlPeopleTalking);
+          playMusic(playlistIndexRef.current);
+        }
+      }, 3000);
       window.removeEventListener("pointerdown", onUserGesture);
       window.removeEventListener("keydown", onUserGesture);
     };
@@ -476,15 +509,15 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         musicTracks.every((track) => !track.isReady());
       if (allNotReady && !audioContextSupported) {
         useHtmlAudioRef.current = true;
-        if (audioUnlocked) {
-          try { ambientCity.stop(); } catch {}
-          try { peopleTalking.stop(); } catch {}
-          try { footsteps.stop(); } catch {}
+          if (audioUnlocked) {
+            try { ambientCity.stop(); } catch {}
+            try { peopleTalking.stop(); } catch {}
+            try { footsteps.stop(); } catch {}
           musicTracks.forEach((track) => {
             try { track.stop(); } catch {}
           });
-          htmlAmbient.play().catch(() => {});
-          htmlPeopleTalking.play().catch(() => {});
+          safeHtmlPlay(htmlAmbient, "ambient-loop");
+          safeHtmlPlay(htmlPeopleTalking, "people-loop");
           playMusic(playlistIndexRef.current);
         }
       }
@@ -493,16 +526,20 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     let walkActive = false;
     const startFootsteps = () => {
       if (useHtmlAudioRef.current || !footsteps.isReady()) {
-        htmlFootsteps.play().catch(() => {});
+        htmlFootstepsActiveRef.current = true;
+        safeHtmlPlay(htmlFootsteps);
       } else if (!footsteps.isPlaying) {
+        htmlFootstepsActiveRef.current = false;
         footsteps.play();
       }
     };
     const stopFootsteps = () => {
-      if (useHtmlAudioRef.current) {
+      if (useHtmlAudioRef.current || htmlFootstepsActiveRef.current) {
+        htmlFootstepsActiveRef.current = false;
         htmlFootsteps.pause();
         htmlFootsteps.currentTime = 0;
-      } else {
+      }
+      if (!useHtmlAudioRef.current) {
         footsteps.stop();
       }
     };
@@ -527,6 +564,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       try { if (catTimer) window.clearInterval(catTimer); } catch {}
       try { if (windTimer) window.clearInterval(windTimer); } catch {}
       try { if (startTimer) window.clearTimeout(startTimer); } catch {}
+      try { if (readinessTimer) window.clearTimeout(readinessTimer); } catch {}
       try { window.clearTimeout(fallbackTimer); } catch {}
       try { ambientCity.stop(); } catch {}
       try { peopleTalking.stop(); } catch {}
@@ -633,20 +671,6 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
             ))}
           </div>
           <div className="music-panel-track">{currentTrackName}</div>
-          <div className="music-panel-slider">
-            <label htmlFor="music-volume">Volume</label>
-            <input
-              id="music-volume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={musicGain}
-              onChange={(evt) => setMusicGain(parseFloat(evt.target.value))}
-              onInput={(evt) => setMusicGain(parseFloat((evt.target as HTMLInputElement).value))}
-            />
-            <span>{musicGain.toFixed(2)}</span>
-          </div>
           <div className="music-panel-controls">
             <button type="button" onClick={() => musicControlsRef.current?.prev()}>
               {"<"}
@@ -678,7 +702,6 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
           </div>
         </div>
       ) : null}
-      {null}
     </>
   );
 };
