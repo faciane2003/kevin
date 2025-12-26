@@ -353,6 +353,7 @@ const HUDInner: React.FC = () => {
 
   return (
     <div className="hud-container" aria-hidden={false}>
+      <div className="startup-fade" aria-hidden="true" />
       {/* Stats bars hidden per request */}
       <MenuTabs />
       <JournalPanel />

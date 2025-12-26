@@ -14,10 +14,10 @@ const DEFAULT_LEVELS = {
   airplane: 1,
   cat: 0.11,
   wind: 0.25,
-  musicElliot: 0.14,
-  musicSycamore: 0.18,
-  musicSynth1: 0.14,
-  musicSynth2: 0.06,
+  musicElliot: 0.07,
+  musicSycamore: 0.09,
+  musicSynth1: 0.07,
+  musicSynth2: 0.03,
 };
 
 const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
@@ -57,6 +57,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     const peopleTargetVolume = levelsRef.current.people;
     const footstepsTargetVolume = levelsRef.current.footsteps;
     const fadeDurationMs = 2000;
+    const fadeDelayMs = 1000;
 
     const ambientCity = new Sound(
       "ambient-city",
@@ -156,6 +157,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     let airplaneTimer: number | undefined;
     let catTimer: number | undefined;
     let windTimer: number | undefined;
+    let startTimer: number | undefined;
 
     const fadeInHtml = (audio: HTMLAudioElement, target: number) => {
       const start = performance.now();
@@ -209,15 +211,20 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     let playlistIndex = Math.floor(Math.random() * playlistDefs.length);
     playlistIndexRef.current = playlistIndex;
     const playMusic = (index: number) => {
+      const target = playlistDefs[index]?.volume ?? 0.2;
       if (useHtmlAudioRef.current) {
         const audio = htmlMusicRefs.current[index];
         if (!audio) return;
         audio.currentTime = 0;
+        audio.volume = 0;
         audio.play();
+        fadeInHtml(audio, target);
         return;
       }
       const track = musicTracks[index];
+      track.setVolume(0);
       track.play();
+      fadeInSound(track, target);
     };
     const onTrackEnded = (idx: number) => {
       if (!audioUnlocked) return;
@@ -261,17 +268,21 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         htmlMusicTracks[0].currentTime = 0;
       }).catch(() => {});
 
-      if (useHtmlAudioRef.current) {
-        htmlAmbient.play().catch(() => {});
-        fadeInHtml(htmlAmbient, ambientTargetVolume);
-        htmlPeopleTalking.play().catch(() => {});
-      } else if (!ambientCity.isPlaying) {
-        ambientCity.play();
-        fadeInSound(ambientCity, ambientTargetVolume);
-        if (!peopleTalking.isPlaying) peopleTalking.play();
-      }
-      startLoopedSfx();
-      playMusic(playlistIndexRef.current);
+      startTimer = window.setTimeout(() => {
+        if (useHtmlAudioRef.current) {
+          htmlAmbient.play().catch(() => {});
+          fadeInHtml(htmlAmbient, ambientTargetVolume);
+          htmlPeopleTalking.play().catch(() => {});
+          fadeInHtml(htmlPeopleTalking, peopleTargetVolume);
+        } else if (!ambientCity.isPlaying) {
+          ambientCity.play();
+          fadeInSound(ambientCity, ambientTargetVolume);
+          if (!peopleTalking.isPlaying) peopleTalking.play();
+          fadeInSound(peopleTalking, peopleTargetVolume);
+        }
+        startLoopedSfx();
+        playMusic(playlistIndexRef.current);
+      }, fadeDelayMs);
       window.removeEventListener("pointerdown", onUserGesture);
       window.removeEventListener("keydown", onUserGesture);
     };
@@ -370,6 +381,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       try { if (airplaneTimer) window.clearInterval(airplaneTimer); } catch {}
       try { if (catTimer) window.clearInterval(catTimer); } catch {}
       try { if (windTimer) window.clearInterval(windTimer); } catch {}
+      try { if (startTimer) window.clearTimeout(startTimer); } catch {}
       try { window.clearTimeout(fallbackTimer); } catch {}
       try { ambientCity.stop(); } catch {}
       try { peopleTalking.stop(); } catch {}

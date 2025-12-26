@@ -110,8 +110,14 @@ const BabylonWorld: React.FC = () => {
       } catch {}
     }
 
+    let interactZone: HTMLDivElement | null = null;
     let lookZone: HTMLDivElement | null = null;
+    let walkZone: HTMLDivElement | null = null;
     let walkLabelZone: HTMLDivElement | null = null;
+    let walkPointerActive = false;
+    let walkPointerId: number | null = null;
+    let walkInputX = 0;
+    let walkInputY = 0;
     let lookPointerActive = false;
     let lookPointerId: number | null = null;
     let lastLookX = 0;
@@ -122,12 +128,50 @@ const BabylonWorld: React.FC = () => {
     const lookHoldSpeed = 1.6;
     const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
     if (isTouchDevice) {
+      interactZone = document.createElement("div");
+      interactZone.style.position = "fixed";
+      interactZone.style.left = "0";
+      interactZone.style.top = "0";
+      interactZone.style.width = "100vw";
+      interactZone.style.height = "50vh";
+      interactZone.style.border = "none";
+      interactZone.style.background = "transparent";
+      interactZone.style.boxShadow = "none";
+      interactZone.style.outline = "none";
+      interactZone.style.userSelect = "none";
+      interactZone.style.zIndex = "16";
+      interactZone.style.pointerEvents = "auto";
+      interactZone.style.touchAction = "none";
+      document.body.appendChild(interactZone);
+      const setInteract = (active: boolean) => {
+        window.dispatchEvent(new CustomEvent("interact-input", { detail: { active } }));
+      };
+      interactZone.addEventListener("pointerdown", () => setInteract(true));
+      interactZone.addEventListener("pointerup", () => setInteract(false));
+      interactZone.addEventListener("pointercancel", () => setInteract(false));
+
+      walkZone = document.createElement("div");
+      walkZone.style.position = "fixed";
+      walkZone.style.left = "0";
+      walkZone.style.top = "50vh";
+      walkZone.style.width = "50vw";
+      walkZone.style.height = "50vh";
+      walkZone.style.border = "none";
+      walkZone.style.background = "transparent";
+      walkZone.style.boxShadow = "none";
+      walkZone.style.outline = "none";
+      walkZone.style.userSelect = "none";
+      walkZone.style.zIndex = "17";
+      walkZone.style.pointerEvents = "auto";
+      walkZone.style.touchAction = "none";
+      document.body.appendChild(walkZone);
+
       walkLabelZone = document.createElement("div");
       walkLabelZone.style.position = "fixed";
       walkLabelZone.style.left = "0";
-      walkLabelZone.style.top = "0";
+      walkLabelZone.style.top = "50vh";
       walkLabelZone.style.width = "50vw";
-      walkLabelZone.style.height = "100vh";
+      walkLabelZone.style.height = "50vh";
       walkLabelZone.style.border = "none";
       walkLabelZone.style.background = "transparent";
       walkLabelZone.style.boxShadow = "none";
@@ -139,7 +183,7 @@ const BabylonWorld: React.FC = () => {
       walkLabelZone.style.flexDirection = "column";
       walkLabelZone.style.alignItems = "center";
       walkLabelZone.style.justifyContent = "flex-start";
-      walkLabelZone.style.paddingTop = "70vh";
+      walkLabelZone.style.paddingTop = "20vh";
       walkLabelZone.style.paddingLeft = "8px";
       walkLabelZone.style.color = "#38e26f";
       walkLabelZone.style.fontFamily = "Consolas, Menlo, monospace";
@@ -167,9 +211,9 @@ const BabylonWorld: React.FC = () => {
       lookZone = document.createElement("div");
       lookZone.style.position = "fixed";
       lookZone.style.right = "0";
-      lookZone.style.top = "0";
+      lookZone.style.top = "50vh";
       lookZone.style.width = "50vw";
-      lookZone.style.height = "100vh";
+      lookZone.style.height = "50vh";
       lookZone.style.borderLeft = "none";
       lookZone.style.border = "none";
       lookZone.style.background = "transparent";
@@ -183,7 +227,7 @@ const BabylonWorld: React.FC = () => {
       lookZone.style.flexDirection = "column";
       lookZone.style.alignItems = "center";
       lookZone.style.justifyContent = "flex-start";
-      lookZone.style.paddingTop = "70vh";
+      lookZone.style.paddingTop = "20vh";
       lookZone.style.paddingRight = "8px";
       lookZone.style.color = "#38e26f";
       lookZone.style.fontFamily = "Consolas, Menlo, monospace";
@@ -207,6 +251,41 @@ const BabylonWorld: React.FC = () => {
       lookZone.appendChild(lookLabel);
       lookZone.appendChild(lookDown);
       document.body.appendChild(lookZone);
+
+      const updateWalkInput = (evt: PointerEvent) => {
+        if (!walkZone) return;
+        const rect = walkZone.getBoundingClientRect();
+        const nx = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+        const ny = ((evt.clientY - rect.top) / rect.height) * 2 - 1;
+        walkInputX = Math.max(-1, Math.min(1, nx));
+        walkInputY = Math.max(-1, Math.min(1, ny));
+      };
+
+      walkZone.addEventListener("pointerdown", (evt) => {
+        walkPointerActive = true;
+        walkPointerId = evt.pointerId;
+        updateWalkInput(evt);
+        walkZone?.setPointerCapture(evt.pointerId);
+        window.dispatchEvent(new CustomEvent("walk-input", { detail: { active: true } }));
+      });
+
+      walkZone.addEventListener("pointermove", (evt) => {
+        if (!walkPointerActive || walkPointerId !== evt.pointerId) return;
+        updateWalkInput(evt);
+      });
+
+      const endWalk = (evt: PointerEvent) => {
+        if (!walkPointerActive || walkPointerId !== evt.pointerId) return;
+        walkPointerActive = false;
+        walkPointerId = null;
+        walkInputX = 0;
+        walkInputY = 0;
+        window.dispatchEvent(new CustomEvent("walk-input", { detail: { active: false } }));
+        try { walkZone?.releasePointerCapture(evt.pointerId); } catch {}
+      };
+
+      walkZone.addEventListener("pointerup", endWalk);
+      walkZone.addEventListener("pointercancel", endWalk);
 
       const updateLookInput = (evt: PointerEvent) => {
         if (!lookZone) return;
@@ -1397,6 +1476,13 @@ const BabylonWorld: React.FC = () => {
       if (inputMap["s"]) move.addInPlace(forward.scale(-1));
       if (inputMap["a"]) move.addInPlace(right);
       if (inputMap["d"]) move.addInPlace(right.scale(-1));
+      if (isTouchDevice) {
+        const touchMagnitude = Math.max(Math.abs(walkInputX), Math.abs(walkInputY));
+        if (touchMagnitude > 0.05) {
+          move.addInPlace(forward.scale(-walkInputY));
+          move.addInPlace(right.scale(walkInputX));
+        }
+      }
 
       const isMoving = move.lengthSquared() > 0;
       if (isMoving) {
@@ -1478,7 +1564,9 @@ const BabylonWorld: React.FC = () => {
       try { window.clearInterval(adTimer); } catch {}
       try { currentAdTexture?.dispose(); } catch {}
       try { if (lookZone) document.body.removeChild(lookZone); } catch {}
+      try { if (walkZone) document.body.removeChild(walkZone); } catch {}
       try { if (walkLabelZone) document.body.removeChild(walkLabelZone); } catch {}
+      try { if (interactZone) document.body.removeChild(interactZone); } catch {}
       try { document.body.removeChild(chatPanel); } catch {}
       try { socket?.close(); } catch {}
       remotePlayers.forEach((entry) => entry.mesh.dispose());

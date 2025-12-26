@@ -24,7 +24,7 @@
 .stat-bar.xp .bar-fill { background: linear-gradient(90deg,#ffd26b,#ffb42e); }
 
 /* Menu Tabs */
-.menu-tabs { position:absolute; left:12px; top:12px; display:flex; flex-direction:column; gap:8px; align-items:flex-start; pointer-events:auto; z-index: 10000; }
+.menu-tabs { position:absolute; left:12px; top:12px; display:flex; flex-direction:column; gap:8px; align-items:flex-start; pointer-events:auto; z-index: 10000; --tab-size: 40px; --tab-gap: 8px; }
 .menu-tab-button{ width:40px; height:40px; padding:0; border-radius:10px; background:rgba(6,10,18,0.85); border:1px solid rgba(80,255,200,0.25); cursor:pointer; box-shadow: 0 0 12px rgba(80,255,200,0.25), 0 6px 18px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; position:relative; overflow:visible; }
 .menu-tab-icon{ width:26px; height:26px; object-fit:contain; filter: drop-shadow(0 0 6px rgba(80,255,200,0.6)); }
 .menu-tab-button.active{ background: linear-gradient(160deg,rgba(20,40,60,0.9),rgba(10,18,30,0.9)); border-color: rgba(120,255,240,0.7); box-shadow: 0 0 16px rgba(120,255,240,0.5), 0 8px 22px rgba(0,0,0,0.7); transform: translateY(-1px); }
@@ -36,6 +36,14 @@
 .menu-tab-green .menu-tab-tooltip{ color:#6bff9d; border-color: rgba(107,255,157,0.55); box-shadow: 0 0 10px rgba(107,255,157,0.35); }
 .menu-tab-purple .menu-tab-tooltip{ color:#c99bff; border-color: rgba(201,155,255,0.55); box-shadow: 0 0 10px rgba(201,155,255,0.35); }
 .menu-tab-pink .menu-tab-tooltip{ color:#ff8de0; border-color: rgba(255,141,224,0.55); box-shadow: 0 0 10px rgba(255,141,224,0.35); }
+.menu-tab-power{ border-color: rgba(100,255,255,0.6); box-shadow: 0 0 18px rgba(100,255,255,0.45), 0 8px 18px rgba(0,0,0,0.6); background: rgba(8,18,28,0.9); z-index:2; }
+.menu-tab-icon-power{ filter: drop-shadow(0 0 10px rgba(100,255,255,0.85)); }
+.menu-tabs .menu-tab-button{ transition: transform 240ms ease, opacity 240ms ease; }
+.menu-tabs-collapsed .menu-tab-button:not(.menu-tab-power){ transform: translateY(var(--collapse-offset)) scale(0.96); opacity:0; pointer-events:none; z-index:0; }
+.menu-tabs-collapsed .menu-tab-button:not(.menu-tab-power) .menu-tab-tooltip{ opacity:0; }
+
+.startup-fade{ position:fixed; inset:0; background:#000; z-index: 20000; pointer-events:none; animation: startupFade 3s ease forwards; }
+@keyframes startupFade{ 0%,33%{ opacity:1; } 100%{ opacity:0; } }
 
 /* Light panel */
 .light-panel-toggle { position: absolute; right: 20px; top: 20px; padding: 6px 10px; background: rgba(20,20,20,0.85); color: #fff; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; pointer-events: auto; }
@@ -161,7 +169,7 @@
   .stat-bar { width: 160px; height:22px; }
   .hotbar-slot { width:40px; height:40px; }
   .compass { width: 96px; height: 96px; }
-  .menu-tabs { left: 10px; top: 10px; gap:6px; }
+  .menu-tabs { left: 10px; top: 10px; gap:6px; --tab-size: 36px; --tab-gap: 6px; }
   .menu-tab-button { width:36px; height:36px; }
   .menu-tab-icon{ width:22px; height:22px; }
   .stats-bars { right: 10px; bottom: calc(80px + env(safe-area-inset-bottom)); gap:6px; }
