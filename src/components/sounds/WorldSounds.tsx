@@ -72,6 +72,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const htmlWindRef = useRef<HTMLAudioElement | null>(null);
   const htmlPeopleRef = useRef<HTMLAudioElement | null>(null);
   const htmlFootstepsRef = useRef<HTMLAudioElement | null>(null);
+  const htmlPowerOnRef = useRef<HTMLAudioElement | null>(null);
+  const htmlPowerOffRef = useRef<HTMLAudioElement | null>(null);
   const htmlMusicRefs = useRef<HTMLAudioElement[]>([]);
   const htmlCarPassRef = useRef<HTMLAudioElement | null>(null);
   const useHtmlAudioRef = useRef(false);
@@ -86,6 +88,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const musicTracksRef = useRef<Sound[]>([]);
   const playlistIndexRef = useRef(0);
   const carPassFxRef = useRef<Sound | null>(null);
+  const powerOnFxRef = useRef<Sound | null>(null);
+  const powerOffFxRef = useRef<Sound | null>(null);
 
   const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
@@ -149,6 +153,20 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       undefined,
       { loop: false, autoplay: false, volume: 0.8 }
     );
+    const powerOnFx = new Sound(
+      "sfx-poweron",
+      soundUrl("sfx_poweron.m4a"),
+      scene,
+      undefined,
+      { loop: false, autoplay: false, volume: 0.4 }
+    );
+    const powerOffFx = new Sound(
+      "sfx-poweroff",
+      soundUrl("sfx_poweroff.m4a"),
+      scene,
+      undefined,
+      { loop: false, autoplay: false, volume: 0.4 }
+    );
     const peopleTalking = new Sound(
       "people-talking",
       soundUrl("people%20talking.m4a"),
@@ -194,6 +212,10 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     htmlWind.volume = 0.6;
     const htmlCarPass = new Audio("/carpass.m4a");
     htmlCarPass.volume = 0.8;
+    const htmlPowerOn = new Audio(soundUrl("sfx_poweron.m4a"));
+    htmlPowerOn.volume = 0.4;
+    const htmlPowerOff = new Audio(soundUrl("sfx_poweroff.m4a"));
+    htmlPowerOff.volume = 0.4;
     const htmlPeopleTalking = new Audio(soundUrl("people%20talking.m4a"));
     htmlPeopleTalking.loop = true;
     htmlPeopleTalking.volume = peopleTargetVolume;
@@ -210,6 +232,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     htmlWindRef.current = htmlWind;
     htmlPeopleRef.current = htmlPeopleTalking;
     htmlFootstepsRef.current = htmlFootsteps;
+    htmlPowerOnRef.current = htmlPowerOn;
+    htmlPowerOffRef.current = htmlPowerOff;
     htmlMusicRefs.current = htmlMusicTracks;
     htmlCarPassRef.current = htmlCarPass;
     ambientCityRef.current = ambientCity;
@@ -221,6 +245,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     footstepsRef.current = footsteps;
     musicTracksRef.current = musicTracks;
     carPassFxRef.current = carPassFx;
+    powerOnFxRef.current = powerOnFx;
+    powerOffFxRef.current = powerOffFx;
 
     window.setTimeout(() => {
       void ambientCity.isReady();
@@ -630,12 +656,35 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     };
     window.addEventListener("walk-input", onWalkInput as EventListener);
 
+    const playPowerFx = (expanded: boolean) => {
+      if (!audioUnlockedRef.current) return;
+      if (useHtmlAudioRef.current) {
+        const audio = expanded ? htmlPowerOnRef.current : htmlPowerOffRef.current;
+        if (!audio) return;
+        audio.currentTime = 0;
+        safeHtmlPlay(audio);
+        return;
+      }
+      const sound = expanded ? powerOnFxRef.current : powerOffFxRef.current;
+      if (!sound) return;
+      if (sound.isPlaying) sound.stop();
+      sound.play();
+    };
+
+    const onPowerToggle = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ expanded?: boolean }>).detail;
+      if (detail?.expanded === undefined) return;
+      playPowerFx(detail.expanded);
+    };
+    window.addEventListener("power-toggle", onPowerToggle as EventListener);
+
     return () => {
       try { window.removeEventListener("pointerdown", onUserGesture); } catch {}
       try { window.removeEventListener("keydown", onUserGesture); } catch {}
       try { window.removeEventListener("music-visibility", onMusicVisibility as EventListener); } catch {}
       try { window.removeEventListener("resize", onResize); } catch {}
       try { document.removeEventListener("pointerdown", onDocPointerDown); } catch {}
+      try { window.removeEventListener("power-toggle", onPowerToggle as EventListener); } catch {}
       try { window.removeEventListener("walk-input", onWalkInput as EventListener); } catch {}
       try { if (airplaneTimer) window.clearInterval(airplaneTimer); } catch {}
       try { if (catTimer) window.clearInterval(catTimer); } catch {}
@@ -658,6 +707,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       try { peopleTalking.dispose(); } catch {}
       try { footsteps.dispose(); } catch {}
       try { carPassFx.dispose(); } catch {}
+      try { powerOnFx.dispose(); } catch {}
+      try { powerOffFx.dispose(); } catch {}
       musicTracks.forEach((track) => {
         try { track.dispose(); } catch {}
       });

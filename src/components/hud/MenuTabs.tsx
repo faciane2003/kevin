@@ -50,6 +50,7 @@ const MenuTabs: React.FC = () => {
   const togglePower = () => {
     setIconsExpanded((prev) => {
       const next = !prev;
+      window.dispatchEvent(new CustomEvent("power-toggle", { detail: { expanded: next } }));
       if (!next) {
         collapseIcons();
       }

@@ -89,6 +89,35 @@ const SPARKLE_POSITIONS = [
 
 const JournalPanel: React.FC = () => {
   const { activeTab, setActiveTab, inventory } = useHUD();
+  const [panelPos, setPanelPos] = React.useState<{ top: number; left: number }>({ top: 12, left: 70 });
+  React.useEffect(() => {
+    if (!activeTab) return;
+    const isMobile = window.matchMedia("(max-width: 600px)").matches;
+    const button = document.querySelector(`.menu-tab-button[title="${activeTab}"]`) as HTMLElement | null;
+    if (button) {
+      const rect = button.getBoundingClientRect();
+      setPanelPos({ top: rect.top, left: rect.right + (isMobile ? 10 : 14) });
+      return;
+    }
+    const baseTop = isMobile ? 10 : 12;
+    const baseLeft = isMobile ? 10 : 12;
+    const buttonSize = isMobile ? 36 : 40;
+    const gap = isMobile ? 6 : 8;
+    setPanelPos({ top: baseTop, left: baseLeft + buttonSize + gap + 8 });
+  }, [activeTab]);
+  React.useEffect(() => {
+    if (!activeTab) return;
+    const onResize = () => {
+      const isMobile = window.matchMedia("(max-width: 600px)").matches;
+      const button = document.querySelector(`.menu-tab-button[title="${activeTab}"]`) as HTMLElement | null;
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        setPanelPos({ top: rect.top, left: rect.right + (isMobile ? 10 : 14) });
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [activeTab]);
   if (!activeTab) return null;
   const sparkleColors: Record<string, { base: string; glow: string; glowSoft: string }> = {
     Quests: {
@@ -138,6 +167,10 @@ const JournalPanel: React.FC = () => {
       ? { title: "Items", body: inventory.length ? inventory : ["No items collected yet."] }
       : TAB_CONTENT[activeTab] ?? { title: activeTab, body: ["No entries yet."] };
 
+  const onItemClick = (label: string) => {
+    window.dispatchEvent(new CustomEvent("hud-item-click", { detail: { label } }));
+  };
+
   return (
     <div className="journal-overlay" role="dialog" aria-label={`${activeTab} Journal`}>
       <div
@@ -147,6 +180,8 @@ const JournalPanel: React.FC = () => {
             "--sparkle-color": sparkle.base,
             "--sparkle-glow": sparkle.glow,
             "--sparkle-glow-soft": sparkle.glowSoft,
+            left: `${panelPos.left}px`,
+            top: `${panelPos.top}px`,
           } as React.CSSProperties
         }
       >
@@ -171,7 +206,14 @@ const JournalPanel: React.FC = () => {
         </div>
         <div className={`journal-body journal-body-${activeTab?.toLowerCase() ?? ""}`}>
           {content.body.map((line) => (
-            <p key={line}>{line}</p>
+            <button
+              key={line}
+              type="button"
+              className="journal-item"
+              onClick={() => onItemClick(line)}
+            >
+              {line}
+            </button>
           ))}
         </div>
         <div className="hud-sparkles hud-sparkles-front" aria-hidden="true">

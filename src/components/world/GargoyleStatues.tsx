@@ -66,7 +66,7 @@ const GargoyleStatues: React.FC<Props> = ({ scene, buildings }) => {
           const inst = baseMesh.createInstance(`gargoyle_${idx}_${cidx}`);
           inst.parent = b.mesh;
           inst.position = corner.clone();
-          inst.scaling = new Vector3(1.2, 1.2, 1.2);
+          inst.scaling = new Vector3(1.8, 1.8, 1.8);
           inst.rotation.y = Math.PI;
           instances.push(inst);
         });

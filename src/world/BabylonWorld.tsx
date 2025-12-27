@@ -15,6 +15,7 @@ import {
   ColorCurves,
   MeshBuilder,
   StandardMaterial,
+  PBRMaterial,
   Color3,
   Color4,
   Material,
@@ -36,7 +37,6 @@ import BottomFog from "../components/world/BottomFog";
 import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
 import CloudLayer from "../components/world/CloudLayer";
-import ShootingStars from "../components/world/ShootingStars";
 import CityStars from "../components/world/CityStars";
 
 type BuildingInfo = { mesh: any; width: number; depth: number; height: number };
@@ -47,20 +47,21 @@ const BabylonWorld: React.FC = () => {
   const [buildingMaterials, setBuildingMaterials] = useState<StandardMaterial[]>([]);
   const [buildingInfos, setBuildingInfos] = useState<BuildingInfo[]>([]);
   const buildingInfosRef = useRef<BuildingInfo[]>([]);
+  const fogOpacityMaster = 0.1;
   const [borderFogSettings, setBorderFogSettings] = useState({
     enabled: true,
-    opacity: 0.78,
-    height: 274,
+    opacity: 0.5,
+    height: 76,
     inset: 26,
     fadeTop: 1,
     offsetX: -6,
-    offsetY: -16,
-    offsetZ: 0,
+    offsetY: -7,
+    offsetZ: -4,
     color: new Color3(0.0667, 0.0588, 0.2),
   });
   const [topFogSettings, setTopFogSettings] = useState({
     enabled: true,
-    opacity: 0.02,
+    opacity: 0.01,
     blur: 2,
     height: 164,
     radius: 1200,
@@ -73,7 +74,7 @@ const BabylonWorld: React.FC = () => {
   });
   const [middleFogSettings, setMiddleFogSettings] = useState({
     enabled: true,
-    opacity: 0.02,
+    opacity: 0.01,
     blur: 7,
     height: 74,
     radius: 1200,
@@ -85,8 +86,8 @@ const BabylonWorld: React.FC = () => {
     color: new Color3(0.53, 0.51, 0.79),
   });
   const [bottomFogSettings, setBottomFogSettings] = useState({
-    enabled: true,
-    opacity: 0.14,
+    enabled: false,
+    opacity: 0.07,
     blur: 8,
     height: 19,
     radius: 1200,
@@ -104,11 +105,6 @@ const BabylonWorld: React.FC = () => {
     windowFlicker: true,
     borderFog: true,
     gargoyles: true,
-    shootingStars: true,
-  });
-  const [skySettings, setSkySettings] = useState({
-    shootingStarsEnabled: true,
-    shootingStarsCount: 9,
   });
   const [starSettings, setStarSettings] = useState({
     enabled: true,
@@ -167,8 +163,30 @@ const BabylonWorld: React.FC = () => {
     () => ({
       ...borderFogSettings,
       enabled: borderFogSettings.enabled && perfSettings.borderFog,
+      opacity: borderFogSettings.opacity * fogOpacityMaster,
     }),
-    [borderFogSettings, perfSettings.borderFog]
+    [borderFogSettings, fogOpacityMaster, perfSettings.borderFog]
+  );
+  const topFogSettingsMemo = useMemo(
+    () => ({
+      ...topFogSettings,
+      opacity: topFogSettings.opacity * fogOpacityMaster,
+    }),
+    [fogOpacityMaster, topFogSettings]
+  );
+  const middleFogSettingsMemo = useMemo(
+    () => ({
+      ...middleFogSettings,
+      opacity: middleFogSettings.opacity * fogOpacityMaster,
+    }),
+    [fogOpacityMaster, middleFogSettings]
+  );
+  const bottomFogSettingsMemo = useMemo(
+    () => ({
+      ...bottomFogSettings,
+      opacity: bottomFogSettings.opacity * fogOpacityMaster,
+    }),
+    [bottomFogSettings, fogOpacityMaster]
   );
 
   useEffect(() => {
@@ -844,9 +862,37 @@ const BabylonWorld: React.FC = () => {
 
     // Ground (flat black plane)
     const ground = MeshBuilder.CreateGround("ground", { width: 2400, height: 2400 }, scene);
-    const groundMat = new StandardMaterial("groundMat", scene);
-    groundMat.diffuseColor = new Color3(0.14, 0.14, 0.14);
-    groundMat.specularColor = new Color3(0, 0, 0);
+    const groundMat = new PBRMaterial("groundMat", scene);
+    groundMat.albedoTexture = new Texture(
+      "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_B%20copy.jpg",
+      scene
+    );
+    groundMat.normalTexture = new Texture(
+      "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_N.jpg",
+      scene
+    );
+    groundMat.normalTexture.level = 1.25;
+    groundMat.metallicTexture = new Texture(
+      "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_ORM.jpg",
+      scene
+    );
+    groundMat.useAmbientOcclusionFromMetallicTextureRed = true;
+    groundMat.useRoughnessFromMetallicTextureGreen = true;
+    groundMat.useMetallnessFromMetallicTextureBlue = true;
+    groundMat.metallic = 1;
+    groundMat.roughness = 1;
+    if (groundMat.albedoTexture) {
+      groundMat.albedoTexture.uScale = 70;
+      groundMat.albedoTexture.vScale = 70;
+    }
+    if (groundMat.normalTexture) {
+      groundMat.normalTexture.uScale = 70;
+      groundMat.normalTexture.vScale = 70;
+    }
+    if (groundMat.metallicTexture) {
+      groundMat.metallicTexture.uScale = 70;
+      groundMat.metallicTexture.vScale = 70;
+    }
     ground.material = groundMat;
     ground.checkCollisions = true;
 
@@ -1005,7 +1051,6 @@ const BabylonWorld: React.FC = () => {
         windowFlicker: typeof detail.windowFlicker === "boolean" ? detail.windowFlicker : prev.windowFlicker,
         borderFog: typeof detail.borderFog === "boolean" ? detail.borderFog : prev.borderFog,
         gargoyles: typeof detail.gargoyles === "boolean" ? detail.gargoyles : prev.gargoyles,
-        shootingStars: typeof detail.shootingStars === "boolean" ? detail.shootingStars : prev.shootingStars,
       }));
       if (typeof detail.glow === "boolean") {
         glowLayer.isEnabled = detail.glow;
@@ -1102,19 +1147,6 @@ const BabylonWorld: React.FC = () => {
       });
     };
     window.addEventListener("asset-toggles", onAssetToggles as EventListener);
-    const onSkyEffectsSettings = (evt: Event) => {
-      const detail = (evt as CustomEvent<any>).detail;
-      if (!detail) return;
-      setSkySettings((prev) => ({
-        shootingStarsEnabled:
-          typeof detail.shootingStarsEnabled === "boolean"
-            ? detail.shootingStarsEnabled
-            : prev.shootingStarsEnabled,
-        shootingStarsCount:
-          typeof detail.shootingStarsCount === "number" ? detail.shootingStarsCount : prev.shootingStarsCount,
-      }));
-    };
-    window.addEventListener("sky-effects-settings", onSkyEffectsSettings as EventListener);
     const onBorderFogSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -1834,6 +1866,20 @@ const BabylonWorld: React.FC = () => {
         dir.normalize();
         cats.push({ root: catRoot, dir, speed: 0.5 + Math.random() * 0.4, nextTurn: performance.now() + 5000 });
       }
+      const previewRoot = new TransformNode("cat_preview", scene);
+      const previewInst = container.instantiateModelsToScene((name) => `cat_preview_${name}`);
+      previewInst.rootNodes.forEach((node) => {
+        const tnode = node as TransformNode;
+        tnode.parent = previewRoot;
+        if ((tnode as any).position) tnode.position = new Vector3(0, 0, 0);
+      });
+      previewInst.animationGroups?.forEach((group) => group.stop());
+      const previewDir = startTarget.subtract(startPos).normalize();
+      previewRoot.position = startPos.add(previewDir.scale(8));
+      previewRoot.position.y = 0.1;
+      previewRoot.scaling = new Vector3(0.9, 0.9, 0.9);
+      previewRoot.isPickable = false;
+      catRoots.push(previewRoot);
       catRootsRef.current = catRoots;
       catRootsRef.current.forEach((root) => root.setEnabled(assetTogglesRef.current.cats));
     };
@@ -1841,6 +1887,7 @@ const BabylonWorld: React.FC = () => {
 
     // Glowing ground shapes
     const groundGlowShapes: Mesh[] = [];
+    const glowShapeColliders: { mesh: Mesh; radius: number }[] = [];
     const glowColors = [
       new Color3(0.1, 0.8, 1.0),
       new Color3(1.0, 0.3, 0.7),
@@ -1851,14 +1898,19 @@ const BabylonWorld: React.FC = () => {
     for (let i = 0; i < 48; i += 1) {
       const type = i % 4;
       let shape: Mesh;
+      let baseRadius = 1.5;
       if (type === 0) {
         shape = MeshBuilder.CreateTorus(`glow_torus_${i}`, { diameter: 3, thickness: 0.4, tessellation: 12 }, scene);
+        baseRadius = 1.5;
       } else if (type === 1) {
         shape = MeshBuilder.CreateSphere(`glow_sphere_${i}`, { diameter: 2.4, segments: 10 }, scene);
+        baseRadius = 1.2;
       } else if (type === 2) {
         shape = MeshBuilder.CreateBox(`glow_box_${i}`, { size: 2.2 }, scene);
+        baseRadius = 1.6;
       } else {
         shape = MeshBuilder.CreateCylinder(`glow_cyl_${i}`, { height: 0.6, diameter: 2.6, tessellation: 12 }, scene);
+        baseRadius = 1.3;
       }
       const mat = new StandardMaterial(`glow_mat_${i}`, scene);
       const color = glowColors[Math.floor(Math.random() * glowColors.length)];
@@ -1876,6 +1928,7 @@ const BabylonWorld: React.FC = () => {
       shape.scaling = new Vector3(scale, scale, scale);
       shape.rotation.y = Math.random() * Math.PI * 2;
       shape.isPickable = false;
+      glowShapeColliders.push({ mesh: shape, radius: baseRadius * scale + 3 });
       groundGlowShapes.push(shape);
     }
     groundGlowShapesRef.current = groundGlowShapes;
@@ -2200,10 +2253,18 @@ const BabylonWorld: React.FC = () => {
       const tryMove = (delta: Vector3) => {
         const horizontal = new Vector3(delta.x, 0, delta.z);
         if (horizontal.lengthSquared() > 0) {
-          if (camera.checkCollisions && scene.collisionsEnabled && typeof (camera as any)._collideWithWorld === "function") {
-            (camera as any)._collideWithWorld(horizontal);
-          } else {
-            camera.position.addInPlace(horizontal);
+          const candidate = camera.position.add(horizontal);
+          const blockedByGlow = glowShapeColliders.some(({ mesh, radius }) => {
+            const dx = candidate.x - mesh.position.x;
+            const dz = candidate.z - mesh.position.z;
+            return dx * dx + dz * dz < radius * radius;
+          });
+          if (!blockedByGlow) {
+            if (camera.checkCollisions && scene.collisionsEnabled && typeof (camera as any)._collideWithWorld === "function") {
+              (camera as any)._collideWithWorld(horizontal);
+            } else {
+              camera.position.addInPlace(horizontal);
+            }
           }
         }
         const proposedPos = camera.position.clone();
@@ -2266,7 +2327,6 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("bottom-fog-settings", onBottomFogSettings as EventListener); } catch {}
       try { window.removeEventListener("star-settings", onStarSettings as EventListener); } catch {}
       try { window.removeEventListener("building-settings", onBuildingSettings as EventListener); } catch {}
-      try { window.removeEventListener("sky-effects-settings", onSkyEffectsSettings as EventListener); } catch {}
       try { window.removeEventListener("tree-positions", onTreePositions as EventListener); } catch {}
       try { window.removeEventListener("hud-item-click", onHudItemClick as EventListener); } catch {}
       try { window.removeEventListener("npc-dialogue", onDialogueOpen as EventListener); } catch {}
@@ -2332,9 +2392,9 @@ const BabylonWorld: React.FC = () => {
         settings={borderFogSettingsMemo}
       />
       {assetToggles.clouds ? <CloudLayer scene={sceneInstance} mask={cloudMaskSettings} /> : null}
-      <TopFog scene={sceneInstance} settings={topFogSettings} />
-      <MiddleFog scene={sceneInstance} settings={middleFogSettings} />
-      <BottomFog scene={sceneInstance} settings={bottomFogSettings} />
+      <TopFog scene={sceneInstance} settings={topFogSettingsMemo} />
+      <MiddleFog scene={sceneInstance} settings={middleFogSettingsMemo} />
+      <BottomFog scene={sceneInstance} settings={bottomFogSettingsMemo} />
       {starSettings.enabled ? (
         <CityStars
           scene={sceneInstance}
@@ -2360,9 +2420,6 @@ const BabylonWorld: React.FC = () => {
       ) : null}
       {perfSettings.gargoyles ? <GargoyleStatues scene={sceneInstance} buildings={buildingInfos} /> : null}
       <TreeField scene={sceneInstance} buildings={buildingInfos} signPositions={signPositions} />
-      {perfSettings.shootingStars && skySettings.shootingStarsEnabled ? (
-        <ShootingStars scene={sceneInstance} count={skySettings.shootingStarsCount} />
-      ) : null}
     </>
   );
 };

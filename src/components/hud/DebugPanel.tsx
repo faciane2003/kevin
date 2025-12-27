@@ -77,11 +77,6 @@ type BottomFogSettings = {
   color: string;
 };
 
-type SkySettings = {
-  shootingStarsEnabled: boolean;
-  shootingStarsCount: number;
-};
-
 type PerfSettings = {
   glow: boolean;
   postFx: boolean;
@@ -89,7 +84,6 @@ type PerfSettings = {
   windowFlicker: boolean;
   borderFog: boolean;
   gargoyles: boolean;
-  shootingStars: boolean;
 };
 
 type StarSettings = {
@@ -155,13 +149,13 @@ const DEFAULT_LIGHTS: LightSettings = {
   fogHeightFalloff: 0.001,
   fogColor: "#282f3e",
   borderFogEnabled: true,
-  borderFogOpacity: 0.78,
-  borderFogHeight: 274,
+  borderFogOpacity: 1,
+  borderFogHeight: 76,
   borderFogInset: 26,
   borderFogFadeTop: 1,
   borderFogOffsetX: -6,
-  borderFogOffsetY: -16,
-  borderFogOffsetZ: 0,
+  borderFogOffsetY: -7,
+  borderFogOffsetZ: -4,
   borderFogColor: "#110f33",
 };
 
@@ -185,11 +179,6 @@ const DEFAULT_TOP_FOG: TopFogSettings = {
   color: "#8782c9",
 };
 
-const DEFAULT_SKY: SkySettings = {
-  shootingStarsEnabled: true,
-  shootingStarsCount: 9,
-};
-
 const DEFAULT_PERF: PerfSettings = {
   glow: true,
   postFx: true,
@@ -197,7 +186,6 @@ const DEFAULT_PERF: PerfSettings = {
   windowFlicker: true,
   borderFog: true,
   gargoyles: true,
-  shootingStars: true,
 };
 
 const DEFAULT_MIDDLE_FOG: MiddleFogSettings = {
@@ -215,7 +203,7 @@ const DEFAULT_MIDDLE_FOG: MiddleFogSettings = {
 };
 
 const DEFAULT_BOTTOM_FOG: BottomFogSettings = {
-  enabled: true,
+  enabled: false,
   opacity: 0.14,
   blur: 8,
   height: 19,
@@ -285,7 +273,6 @@ const DebugPanel: React.FC = () => {
   const [topFog, setTopFog] = useState<TopFogSettings>(DEFAULT_TOP_FOG);
   const [middleFog, setMiddleFog] = useState<MiddleFogSettings>(DEFAULT_MIDDLE_FOG);
   const [bottomFog, setBottomFog] = useState<BottomFogSettings>(DEFAULT_BOTTOM_FOG);
-  const [sky, setSky] = useState<SkySettings>(DEFAULT_SKY);
   const [perf, setPerf] = useState<PerfSettings>(DEFAULT_PERF);
   const [stars, setStars] = useState<StarSettings>(DEFAULT_STARS);
   const [cloudMask, setCloudMask] = useState<CloudMaskSettings>(DEFAULT_CLOUD_MASK);
@@ -337,9 +324,6 @@ const DebugPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent("bottom-fog-settings", { detail: bottomFog }));
   }, [bottomFog]);
 
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("sky-effects-settings", { detail: sky }));
-  }, [sky]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("performance-settings", { detail: perf }));
@@ -368,7 +352,6 @@ const DebugPanel: React.FC = () => {
       topFog,
       middleFog,
       bottomFog,
-      sky,
       stars,
       cloudMask,
       postFx,
@@ -728,34 +711,6 @@ const DebugPanel: React.FC = () => {
       </div>
 
       <div className="debug-section">
-        <div className="debug-section-title">Sky Effects</div>
-        <label className="light-row">
-          <span>Shooting Stars</span>
-          <input
-            type="checkbox"
-            checked={sky.shootingStarsEnabled}
-            onChange={(e) =>
-              setSky((prev) => ({ ...prev, shootingStarsEnabled: e.target.checked }))
-            }
-          />
-        </label>
-        <label className="light-row">
-          <span>Star Count</span>
-          <input
-            type="range"
-            min={0}
-            max={20}
-            step={1}
-            value={sky.shootingStarsCount}
-            onChange={(e) =>
-              setSky((prev) => ({ ...prev, shootingStarsCount: parseInt(e.target.value, 10) }))
-            }
-          />
-          <span className="light-value">{sky.shootingStarsCount}</span>
-        </label>
-      </div>
-
-      <div className="debug-section">
         <div className="debug-section-title">Middle Fog</div>
         <label className="light-row">
           <span>Enabled</span>
@@ -990,7 +945,6 @@ const DebugPanel: React.FC = () => {
             ["windowFlicker", "Window Flicker"],
             ["borderFog", "Border Fog"],
             ["gargoyles", "Gargoyles"],
-            ["shootingStars", "Shooting Stars"],
           ] as Array<[keyof PerfSettings, string]>
         ).map(([key, label]) => (
           <label key={key} className="light-row">
