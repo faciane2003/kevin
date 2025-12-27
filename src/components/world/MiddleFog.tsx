@@ -12,7 +12,7 @@ import {
   VertexBuffer,
 } from "@babylonjs/core";
 
-type TopFogSettings = {
+type MiddleFogSettings = {
   enabled: boolean;
   opacity: number;
   blur: number;
@@ -28,10 +28,10 @@ type TopFogSettings = {
 
 type Props = {
   scene: Scene | null;
-  settings: TopFogSettings;
+  settings: MiddleFogSettings;
 };
 
-const TopFog: React.FC<Props> = ({ scene, settings }) => {
+const MiddleFog: React.FC<Props> = ({ scene, settings }) => {
   const rootRef = useRef<TransformNode | null>(null);
   const fogRef = useRef<Mesh | null>(null);
   const matRef = useRef<StandardMaterial | null>(null);
@@ -106,13 +106,13 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
 
   useEffect(() => {
     if (!scene) return;
-    const root = new TransformNode("topFogRoot", scene);
+    const root = new TransformNode("middleFogRoot", scene);
     rootRef.current = root;
 
-    const gradient = new DynamicTexture("topFogGradient", { width: 128, height: 128 }, scene, false);
+    const gradient = new DynamicTexture("middleFogGradient", { width: 128, height: 128 }, scene, false);
     gradientRef.current = gradient;
 
-    const mat = new StandardMaterial("topFogMat", scene);
+    const mat = new StandardMaterial("middleFogMat", scene);
     mat.diffuseTexture = gradient;
     mat.opacityTexture = gradient;
     mat.emissiveTexture = gradient;
@@ -126,7 +126,7 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
     matRef.current = mat;
 
     const fog = MeshBuilder.CreateCylinder(
-      "topFogCylinder",
+      "middleFogCylinder",
       { diameter: 2, height: 1, tessellation: 32 },
       scene
     );
@@ -203,4 +203,4 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
   return null;
 };
 
-export default TopFog;
+export default MiddleFog;

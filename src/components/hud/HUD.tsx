@@ -221,6 +221,14 @@ const DialoguePanel: React.FC<{
   }, [npcId]);
 
   useEffect(() => {
+    if (!npcId) return;
+    window.dispatchEvent(new CustomEvent("npc-dialogue-open", { detail: { npcId } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("npc-dialogue-close"));
+    };
+  }, [npcId]);
+
+  useEffect(() => {
     if (!isTerminal) return;
     let fadeTimer: number | undefined;
     let closeTimer: number | undefined;
@@ -260,6 +268,19 @@ const DialoguePanel: React.FC<{
       <div className="dialogue-stack">
         {portraitSrc ? (
           <div className="dialogue-portrait dialogue-portrait-floating">
+            <div className="portrait-sparkles portrait-sparkles-back" aria-hidden="true">
+              {PORTRAIT_SPARKLES.map((pos, idx) => (
+                <span
+                  key={`portrait-back-${idx}`}
+                  className="portrait-sparkle portrait-sparkle-back"
+                  style={{
+                    ...pos,
+                    animationDelay: `${0.05 + idx * 0.12}s`,
+                    animationDuration: `${2 + (idx % 4)}s`,
+                  }}
+                />
+              ))}
+            </div>
             <div className="portrait-sparkles" aria-hidden="true">
               {PORTRAIT_SPARKLES.map((pos, idx) => (
                 <span

@@ -31,7 +31,8 @@ import WorldSounds from "../components/sounds/WorldSounds";
 import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
 import BorderFog from "../components/world/BorderFog";
 import TopFog from "../components/world/TopFog";
-import GroundFog from "../components/world/GroundFog";
+import MiddleFog from "../components/world/MiddleFog";
+import BottomFog from "../components/world/BottomFog";
 import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
 import CloudLayer from "../components/world/CloudLayer";
@@ -48,36 +49,53 @@ const BabylonWorld: React.FC = () => {
   const buildingInfosRef = useRef<BuildingInfo[]>([]);
   const [borderFogSettings, setBorderFogSettings] = useState({
     enabled: true,
-    opacity: 0.42,
-    height: 50,
+    opacity: 0.78,
+    height: 274,
     inset: 26,
     fadeTop: 1,
-    offsetX: -4,
-    offsetY: -23,
+    offsetX: -6,
+    offsetY: -16,
     offsetZ: 0,
-    color: new Color3(0.07, 0, 1),
+    color: new Color3(0.0667, 0.0588, 0.2),
   });
   const [topFogSettings, setTopFogSettings] = useState({
     enabled: true,
-    opacity: 0.08,
-    height: 5,
-    radius: 830,
-    fadeTop: 1,
-    offsetX: 14,
-    offsetY: -4,
-    offsetZ: 0,
-    color: new Color3(0.13, 0.2, 0.4),
+    opacity: 0.02,
+    blur: 2,
+    height: 164,
+    radius: 1200,
+    fadeTop: 0.94,
+    timeScale: 0.1,
+    offsetX: 48,
+    offsetY: 150,
+    offsetZ: 300,
+    color: new Color3(0.53, 0.51, 0.79),
   });
-  const [groundFogSettings, setGroundFogSettings] = useState({
+  const [middleFogSettings, setMiddleFogSettings] = useState({
     enabled: true,
-    opacity: 0.08,
-    height: 5,
-    radius: 830,
+    opacity: 0.02,
+    blur: 7,
+    height: 74,
+    radius: 1200,
     fadeTop: 1,
-    offsetX: 14,
-    offsetY: -4,
-    offsetZ: 0,
-    color: new Color3(0.13, 0.2, 0.4),
+    timeScale: 0.1,
+    offsetX: 48,
+    offsetY: -16,
+    offsetZ: -1,
+    color: new Color3(0.53, 0.51, 0.79),
+  });
+  const [bottomFogSettings, setBottomFogSettings] = useState({
+    enabled: true,
+    opacity: 0.14,
+    blur: 8,
+    height: 19,
+    radius: 1200,
+    fadeTop: 1,
+    timeScale: 0.1,
+    offsetX: 48,
+    offsetY: -16,
+    offsetZ: -1,
+    color: new Color3(0.53, 0.51, 0.79),
   });
   const [perfSettings, setPerfSettings] = useState({
     glow: true,
@@ -90,20 +108,61 @@ const BabylonWorld: React.FC = () => {
   });
   const [skySettings, setSkySettings] = useState({
     shootingStarsEnabled: true,
-    shootingStarsCount: 6,
+    shootingStarsCount: 9,
   });
   const [starSettings, setStarSettings] = useState({
     enabled: true,
-    count: 300,
-    radius: 1080,
-    minHeight: 170,
-    maxHeight: 310,
-    scale: 1,
+    count: 55,
+    radius: 200,
+    minHeight: 165,
+    maxHeight: 440,
+    scale: 0.8,
+  });
+  const [assetToggles, setAssetToggles] = useState({
+    glowSculptures: true,
+    cats: true,
+    neonBillboards: true,
+    clouds: false,
+    airplanes: true,
+  });
+  const [cloudMaskSettings, setCloudMaskSettings] = useState({
+    scale: 0.55,
+    scaleX: 0.8,
+    scaleY: 0.7,
+    feather: 0.98,
+    invert: false,
+    lockScale: false,
+  });
+  const [postFxSettings, setPostFxSettings] = useState({
+    enabled: true,
+    depthOfFieldEnabled: false,
+    depthOfFieldFocusDistance: 10250,
+    depthOfFieldFStop: 2,
+    depthOfFieldBlurLevel: 2,
+    colorGradingEnabled: true,
+    globalHue: 41,
+    globalDensity: 46,
+    globalSaturation: 49,
+    globalExposure: 29,
+    highlightsHue: 211,
+    highlightsDensity: 52,
+    highlightsSaturation: 38,
+    shadowsHue: 227,
+    shadowsDensity: 44,
+    shadowsSaturation: 20,
   });
   const [treePositions, setTreePositions] = useState<Vector3[]>([]);
   const treePositionsRef = useRef<Vector3[]>([]);
   const glowLayerRef = useRef<GlowLayer | null>(null);
+  const assetTogglesRef = useRef(assetToggles);
+  const groundGlowShapesRef = useRef<Mesh[]>([]);
+  const catRootsRef = useRef<TransformNode[]>([]);
+  const planeRootsRef = useRef<TransformNode[]>([]);
+  const planeTrailsRef = useRef<any[]>([]);
+  const signPoleRef = useRef<TransformNode[]>([]);
   const signPositions = useMemo(() => [new Vector3(-120, 0, 20), new Vector3(180, 0, 10)], []);
+  const zRoads = useMemo(() => [-260, -180, -100, -20, 60, 140, 220, 300], []);
+  const xRoads = useMemo(() => [-300, -220, -140, -60, 20, 100, 180, 260], []);
   const borderFogSettingsMemo = useMemo(
     () => ({
       ...borderFogSettings,
@@ -117,17 +176,40 @@ const BabylonWorld: React.FC = () => {
   }, [treePositions]);
 
   useEffect(() => {
+    assetTogglesRef.current = assetToggles;
+  }, [assetToggles]);
+
+  useEffect(() => {
     if (!canvasRef.current) return;
 
     const engine = new Engine(canvasRef.current, true);
     const scene = new Scene(engine);
-    scene.maxSimultaneousLights = 4;
+    (scene as any).maxSimultaneousLights = 4;
     setSceneInstance(scene);
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
 
     // First-person camera
-    const startPos = new Vector3(-230.77, 2.18, -4.26);
-    const startTarget = new Vector3(-191.22, 7.88, -6.19);
+    const loadCameraStart = () => {
+      try {
+        const raw = window.localStorage.getItem("cameraStart");
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as {
+          pos?: { x: number; y: number; z: number };
+          target?: { x: number; y: number; z: number };
+        };
+        if (!parsed?.pos || !parsed?.target) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
+    };
+    const savedStart = loadCameraStart();
+    let startPos = new Vector3(-313.81870170047546, 2, -39.08133107852521);
+    let startTarget = new Vector3(-274.8244376788494, 8.78146578152467, -44.905542683113254);
+    if (savedStart?.pos && savedStart?.target) {
+      startPos = new Vector3(savedStart.pos.x, savedStart.pos.y, savedStart.pos.z);
+      startTarget = new Vector3(savedStart.target.x, savedStart.target.y, savedStart.target.z);
+    }
     const camera = new UniversalCamera("camera", startPos.clone(), scene);
     camera.setTarget(startTarget.clone());
     scene.collisionsEnabled = true;
@@ -156,13 +238,14 @@ const BabylonWorld: React.FC = () => {
       const forward = camera.getDirection(new Vector3(0, 0, 1));
       sparkleAnchor.position = camera.position.add(forward.scale(2.2));
       sparkleAnchor.position.y = camera.position.y - 1.2;
-      system.emitter = sparkleAnchor;
-      system.minEmitBox = new Vector3(-0.6, -0.4, -0.6);
-      system.maxEmitBox = new Vector3(0.6, 0.4, 0.6);
+      system.emitter = sparkleAnchor as any;
+      system.minEmitBox = new Vector3(-1.2, -0.4, -1.2);
+      system.maxEmitBox = new Vector3(1.2, 0.4, 1.2);
       system.color1 = color;
       system.color2 = color;
-      system.minSize = 0.35;
-      system.maxSize = 0.9;
+      system.colorDead = new Color4(color.r, color.g, color.b, 0);
+      system.minSize = 0.175;
+      system.maxSize = 0.45;
       system.minLifeTime = 2;
       system.maxLifeTime = 5;
       system.emitRate = 1600;
@@ -250,19 +333,13 @@ const BabylonWorld: React.FC = () => {
     debugOverlayWrap.appendChild(debugOverlay);
     debugOverlayWrap.appendChild(copyDebugButton);
     document.body.appendChild(debugOverlayWrap);
-    let showDebugOverlay = false;
     const isTextInputActive = () => {
       const active = document.activeElement;
       if (!active) return false;
       const tag = active.tagName.toLowerCase();
       return tag === "input" || tag === "textarea";
     };
-    const onToggleDebugOverlay = (evt: KeyboardEvent) => {
-      if (evt.key.toLowerCase() !== "p") return;
-      showDebugOverlay = !showDebugOverlay;
-      debugOverlayWrap.style.display = showDebugOverlay ? "block" : "none";
-    };
-    window.addEventListener("keydown", onToggleDebugOverlay);
+    let lastCameraUiUpdate = 0;
 
     document.body.style.userSelect = "none";
     (document.body.style as any).webkitUserSelect = "none";
@@ -272,6 +349,19 @@ const BabylonWorld: React.FC = () => {
       try { document.exitPointerLock?.(); } catch {}
     };
     window.addEventListener("npc-dialogue", onDialogueOpen as EventListener);
+    const onCameraStartUpdate = (evt: Event) => {
+      const detail = (evt as CustomEvent<{
+        pos?: { x: number; y: number; z: number };
+        target?: { x: number; y: number; z: number };
+      }>).detail;
+      if (!detail?.pos || !detail?.target) return;
+      camera.position.set(detail.pos.x, detail.pos.y, detail.pos.z);
+      camera.setTarget(new Vector3(detail.target.x, detail.target.y, detail.target.z));
+      try {
+        window.localStorage.setItem("cameraStart", JSON.stringify(detail));
+      } catch {}
+    };
+    window.addEventListener("camera-start-update", onCameraStartUpdate as EventListener);
 
 
     const buildingTilingState = { u: 1, v: 2.5 };
@@ -655,12 +745,12 @@ const BabylonWorld: React.FC = () => {
 
     // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0.3;
+    hemi.intensity = 0.6;
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
     hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
     const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 1.9;
+    ambientLight.intensity = 2.65;
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
@@ -691,25 +781,23 @@ const BabylonWorld: React.FC = () => {
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 1.25;
+    moonLight.intensity = 1.4;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
+    const moonSpotPos = new Vector3(340, 717, -130);
     const moonSpot = new SpotLight(
       "moonSpot",
-      moon.position.clone(),
+      moonSpotPos.clone(),
       new Vector3(0, -1, 0),
-      1.18,
+      1.32,
       2,
       scene
     );
-    moonSpot.intensity = 2.8;
+    moonSpot.intensity = 5;
     moonSpot.diffuse = new Color3(0.85, 0.9, 1.0);
 
-    const cityCenter = new Vector3(0, 0, 0);
-    const baseDir = cityCenter.subtract(moonSpot.position).normalize();
-    let moonSpotYaw = (Math.atan2(baseDir.x, baseDir.z) * 180) / Math.PI;
-    let moonSpotPitch =
-      (Math.atan2(baseDir.y, Math.sqrt(baseDir.x * baseDir.x + baseDir.z * baseDir.z)) * 180) / Math.PI;
+    let moonSpotYaw = -93;
+    let moonSpotPitch = -47;
     const updateMoonSpotDirection = () => {
       const yaw = (moonSpotYaw * Math.PI) / 180;
       const pitch = (moonSpotPitch * Math.PI) / 180;
@@ -762,9 +850,6 @@ const BabylonWorld: React.FC = () => {
     ground.material = groundMat;
     ground.checkCollisions = true;
 
-    const zRoads = [-260, -180, -100, -20, 60, 140, 220, 300];
-    const xRoads = [-300, -220, -140, -60, 20, 100, 180, 260];
-
     const walkMeshes = new Set([ground.name]);
 
     // Distant mountains removed for now
@@ -774,8 +859,8 @@ const BabylonWorld: React.FC = () => {
     const fogSettings = {
       enabled: true,
       density: 0.0045,
-      intensity: 0.25,
-      heightFalloff: 0.005,
+      intensity: 0.2,
+      heightFalloff: 0.001,
       color: parseHexColor("#282f3e"),
     };
     scene.fogMode = Scene.FOGMODE_EXP2;
@@ -785,7 +870,7 @@ const BabylonWorld: React.FC = () => {
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
     glowLayerRef.current = glowLayer;
-    glowLayer.intensity = 0.85;
+    glowLayer.intensity = 0.7;
     glowLayer.addExcludedMesh(moon);
 
     const pipeline = new DefaultRenderingPipeline(
@@ -817,10 +902,44 @@ const BabylonWorld: React.FC = () => {
     scene.imageProcessingConfiguration.colorCurves = curves;
     scene.imageProcessingConfiguration.colorCurvesEnabled = true;
 
+    const applyPostFx = (detail: any) => {
+      if (typeof detail.enabled === "boolean") {
+        (pipeline as any).enabled = detail.enabled && perfSettings.postFx;
+      }
+      if (typeof detail.depthOfFieldEnabled === "boolean") {
+        pipeline.depthOfFieldEnabled = detail.depthOfFieldEnabled;
+      }
+      if (typeof detail.depthOfFieldBlurLevel === "number") {
+        pipeline.depthOfFieldBlurLevel = detail.depthOfFieldBlurLevel;
+      }
+      if (pipeline.depthOfField) {
+        if (typeof detail.depthOfFieldFocusDistance === "number") {
+          pipeline.depthOfField.focusDistance = detail.depthOfFieldFocusDistance;
+        }
+        if (typeof detail.depthOfFieldFStop === "number") {
+          pipeline.depthOfField.fStop = detail.depthOfFieldFStop;
+        }
+      }
+      if (typeof detail.colorGradingEnabled === "boolean") {
+        scene.imageProcessingConfiguration.colorCurvesEnabled = detail.colorGradingEnabled;
+      }
+      if (typeof detail.globalHue === "number") curves.globalHue = detail.globalHue;
+      if (typeof detail.globalDensity === "number") curves.globalDensity = detail.globalDensity;
+      if (typeof detail.globalSaturation === "number") curves.globalSaturation = detail.globalSaturation;
+      if (typeof detail.globalExposure === "number") curves.globalExposure = detail.globalExposure;
+      if (typeof detail.highlightsHue === "number") curves.highlightsHue = detail.highlightsHue;
+      if (typeof detail.highlightsDensity === "number") curves.highlightsDensity = detail.highlightsDensity;
+      if (typeof detail.highlightsSaturation === "number") curves.highlightsSaturation = detail.highlightsSaturation;
+      if (typeof detail.shadowsHue === "number") curves.shadowsHue = detail.shadowsHue;
+      if (typeof detail.shadowsDensity === "number") curves.shadowsDensity = detail.shadowsDensity;
+      if (typeof detail.shadowsSaturation === "number") curves.shadowsSaturation = detail.shadowsSaturation;
+    };
+    applyPostFx(postFxSettings);
+
     // Slightly reduce quality on touch devices
     if (isTouchDevice) {
       pipeline.depthOfFieldBlurLevel = 1;
-      glowLayer.intensity = 0.85;
+      glowLayer.intensity = 0.7;
     }
 
     const onLightSettings = (evt: Event) => {
@@ -892,7 +1011,7 @@ const BabylonWorld: React.FC = () => {
         glowLayer.isEnabled = detail.glow;
       }
       if (typeof detail.postFx === "boolean") {
-        (pipeline as any).enabled = detail.postFx;
+        (pipeline as any).enabled = detail.postFx && postFxSettings.enabled;
       }
       if (typeof detail.collisions === "boolean") {
         scene.collisionsEnabled = detail.collisions;
@@ -903,6 +1022,86 @@ const BabylonWorld: React.FC = () => {
       }
     };
     window.addEventListener("performance-settings", onPerfSettings as EventListener);
+    const onCloudSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setCloudMaskSettings((prev) => ({
+        scale: typeof detail.scale === "number" ? detail.scale : prev.scale,
+        scaleX: typeof detail.scaleX === "number" ? detail.scaleX : prev.scaleX,
+        scaleY: typeof detail.scaleY === "number" ? detail.scaleY : prev.scaleY,
+        feather: typeof detail.feather === "number" ? detail.feather : prev.feather,
+        invert: typeof detail.invert === "boolean" ? detail.invert : prev.invert,
+        lockScale: typeof detail.lockScale === "boolean" ? detail.lockScale : prev.lockScale,
+      }));
+    };
+    window.addEventListener("cloud-settings", onCloudSettings as EventListener);
+    const onPostFxSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setPostFxSettings((prev) => ({
+        enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
+        depthOfFieldEnabled:
+          typeof detail.depthOfFieldEnabled === "boolean"
+            ? detail.depthOfFieldEnabled
+            : prev.depthOfFieldEnabled,
+        depthOfFieldFocusDistance:
+          typeof detail.depthOfFieldFocusDistance === "number"
+            ? detail.depthOfFieldFocusDistance
+            : prev.depthOfFieldFocusDistance,
+        depthOfFieldFStop:
+          typeof detail.depthOfFieldFStop === "number" ? detail.depthOfFieldFStop : prev.depthOfFieldFStop,
+        depthOfFieldBlurLevel:
+          typeof detail.depthOfFieldBlurLevel === "number"
+            ? detail.depthOfFieldBlurLevel
+            : prev.depthOfFieldBlurLevel,
+        colorGradingEnabled:
+          typeof detail.colorGradingEnabled === "boolean"
+            ? detail.colorGradingEnabled
+            : prev.colorGradingEnabled,
+        globalHue: typeof detail.globalHue === "number" ? detail.globalHue : prev.globalHue,
+        globalDensity: typeof detail.globalDensity === "number" ? detail.globalDensity : prev.globalDensity,
+        globalSaturation:
+          typeof detail.globalSaturation === "number" ? detail.globalSaturation : prev.globalSaturation,
+        globalExposure: typeof detail.globalExposure === "number" ? detail.globalExposure : prev.globalExposure,
+        highlightsHue:
+          typeof detail.highlightsHue === "number" ? detail.highlightsHue : prev.highlightsHue,
+        highlightsDensity:
+          typeof detail.highlightsDensity === "number" ? detail.highlightsDensity : prev.highlightsDensity,
+        highlightsSaturation:
+          typeof detail.highlightsSaturation === "number"
+            ? detail.highlightsSaturation
+            : prev.highlightsSaturation,
+        shadowsHue: typeof detail.shadowsHue === "number" ? detail.shadowsHue : prev.shadowsHue,
+        shadowsDensity:
+          typeof detail.shadowsDensity === "number" ? detail.shadowsDensity : prev.shadowsDensity,
+        shadowsSaturation:
+          typeof detail.shadowsSaturation === "number" ? detail.shadowsSaturation : prev.shadowsSaturation,
+      }));
+      applyPostFx(detail);
+    };
+    window.addEventListener("postfx-settings", onPostFxSettings as EventListener);
+    const onAssetToggles = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      const nextToggles = {
+        glowSculptures:
+          typeof detail.glowSculptures === "boolean" ? detail.glowSculptures : assetTogglesRef.current.glowSculptures,
+        cats: typeof detail.cats === "boolean" ? detail.cats : assetTogglesRef.current.cats,
+        neonBillboards:
+          typeof detail.neonBillboards === "boolean" ? detail.neonBillboards : assetTogglesRef.current.neonBillboards,
+        clouds: typeof detail.clouds === "boolean" ? detail.clouds : assetTogglesRef.current.clouds,
+        airplanes: typeof detail.airplanes === "boolean" ? detail.airplanes : assetTogglesRef.current.airplanes,
+      };
+      setAssetToggles(nextToggles);
+      groundGlowShapesRef.current.forEach((shape) => shape.setEnabled(nextToggles.glowSculptures));
+      catRootsRef.current.forEach((root) => root.setEnabled(nextToggles.cats));
+      signPoleRef.current.forEach((root) => root.setEnabled(nextToggles.neonBillboards));
+      planeRootsRef.current.forEach((root) => root.setEnabled(nextToggles.airplanes));
+      planeTrailsRef.current.forEach((trail) => {
+        if (trail?.setEnabled) trail.setEnabled(nextToggles.airplanes);
+      });
+    };
+    window.addEventListener("asset-toggles", onAssetToggles as EventListener);
     const onSkyEffectsSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -938,9 +1137,11 @@ const BabylonWorld: React.FC = () => {
       setTopFogSettings((prev) => ({
         enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
         opacity: typeof detail.opacity === "number" ? detail.opacity : prev.opacity,
+        blur: typeof detail.blur === "number" ? detail.blur : prev.blur,
         height: typeof detail.height === "number" ? detail.height : prev.height,
         radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
         fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        timeScale: typeof detail.timeScale === "number" ? detail.timeScale : prev.timeScale,
         offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
         offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
         offsetZ: typeof detail.offsetZ === "number" ? detail.offsetZ : prev.offsetZ,
@@ -948,22 +1149,42 @@ const BabylonWorld: React.FC = () => {
       }));
     };
     window.addEventListener("top-fog-settings", onTopFogSettings as EventListener);
-    const onGroundFogSettings = (evt: Event) => {
+    const onMiddleFogSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
-      setGroundFogSettings((prev) => ({
+      setMiddleFogSettings((prev) => ({
         enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
         opacity: typeof detail.opacity === "number" ? detail.opacity : prev.opacity,
+        blur: typeof detail.blur === "number" ? detail.blur : prev.blur,
         height: typeof detail.height === "number" ? detail.height : prev.height,
         radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
         fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        timeScale: typeof detail.timeScale === "number" ? detail.timeScale : prev.timeScale,
         offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
         offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
         offsetZ: typeof detail.offsetZ === "number" ? detail.offsetZ : prev.offsetZ,
         color: typeof detail.color === "string" ? parseHexColor(detail.color) : prev.color,
       }));
     };
-    window.addEventListener("ground-fog-settings", onGroundFogSettings as EventListener);
+    window.addEventListener("middle-fog-settings", onMiddleFogSettings as EventListener);
+    const onBottomFogSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setBottomFogSettings((prev) => ({
+        enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
+        opacity: typeof detail.opacity === "number" ? detail.opacity : prev.opacity,
+        blur: typeof detail.blur === "number" ? detail.blur : prev.blur,
+        height: typeof detail.height === "number" ? detail.height : prev.height,
+        radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
+        fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        timeScale: typeof detail.timeScale === "number" ? detail.timeScale : prev.timeScale,
+        offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
+        offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
+        offsetZ: typeof detail.offsetZ === "number" ? detail.offsetZ : prev.offsetZ,
+        color: typeof detail.color === "string" ? parseHexColor(detail.color) : prev.color,
+      }));
+    };
+    window.addEventListener("bottom-fog-settings", onBottomFogSettings as EventListener);
     const onStarSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -1289,6 +1510,8 @@ const BabylonWorld: React.FC = () => {
     signB_black.position.z = -0.16;
     addBillboardBulbs(signB, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_front", 0.6);
     addBillboardBulbs(signB_back, 46, 16, new Color3(1.0, 0.7, 0.2), "signB_back", 0.6);
+    signPoleRef.current = [signPoleA, signPoleB];
+    signPoleRef.current.forEach((root) => root.setEnabled(assetTogglesRef.current.neonBillboards));
 
     const adsEnabled = false;
     const adNames = [
@@ -1465,6 +1688,19 @@ const BabylonWorld: React.FC = () => {
       });
     });
 
+    const npcDialogueState = { active: false, lastScan: 0 };
+    const npcCooldowns = new Map<string, number>();
+    const onNpcOpen = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ npcId?: string }>).detail;
+      npcDialogueState.active = true;
+      if (detail?.npcId) npcCooldowns.set(detail.npcId, performance.now());
+    };
+    const onNpcClose = () => {
+      npcDialogueState.active = false;
+    };
+    window.addEventListener("npc-dialogue-open", onNpcOpen as EventListener);
+    window.addEventListener("npc-dialogue-close", onNpcClose as EventListener);
+
     const npcModelUrls = ["/models/RiggedFigure.glb", "/models/CesiumMan.glb"];
     const npcModelScales = [3.6, 3.2];
     const loadNpcModels = async () => {
@@ -1562,7 +1798,7 @@ const BabylonWorld: React.FC = () => {
       } catch {
         return;
       }
-      if (scene.isDisposed()) {
+      if (scene.isDisposed) {
         container.dispose();
         return;
       }
@@ -1598,6 +1834,8 @@ const BabylonWorld: React.FC = () => {
         dir.normalize();
         cats.push({ root: catRoot, dir, speed: 0.5 + Math.random() * 0.4, nextTurn: performance.now() + 5000 });
       }
+      catRootsRef.current = catRoots;
+      catRootsRef.current.forEach((root) => root.setEnabled(assetTogglesRef.current.cats));
     };
     loadCats();
 
@@ -1640,6 +1878,8 @@ const BabylonWorld: React.FC = () => {
       shape.isPickable = false;
       groundGlowShapes.push(shape);
     }
+    groundGlowShapesRef.current = groundGlowShapes;
+    groundGlowShapesRef.current.forEach((shape) => shape.setEnabled(assetTogglesRef.current.glowSculptures));
 
     // Airplanes with white trails
     const planeMat = new StandardMaterial("planeMat", scene);
@@ -1700,8 +1940,12 @@ const BabylonWorld: React.FC = () => {
       trail.color = new Color3(1, 1, 1);
       trail.alpha = 1;
       (trail as any).fogEnabled = false;
+      root.setEnabled(assetTogglesRef.current.airplanes);
+      trail.setEnabled(assetTogglesRef.current.airplanes);
       planes.push({ root, angle, radius, center, speed, height, drift, trail, trailPoints, trailColors });
     }
+    planeRootsRef.current = planes.map((p) => p.root);
+    planeTrailsRef.current = planes.map((p) => p.trail);
 
     // Cars removed (car1.glb deleted).
 
@@ -1727,42 +1971,46 @@ const BabylonWorld: React.FC = () => {
       });
 
       const now = performance.now();
-      cats.forEach((cat) => {
-        if (now >= cat.nextTurn) {
-          const dir = new Vector3(Math.random() - 0.5, 0, Math.random() - 0.5);
-          dir.normalize();
-          cat.dir = dir;
-          cat.nextTurn = now + 5000;
-        }
-        const step = cat.dir.scale(cat.speed * dt);
-        const nextPos = cat.root.position.add(step);
-        if (nextPos.x < catBounds.minX || nextPos.x > catBounds.maxX) cat.dir.x *= -1;
-        if (nextPos.z < catBounds.minZ || nextPos.z > catBounds.maxZ) cat.dir.z *= -1;
-        cat.root.position.addInPlace(cat.dir.scale(cat.speed * dt));
-        cat.root.rotation.y = Math.atan2(cat.dir.x, cat.dir.z);
-      });
+      if (assetTogglesRef.current.cats) {
+        cats.forEach((cat) => {
+          if (now >= cat.nextTurn) {
+            const dir = new Vector3(Math.random() - 0.5, 0, Math.random() - 0.5);
+            dir.normalize();
+            cat.dir = dir;
+            cat.nextTurn = now + 5000;
+          }
+          const step = cat.dir.scale(cat.speed * dt);
+          const nextPos = cat.root.position.add(step);
+          if (nextPos.x < catBounds.minX || nextPos.x > catBounds.maxX) cat.dir.x *= -1;
+          if (nextPos.z < catBounds.minZ || nextPos.z > catBounds.maxZ) cat.dir.z *= -1;
+          cat.root.position.addInPlace(cat.dir.scale(cat.speed * dt));
+          cat.root.rotation.y = Math.atan2(cat.dir.x, cat.dir.z);
+        });
+      }
 
-      planes.forEach((p) => {
-        p.center.addInPlace(p.drift.scale(dt));
-        if (p.center.x > planeBounds.maxX) p.center.x = planeBounds.minX;
-        if (p.center.x < planeBounds.minX) p.center.x = planeBounds.maxX;
-        if (p.center.z > planeBounds.maxZ) p.center.z = planeBounds.minZ;
-        if (p.center.z < planeBounds.minZ) p.center.z = planeBounds.maxZ;
+      if (assetTogglesRef.current.airplanes) {
+        planes.forEach((p) => {
+          p.center.addInPlace(p.drift.scale(dt));
+          if (p.center.x > planeBounds.maxX) p.center.x = planeBounds.minX;
+          if (p.center.x < planeBounds.minX) p.center.x = planeBounds.maxX;
+          if (p.center.z > planeBounds.maxZ) p.center.z = planeBounds.minZ;
+          if (p.center.z < planeBounds.minZ) p.center.z = planeBounds.maxZ;
 
-        p.angle += p.speed * dt;
-        const px = p.center.x + Math.cos(p.angle) * p.radius;
-        const pz = p.center.z + Math.sin(p.angle) * p.radius;
-        p.root.position.set(px, p.height, pz);
-        p.root.rotation.y = -p.angle + Math.PI / 2;
+          p.angle += p.speed * dt;
+          const px = p.center.x + Math.cos(p.angle) * p.radius;
+          const pz = p.center.z + Math.sin(p.angle) * p.radius;
+          p.root.position.set(px, p.height, pz);
+          p.root.rotation.y = -p.angle + Math.PI / 2;
 
-        p.trailPoints.pop();
-        p.trailPoints.unshift(new Vector3(px, p.height, pz));
-        MeshBuilder.CreateLines(
-          "plane_trail_update",
-          { points: p.trailPoints, colors: p.trailColors, instance: p.trail },
-          scene
-        );
-      });
+          p.trailPoints.pop();
+          p.trailPoints.unshift(new Vector3(px, p.height, pz));
+          MeshBuilder.CreateLines(
+            "plane_trail_update",
+            { points: p.trailPoints, colors: p.trailColors, instance: p.trail },
+            scene
+          );
+        });
+      }
 
       pickups.forEach((p) => {
         p.mesh.position.y = p.baseY + Math.sin(performance.now() * 0.002 + p.phase) * 0.8;
@@ -1776,6 +2024,28 @@ const BabylonWorld: React.FC = () => {
         n.mesh.position.set(nx, n.mesh.position.y, nz);
         n.mesh.rotation.y = -n.angle + Math.PI / 2;
       });
+
+      if (!npcDialogueState.active) {
+        const now = performance.now();
+        if (now - npcDialogueState.lastScan > 300) {
+          npcDialogueState.lastScan = now;
+          const maxDistSq = 25;
+          for (const npc of npcWalkers) {
+            const meta = (npc.mesh as any).metadata;
+            if (!meta?.id) continue;
+            const last = npcCooldowns.get(meta.id) || 0;
+            if (now - last < 5000) continue;
+            const dx = camera.position.x - npc.mesh.position.x;
+            const dz = camera.position.z - npc.mesh.position.z;
+            if (dx * dx + dz * dz <= maxDistSq) {
+              npcCooldowns.set(meta.id, now);
+              npcDialogueState.active = true;
+              window.dispatchEvent(new CustomEvent("npc-dialogue", { detail: { npcId: meta.id } }));
+              break;
+            }
+          }
+        }
+      }
 
       const t = performance.now() * 0.002;
       flickerMats.forEach((f, i) => {
@@ -1793,6 +2063,18 @@ const BabylonWorld: React.FC = () => {
       debugOverlay.textContent =
         `pos: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})\n` +
         `target: (${target.x.toFixed(2)}, ${target.y.toFixed(2)}, ${target.z.toFixed(2)})`;
+      const nowTs = performance.now();
+      if (nowTs - lastCameraUiUpdate > 250) {
+        lastCameraUiUpdate = nowTs;
+        window.dispatchEvent(
+          new CustomEvent("camera-info", {
+            detail: {
+              pos: { x: pos.x, y: pos.y, z: pos.z },
+              target: { x: target.x, y: target.y, z: target.z },
+            },
+          })
+        );
+      }
 
     });
 
@@ -1975,16 +2257,22 @@ const BabylonWorld: React.FC = () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { window.removeEventListener("performance-settings", onPerfSettings as EventListener); } catch {}
+      try { window.removeEventListener("cloud-settings", onCloudSettings as EventListener); } catch {}
+      try { window.removeEventListener("postfx-settings", onPostFxSettings as EventListener); } catch {}
+      try { window.removeEventListener("asset-toggles", onAssetToggles as EventListener); } catch {}
       try { window.removeEventListener("border-fog-settings", onBorderFogSettings as EventListener); } catch {}
       try { window.removeEventListener("top-fog-settings", onTopFogSettings as EventListener); } catch {}
-      try { window.removeEventListener("ground-fog-settings", onGroundFogSettings as EventListener); } catch {}
+      try { window.removeEventListener("middle-fog-settings", onMiddleFogSettings as EventListener); } catch {}
+      try { window.removeEventListener("bottom-fog-settings", onBottomFogSettings as EventListener); } catch {}
       try { window.removeEventListener("star-settings", onStarSettings as EventListener); } catch {}
       try { window.removeEventListener("building-settings", onBuildingSettings as EventListener); } catch {}
       try { window.removeEventListener("sky-effects-settings", onSkyEffectsSettings as EventListener); } catch {}
       try { window.removeEventListener("tree-positions", onTreePositions as EventListener); } catch {}
       try { window.removeEventListener("hud-item-click", onHudItemClick as EventListener); } catch {}
-      try { window.removeEventListener("keydown", onToggleDebugOverlay); } catch {}
       try { window.removeEventListener("npc-dialogue", onDialogueOpen as EventListener); } catch {}
+      try { window.removeEventListener("camera-start-update", onCameraStartUpdate as EventListener); } catch {}
+      try { window.removeEventListener("npc-dialogue-open", onNpcOpen as EventListener); } catch {}
+      try { window.removeEventListener("npc-dialogue-close", onNpcClose as EventListener); } catch {}
       try { window.removeEventListener("keyup", onKeyUpFallback); } catch {}
       try { window.removeEventListener("blur", onWindowBlur); } catch {}
       try { document.removeEventListener("visibilitychange", onVisibilityChange); } catch {}
@@ -2033,7 +2321,7 @@ const BabylonWorld: React.FC = () => {
           scene={sceneInstance}
           materials={buildingMaterials}
           intervalMs={8000}
-          flickerPercent={0.05}
+          flickerPercent={0.6}
           stepMs={2000}
           offDurationMs={10000}
         />
@@ -2043,9 +2331,10 @@ const BabylonWorld: React.FC = () => {
         groundSize={2400}
         settings={borderFogSettingsMemo}
       />
-      <CloudLayer scene={sceneInstance} />
+      {assetToggles.clouds ? <CloudLayer scene={sceneInstance} mask={cloudMaskSettings} /> : null}
       <TopFog scene={sceneInstance} settings={topFogSettings} />
-      <GroundFog scene={sceneInstance} settings={groundFogSettings} />
+      <MiddleFog scene={sceneInstance} settings={middleFogSettings} />
+      <BottomFog scene={sceneInstance} settings={bottomFogSettings} />
       {starSettings.enabled ? (
         <CityStars
           scene={sceneInstance}
@@ -2055,6 +2344,18 @@ const BabylonWorld: React.FC = () => {
           minHeight={starSettings.minHeight}
           maxHeight={starSettings.maxHeight}
           scale={starSettings.scale}
+        />
+      ) : null}
+      {starSettings.enabled ? (
+        <CityStars
+          scene={sceneInstance}
+          glowLayer={glowLayerRef.current}
+          count={starSettings.count}
+          radius={starSettings.radius}
+          minHeight={starSettings.minHeight}
+          maxHeight={starSettings.maxHeight}
+          scale={starSettings.scale}
+          rotationY={Math.PI / 2}
         />
       ) : null}
       {perfSettings.gargoyles ? <GargoyleStatues scene={sceneInstance} buildings={buildingInfos} /> : null}

@@ -12,7 +12,7 @@ import {
   VertexBuffer,
 } from "@babylonjs/core";
 
-type TopFogSettings = {
+type BottomFogSettings = {
   enabled: boolean;
   opacity: number;
   blur: number;
@@ -28,10 +28,10 @@ type TopFogSettings = {
 
 type Props = {
   scene: Scene | null;
-  settings: TopFogSettings;
+  settings: BottomFogSettings;
 };
 
-const TopFog: React.FC<Props> = ({ scene, settings }) => {
+const BottomFog: React.FC<Props> = ({ scene, settings }) => {
   const rootRef = useRef<TransformNode | null>(null);
   const fogRef = useRef<Mesh | null>(null);
   const matRef = useRef<StandardMaterial | null>(null);
@@ -106,13 +106,13 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
 
   useEffect(() => {
     if (!scene) return;
-    const root = new TransformNode("topFogRoot", scene);
+    const root = new TransformNode("bottomFogRoot", scene);
     rootRef.current = root;
 
-    const gradient = new DynamicTexture("topFogGradient", { width: 128, height: 128 }, scene, false);
+    const gradient = new DynamicTexture("bottomFogGradient", { width: 128, height: 128 }, scene, false);
     gradientRef.current = gradient;
 
-    const mat = new StandardMaterial("topFogMat", scene);
+    const mat = new StandardMaterial("bottomFogMat", scene);
     mat.diffuseTexture = gradient;
     mat.opacityTexture = gradient;
     mat.emissiveTexture = gradient;
@@ -126,7 +126,7 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
     matRef.current = mat;
 
     const fog = MeshBuilder.CreateCylinder(
-      "topFogCylinder",
+      "bottomFogCylinder",
       { diameter: 2, height: 1, tessellation: 32 },
       scene
     );
@@ -154,17 +154,13 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
 
   useEffect(() => {
     if (!scene || !fogRef.current || !matRef.current || !gradientRef.current || !rootRef.current) return;
-    const timeSec = performance.now() / 1000;
-    const oscSpeed = Math.max(0.05, settings.timeScale);
-    const osc = 0.5 + 0.5 * Math.sin(timeSec * oscSpeed);
-    const animatedOpacity = 0.05 + 0.7 * osc;
     buildGradient(
       gradientRef.current,
-      animatedOpacity,
+      settings.opacity,
       settings.blur,
       settings.fadeTop,
       holesRef.current,
-      timeSec * settings.timeScale
+      (performance.now() / 1000) * settings.timeScale
     );
     matRef.current.emissiveColor = settings.color.clone();
     matRef.current.diffuseColor = settings.color.clone();
@@ -182,25 +178,21 @@ const TopFog: React.FC<Props> = ({ scene, settings }) => {
       if (now - lastUpdateRef.current < 220) return;
       lastUpdateRef.current = now;
       if (!gradientRef.current) return;
-      const timeSec = now / 1000;
-      const oscSpeed = Math.max(0.05, settings.timeScale);
-      const osc = 0.5 + 0.5 * Math.sin(timeSec * oscSpeed);
-      const animatedOpacity = 0.05 + 0.7 * osc;
       buildGradient(
         gradientRef.current,
-        animatedOpacity,
+        settings.opacity,
         settings.blur,
         settings.fadeTop,
         holesRef.current,
-        timeSec * settings.timeScale
+        (now / 1000) * settings.timeScale
       );
     });
     return () => {
       scene.onBeforeRenderObservable.remove(observer);
     };
-  }, [scene, settings.blur, settings.fadeTop, settings.timeScale, buildGradient]);
+  }, [scene, settings.opacity, settings.blur, settings.fadeTop, settings.timeScale, buildGradient]);
 
   return null;
 };
 
-export default TopFog;
+export default BottomFog;

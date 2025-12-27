@@ -1,10 +1,16 @@
 import { useEffect } from "react";
-import { Color3, GlowLayer, MeshBuilder, Scene, StandardMaterial, Vector3 } from "@babylonjs/core";
+import {
+  Color3,
+  GlowLayer,
+  MeshBuilder,
+  Scene,
+  StandardMaterial,
+  TransformNode,
+  Vector3,
+} from "@babylonjs/core";
 
 type Star = {
   mesh: any;
-  base: number;
-  speed: number;
   phase: number;
 };
 
@@ -16,6 +22,7 @@ type Props = {
   maxHeight?: number;
   scale?: number;
   glowLayer?: GlowLayer | null;
+  rotationY?: number;
 };
 
 const CityStars: React.FC<Props> = ({
@@ -26,10 +33,13 @@ const CityStars: React.FC<Props> = ({
   maxHeight = 260,
   scale = 1,
   glowLayer = null,
+  rotationY = 0,
 }) => {
   useEffect(() => {
     if (!scene) return;
     const stars: Star[] = [];
+    const root = new TransformNode("cityStarsRoot", scene);
+    root.rotation.y = rotationY;
     const mat = new StandardMaterial("cityStarsMat", scene);
     mat.emissiveColor = new Color3(1, 1, 1);
     mat.diffuseColor = new Color3(1, 1, 1);
@@ -45,6 +55,7 @@ const CityStars: React.FC<Props> = ({
       );
       star.material = mat;
       star.isPickable = false;
+      star.parent = root;
       star.position = new Vector3(
         (Math.random() - 0.5) * radius * 2,
         minHeight + Math.random() * (maxHeight - minHeight),
@@ -53,8 +64,6 @@ const CityStars: React.FC<Props> = ({
       glowLayer?.addExcludedMesh(star);
       stars.push({
         mesh: star,
-        base: 0.35 + Math.random() * 0.4,
-        speed: 0.6 + Math.random() * 1.2,
         phase: Math.random() * Math.PI * 2,
       });
     }
@@ -62,8 +71,9 @@ const CityStars: React.FC<Props> = ({
     const onRender = () => {
       const t = performance.now() * 0.001;
       stars.forEach((s) => {
-        const twinkle = s.base + Math.sin(t * s.speed + s.phase) * 0.25;
-        s.mesh.visibility = Math.max(0.1, Math.min(1, twinkle));
+        const osc = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 + s.phase);
+        const twinkle = 0.1 + 0.6 * osc;
+        s.mesh.visibility = twinkle;
       });
     };
     scene.onBeforeRenderObservable.add(onRender);
@@ -72,8 +82,9 @@ const CityStars: React.FC<Props> = ({
       scene.onBeforeRenderObservable.removeCallback(onRender);
       stars.forEach((s) => s.mesh.dispose());
       mat.dispose();
+      root.dispose();
     };
-  }, [scene, count, radius, minHeight, maxHeight, scale, glowLayer]);
+  }, [scene, count, radius, minHeight, maxHeight, scale, glowLayer, rotationY]);
 
   return null;
 };

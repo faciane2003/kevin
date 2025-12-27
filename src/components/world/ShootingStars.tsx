@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
   Color3,
   Color4,
+  LinesMesh,
   Mesh,
   MeshBuilder,
   Scene,
@@ -21,7 +22,7 @@ const ShootingStars: React.FC<Props> = ({ scene, count = 6 }) => {
     const stars: {
       root: TransformNode;
       head: Mesh;
-      trail: Mesh;
+      trail: LinesMesh;
       trailPoints: Vector3[];
       trailColors: Color4[];
       velocity: Vector3;
@@ -37,10 +38,13 @@ const ShootingStars: React.FC<Props> = ({ scene, count = 6 }) => {
 
     for (let i = 0; i < count; i += 1) {
       const root = new TransformNode(`shooting_star_root_${i}`, scene);
-      const head = MeshBuilder.CreateDisc(`shooting_star_head_${i}`, { radius: 9, tessellation: 18 }, scene);
+      const head = MeshBuilder.CreateSphere(
+        `shooting_star_head_${i}`,
+        { diameter: 9, segments: 16 },
+        scene
+      );
       head.material = headMat;
       head.parent = root;
-      head.scaling = new Vector3(1.9, 1, 1);
 
       const trailLength = 26;
       const trailPoints = Array.from({ length: trailLength }, () => root.position.clone());
@@ -58,6 +62,8 @@ const ShootingStars: React.FC<Props> = ({ scene, count = 6 }) => {
       trail.alpha = 1;
       (trail as any).fogEnabled = false;
       trail.isPickable = false;
+      trail.parent = root;
+      trail.setEnabled(false);
       root.setEnabled(false);
       stars.push({
         root,
@@ -73,8 +79,9 @@ const ShootingStars: React.FC<Props> = ({ scene, count = 6 }) => {
 
     const spawnStar = (star: typeof stars[number]) => {
       star.root.setEnabled(true);
+      star.trail.setEnabled(true);
       star.active = true;
-      star.ttl = 3 + Math.random() * 2;
+      star.ttl = 1.5 + Math.random() * 1;
       const startX = (Math.random() - 0.5) * 1600;
       const startY = 450 + Math.random() * 300;
       const startZ = (Math.random() - 0.5) * 1600;
@@ -97,6 +104,7 @@ const ShootingStars: React.FC<Props> = ({ scene, count = 6 }) => {
         star.ttl -= dt;
         if (star.ttl <= 0) {
           star.active = false;
+          star.trail.setEnabled(false);
           star.root.setEnabled(false);
           return;
         }

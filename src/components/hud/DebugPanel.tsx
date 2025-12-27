@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import "./HUD.css";
 
 type LightSettings = {
@@ -38,21 +38,39 @@ type BuildingSettings = {
 type TopFogSettings = {
   enabled: boolean;
   opacity: number;
+  blur: number;
   height: number;
   radius: number;
   fadeTop: number;
+  timeScale: number;
   offsetX: number;
   offsetY: number;
   offsetZ: number;
   color: string;
 };
 
-type GroundFogSettings = {
+type MiddleFogSettings = {
   enabled: boolean;
   opacity: number;
+  blur: number;
   height: number;
   radius: number;
   fadeTop: number;
+  timeScale: number;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  color: string;
+};
+
+type BottomFogSettings = {
+  enabled: boolean;
+  opacity: number;
+  blur: number;
+  height: number;
+  radius: number;
+  fadeTop: number;
+  timeScale: number;
   offsetX: number;
   offsetY: number;
   offsetZ: number;
@@ -83,32 +101,68 @@ type StarSettings = {
   scale: number;
 };
 
+type CloudMaskSettings = {
+  scale: number;
+  scaleX: number;
+  scaleY: number;
+  feather: number;
+  invert: boolean;
+  lockScale: boolean;
+};
+
+type PostFxSettings = {
+  enabled: boolean;
+  depthOfFieldEnabled: boolean;
+  depthOfFieldFocusDistance: number;
+  depthOfFieldFStop: number;
+  depthOfFieldBlurLevel: number;
+  colorGradingEnabled: boolean;
+  globalHue: number;
+  globalDensity: number;
+  globalSaturation: number;
+  globalExposure: number;
+  highlightsHue: number;
+  highlightsDensity: number;
+  highlightsSaturation: number;
+  shadowsHue: number;
+  shadowsDensity: number;
+  shadowsSaturation: number;
+};
+
+type AssetToggles = {
+  glowSculptures: boolean;
+  cats: boolean;
+  neonBillboards: boolean;
+  clouds: boolean;
+  airplanes: boolean;
+};
+
 const DEFAULT_LIGHTS: LightSettings = {
-  hemi: 0.3,
-  ambient: 1.9,
-  moon: 1.25,
-  moonSpotIntensity: 2.8,
-  moonSpotAngle: 1.18,
-  moonSpotX: 700,
-  moonSpotY: 450,
+  hemi: 0.6,
+  ambient: 2.65,
+  moon: 1.4,
+  moonSpotIntensity: 5,
+  moonSpotAngle: 1.32,
+  moonSpotX: 340,
+  moonSpotY: 717,
   moonSpotZ: -130,
-  moonSpotYaw: -79.48,
-  moonSpotPitch: -32.29,
-  glow: 0.85,
+  moonSpotYaw: -93,
+  moonSpotPitch: -47,
+  glow: 0.7,
   fogEnabled: true,
   fogDensity: 0.0045,
-  fogIntensity: 0.25,
-  fogHeightFalloff: 0.005,
+  fogIntensity: 0.2,
+  fogHeightFalloff: 0.001,
   fogColor: "#282f3e",
   borderFogEnabled: true,
-  borderFogOpacity: 0.42,
-  borderFogHeight: 50,
+  borderFogOpacity: 0.78,
+  borderFogHeight: 274,
   borderFogInset: 26,
   borderFogFadeTop: 1,
-  borderFogOffsetX: -4,
-  borderFogOffsetY: -23,
+  borderFogOffsetX: -6,
+  borderFogOffsetY: -16,
   borderFogOffsetZ: 0,
-  borderFogColor: "#1100ff",
+  borderFogColor: "#110f33",
 };
 
 const DEFAULT_BUILDINGS: BuildingSettings = {
@@ -119,19 +173,21 @@ const DEFAULT_BUILDINGS: BuildingSettings = {
 
 const DEFAULT_TOP_FOG: TopFogSettings = {
   enabled: true,
-  opacity: 0.08,
-  height: 5,
-  radius: 830,
-  fadeTop: 1,
-  offsetX: 14,
-  offsetY: -4,
-  offsetZ: 0,
-  color: "#223366",
+  opacity: 0.02,
+  blur: 2,
+  height: 164,
+  radius: 1200,
+  fadeTop: 0.94,
+  timeScale: 0.1,
+  offsetX: 48,
+  offsetY: 150,
+  offsetZ: 300,
+  color: "#8782c9",
 };
 
 const DEFAULT_SKY: SkySettings = {
   shootingStarsEnabled: true,
-  shootingStarsCount: 6,
+  shootingStarsCount: 9,
 };
 
 const DEFAULT_PERF: PerfSettings = {
@@ -144,36 +200,97 @@ const DEFAULT_PERF: PerfSettings = {
   shootingStars: true,
 };
 
-const DEFAULT_GROUND_FOG: GroundFogSettings = {
+const DEFAULT_MIDDLE_FOG: MiddleFogSettings = {
   enabled: true,
-  opacity: 0.08,
-  height: 5,
-  radius: 830,
+  opacity: 0.02,
+  blur: 7,
+  height: 74,
+  radius: 1200,
   fadeTop: 1,
-  offsetX: 14,
-  offsetY: -4,
-  offsetZ: 0,
-  color: "#223366",
+  timeScale: 0.1,
+  offsetX: 48,
+  offsetY: -16,
+  offsetZ: -1,
+  color: "#8782c9",
+};
+
+const DEFAULT_BOTTOM_FOG: BottomFogSettings = {
+  enabled: true,
+  opacity: 0.14,
+  blur: 8,
+  height: 19,
+  radius: 1200,
+  fadeTop: 1,
+  timeScale: 0.1,
+  offsetX: 48,
+  offsetY: -16,
+  offsetZ: -1,
+  color: "#8782c9",
 };
 
 const DEFAULT_STARS: StarSettings = {
   enabled: true,
-  count: 300,
-  radius: 1080,
-  minHeight: 170,
-  maxHeight: 310,
-  scale: 1,
+  count: 55,
+  radius: 200,
+  minHeight: 165,
+  maxHeight: 440,
+  scale: 0.8,
+};
+
+const DEFAULT_CLOUD_MASK: CloudMaskSettings = {
+  scale: 0.55,
+  scaleX: 0.8,
+  scaleY: 0.7,
+  feather: 0.98,
+  invert: false,
+  lockScale: false,
+};
+
+const DEFAULT_POSTFX: PostFxSettings = {
+  enabled: true,
+  depthOfFieldEnabled: false,
+  depthOfFieldFocusDistance: 10250,
+  depthOfFieldFStop: 2,
+  depthOfFieldBlurLevel: 2,
+  colorGradingEnabled: true,
+  globalHue: 41,
+  globalDensity: 46,
+  globalSaturation: 49,
+  globalExposure: 29,
+  highlightsHue: 211,
+  highlightsDensity: 52,
+  highlightsSaturation: 38,
+  shadowsHue: 227,
+  shadowsDensity: 44,
+  shadowsSaturation: 20,
+};
+
+const DEFAULT_ASSETS: AssetToggles = {
+  glowSculptures: true,
+  cats: true,
+  neonBillboards: true,
+  clouds: false,
+  airplanes: true,
 };
 
 const DebugPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [cameraInfo, setCameraInfo] = useState<{
+    pos: { x: number; y: number; z: number };
+    target: { x: number; y: number; z: number };
+  } | null>(null);
+  const [syncCameraStart, setSyncCameraStart] = useState(false);
   const [lights, setLights] = useState<LightSettings>(DEFAULT_LIGHTS);
   const [buildings, setBuildings] = useState<BuildingSettings>(DEFAULT_BUILDINGS);
   const [topFog, setTopFog] = useState<TopFogSettings>(DEFAULT_TOP_FOG);
-  const [groundFog, setGroundFog] = useState<GroundFogSettings>(DEFAULT_GROUND_FOG);
+  const [middleFog, setMiddleFog] = useState<MiddleFogSettings>(DEFAULT_MIDDLE_FOG);
+  const [bottomFog, setBottomFog] = useState<BottomFogSettings>(DEFAULT_BOTTOM_FOG);
   const [sky, setSky] = useState<SkySettings>(DEFAULT_SKY);
   const [perf, setPerf] = useState<PerfSettings>(DEFAULT_PERF);
   const [stars, setStars] = useState<StarSettings>(DEFAULT_STARS);
+  const [cloudMask, setCloudMask] = useState<CloudMaskSettings>(DEFAULT_CLOUD_MASK);
+  const [postFx, setPostFx] = useState<PostFxSettings>(DEFAULT_POSTFX);
+  const [assets, setAssets] = useState<AssetToggles>(DEFAULT_ASSETS);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -182,6 +299,23 @@ const DebugPanel: React.FC = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  useEffect(() => {
+    const onCamera = (e: Event) => {
+      const detail = (e as CustomEvent<{
+        pos: { x: number; y: number; z: number };
+        target: { x: number; y: number; z: number };
+      }>).detail;
+      if (detail?.pos && detail?.target) setCameraInfo(detail);
+    };
+    window.addEventListener("camera-info", onCamera as EventListener);
+    return () => window.removeEventListener("camera-info", onCamera as EventListener);
+  }, []);
+
+  useEffect(() => {
+    if (!syncCameraStart || !cameraInfo) return;
+    window.dispatchEvent(new CustomEvent("camera-start-update", { detail: cameraInfo }));
+  }, [syncCameraStart, cameraInfo]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("light-settings", { detail: lights }));
@@ -196,6 +330,14 @@ const DebugPanel: React.FC = () => {
   }, [topFog]);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent("middle-fog-settings", { detail: middleFog }));
+  }, [middleFog]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("bottom-fog-settings", { detail: bottomFog }));
+  }, [bottomFog]);
+
+  useEffect(() => {
     window.dispatchEvent(new CustomEvent("sky-effects-settings", { detail: sky }));
   }, [sky]);
 
@@ -208,20 +350,52 @@ const DebugPanel: React.FC = () => {
   }, [stars]);
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("ground-fog-settings", { detail: groundFog }));
-  }, [groundFog]);
+    window.dispatchEvent(new CustomEvent("cloud-settings", { detail: cloudMask }));
+  }, [cloudMask]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("postfx-settings", { detail: postFx }));
+  }, [postFx]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("asset-toggles", { detail: assets }));
+  }, [assets]);
 
   const copyAll = async () => {
-    const payload = {
+    const payload: Record<string, unknown> = {
       lighting: lights,
       buildings,
       topFog,
-      groundFog,
+      middleFog,
+      bottomFog,
       sky,
       stars,
+      cloudMask,
+      postFx,
+      assets,
       performance: perf,
     };
+    if (syncCameraStart && cameraInfo) {
+      payload.cameraStart = cameraInfo;
+    }
     const text = JSON.stringify(payload, null, 2);
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  };
+
+  const copyCamera = async () => {
+    if (!cameraInfo) return;
+    const text = JSON.stringify(cameraInfo, null, 2);
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
       return;
@@ -246,6 +420,35 @@ const DebugPanel: React.FC = () => {
           <button onClick={copyAll}>Copy All</button>
           <button onClick={() => setOpen(false)}>Close</button>
         </div>
+      </div>
+
+      <div className="debug-section">
+        <div className="debug-section-title">Camera</div>
+        <div className="light-row" style={{ justifyContent: "space-between" }}>
+          <span>Position</span>
+          <span className="light-value">
+            {cameraInfo
+              ? `${cameraInfo.pos.x.toFixed(2)}, ${cameraInfo.pos.y.toFixed(2)}, ${cameraInfo.pos.z.toFixed(2)}`
+              : "-"}
+          </span>
+        </div>
+        <div className="light-row" style={{ justifyContent: "space-between" }}>
+          <span>Target</span>
+          <span className="light-value">
+            {cameraInfo
+              ? `${cameraInfo.target.x.toFixed(2)}, ${cameraInfo.target.y.toFixed(2)}, ${cameraInfo.target.z.toFixed(2)}`
+              : "-"}
+          </span>
+        </div>
+        <label className="light-row">
+          <span>Set Start</span>
+          <input
+            type="checkbox"
+            checked={syncCameraStart}
+            onChange={(e) => setSyncCameraStart(e.target.checked)}
+          />
+        </label>
+        <button onClick={copyCamera} style={{ marginTop: "6px" }}>Copy Camera</button>
       </div>
 
       <div className="debug-section">
@@ -408,9 +611,11 @@ const DebugPanel: React.FC = () => {
         {(
           [
             ["opacity", "Opacity", 0, 1, 0.02],
+            ["blur", "Blur", 0, 16, 0.5],
             ["height", "Height", 2, 200, 1],
             ["radius", "Radius", 100, 1200, 10],
             ["fadeTop", "Top Fade", 0, 1, 0.02],
+            ["timeScale", "Timing", 0.1, 3, 0.05],
             ["offsetX", "Offset X", -300, 300, 1],
             ["offsetY", "Offset Y", -50, 150, 1],
             ["offsetZ", "Offset Z", -300, 300, 1],
@@ -480,6 +685,49 @@ const DebugPanel: React.FC = () => {
       </div>
 
       <div className="debug-section">
+        <div className="debug-section-title">Cloud Mask</div>
+        {(
+          [
+            ["scale", "Scale", 0.2, 3, 0.05],
+            ["scaleX", "Scale X", 0.2, 3, 0.05],
+            ["scaleY", "Scale Y", 0.2, 3, 0.05],
+            ["feather", "Feather", 0, 0.98, 0.02],
+          ] as Array<[keyof CloudMaskSettings, string, number, number, number]>
+        ).map(([key, label, min, max, step]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={cloudMask[key] as number}
+              onChange={(e) =>
+                setCloudMask((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="light-value">{(cloudMask[key] as number).toFixed(2)}</span>
+          </label>
+        ))}
+        <label className="light-row">
+          <span>Invert</span>
+          <input
+            type="checkbox"
+            checked={cloudMask.invert}
+            onChange={(e) => setCloudMask((prev) => ({ ...prev, invert: e.target.checked }))}
+          />
+        </label>
+        <label className="light-row">
+          <span>Lock Ratio</span>
+          <input
+            type="checkbox"
+            checked={cloudMask.lockScale}
+            onChange={(e) => setCloudMask((prev) => ({ ...prev, lockScale: e.target.checked }))}
+          />
+        </label>
+      </div>
+
+      <div className="debug-section">
         <div className="debug-section-title">Sky Effects</div>
         <label className="light-row">
           <span>Shooting Stars</span>
@@ -508,25 +756,27 @@ const DebugPanel: React.FC = () => {
       </div>
 
       <div className="debug-section">
-        <div className="debug-section-title">Ground Fog</div>
+        <div className="debug-section-title">Middle Fog</div>
         <label className="light-row">
           <span>Enabled</span>
           <input
             type="checkbox"
-            checked={groundFog.enabled}
-            onChange={(e) => setGroundFog((prev) => ({ ...prev, enabled: e.target.checked }))}
+            checked={middleFog.enabled}
+            onChange={(e) => setMiddleFog((prev) => ({ ...prev, enabled: e.target.checked }))}
           />
         </label>
         {(
           [
             ["opacity", "Opacity", 0, 1, 0.02],
+            ["blur", "Blur", 0, 16, 0.5],
             ["height", "Height", 2, 200, 1],
             ["radius", "Radius", 100, 1200, 10],
             ["fadeTop", "Top Fade", 0, 1, 0.02],
+            ["timeScale", "Timing", 0.1, 3, 0.05],
             ["offsetX", "Offset X", -300, 300, 1],
             ["offsetY", "Offset Y", -50, 150, 1],
             ["offsetZ", "Offset Z", -300, 300, 1],
-          ] as Array<[keyof GroundFogSettings, string, number, number, number]>
+          ] as Array<[keyof MiddleFogSettings, string, number, number, number]>
         ).map(([key, label, min, max, step]) => (
           <label key={key} className="light-row">
             <span>{label}</span>
@@ -535,20 +785,151 @@ const DebugPanel: React.FC = () => {
               min={min}
               max={max}
               step={step}
-              value={groundFog[key] as number}
+              value={middleFog[key] as number}
               onChange={(e) =>
-                setGroundFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                setMiddleFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
               }
             />
-            <span className="light-value">{(groundFog[key] as number).toFixed(2)}</span>
+            <span className="light-value">{(middleFog[key] as number).toFixed(2)}</span>
           </label>
         ))}
         <label className="light-row">
           <span>Color</span>
           <input
             type="color"
-            value={groundFog.color}
-            onChange={(e) => setGroundFog((prev) => ({ ...prev, color: e.target.value }))}
+            value={middleFog.color}
+            onChange={(e) => setMiddleFog((prev) => ({ ...prev, color: e.target.value }))}
+          />
+        </label>
+      </div>
+
+      <div className="debug-section">
+        <div className="debug-section-title">Post FX</div>
+        <label className="light-row">
+          <span>Enabled</span>
+          <input
+            type="checkbox"
+            checked={postFx.enabled}
+            onChange={(e) => setPostFx((prev) => ({ ...prev, enabled: e.target.checked }))}
+          />
+        </label>
+        <label className="light-row">
+          <span>Depth of Field</span>
+          <input
+            type="checkbox"
+            checked={postFx.depthOfFieldEnabled}
+            onChange={(e) =>
+              setPostFx((prev) => ({ ...prev, depthOfFieldEnabled: e.target.checked }))
+            }
+          />
+        </label>
+        {(
+          [
+            ["depthOfFieldFocusDistance", "DOF Focus", 1000, 25000, 250],
+            ["depthOfFieldFStop", "DOF F-Stop", 1, 12, 0.1],
+            ["depthOfFieldBlurLevel", "DOF Blur", 0, 3, 1],
+          ] as Array<[keyof PostFxSettings, string, number, number, number]>
+        ).map(([key, label, min, max, step]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={postFx[key] as number}
+              onChange={(e) =>
+                setPostFx((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="light-value">{(postFx[key] as number).toFixed(2)}</span>
+          </label>
+        ))}
+        <label className="light-row">
+          <span>Color Grading</span>
+          <input
+            type="checkbox"
+            checked={postFx.colorGradingEnabled}
+            onChange={(e) =>
+              setPostFx((prev) => ({ ...prev, colorGradingEnabled: e.target.checked }))
+            }
+          />
+        </label>
+        {(
+          [
+            ["globalHue", "Hue", 0, 360, 1],
+            ["globalDensity", "Density", 0, 100, 1],
+            ["globalSaturation", "Saturation", 0, 100, 1],
+            ["globalExposure", "Exposure", -50, 50, 1],
+            ["highlightsHue", "Highlights Hue", 0, 360, 1],
+            ["highlightsDensity", "Highlights Density", 0, 100, 1],
+            ["highlightsSaturation", "Highlights Sat", 0, 100, 1],
+            ["shadowsHue", "Shadows Hue", 0, 360, 1],
+            ["shadowsDensity", "Shadows Density", 0, 100, 1],
+            ["shadowsSaturation", "Shadows Sat", 0, 100, 1],
+          ] as Array<[keyof PostFxSettings, string, number, number, number]>
+        ).map(([key, label, min, max, step]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={postFx[key] as number}
+              onChange={(e) =>
+                setPostFx((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="light-value">{(postFx[key] as number).toFixed(0)}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="debug-section">
+        <div className="debug-section-title">Bottom Fog</div>
+        <label className="light-row">
+          <span>Enabled</span>
+          <input
+            type="checkbox"
+            checked={bottomFog.enabled}
+            onChange={(e) => setBottomFog((prev) => ({ ...prev, enabled: e.target.checked }))}
+          />
+        </label>
+        {(
+          [
+            ["opacity", "Opacity", 0, 1, 0.02],
+            ["blur", "Blur", 0, 16, 0.5],
+            ["height", "Height", 2, 200, 1],
+            ["radius", "Radius", 100, 1200, 10],
+            ["fadeTop", "Top Fade", 0, 1, 0.02],
+            ["timeScale", "Timing", 0.1, 3, 0.05],
+            ["offsetX", "Offset X", -300, 300, 1],
+            ["offsetY", "Offset Y", -50, 150, 1],
+            ["offsetZ", "Offset Z", -300, 300, 1],
+          ] as Array<[keyof BottomFogSettings, string, number, number, number]>
+        ).map(([key, label, min, max, step]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={bottomFog[key] as number}
+              onChange={(e) =>
+                setBottomFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="light-value">{(bottomFog[key] as number).toFixed(2)}</span>
+          </label>
+        ))}
+        <label className="light-row">
+          <span>Color</span>
+          <input
+            type="color"
+            value={bottomFog.color}
+            onChange={(e) => setBottomFog((prev) => ({ ...prev, color: e.target.value }))}
           />
         </label>
       </div>
@@ -624,8 +1005,31 @@ const DebugPanel: React.FC = () => {
           </label>
         ))}
       </div>
+
+      <div className="debug-section">
+        <div className="debug-section-title">Assets</div>
+        {(
+          [
+            ["glowSculptures", "Glow Sculptures"],
+            ["cats", "Cats"],
+            ["neonBillboards", "Neon Billboards"],
+            ["clouds", "Clouds"],
+            ["airplanes", "Airplanes"],
+          ] as Array<[keyof AssetToggles, string]>
+        ).map(([key, label]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="checkbox"
+              checked={assets[key]}
+              onChange={(e) => setAssets((prev) => ({ ...prev, [key]: e.target.checked }))}
+            />
+          </label>
+        ))}
+      </div>
     </div>
   );
 };
 
 export default DebugPanel;
+

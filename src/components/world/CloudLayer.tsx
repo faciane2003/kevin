@@ -13,30 +13,64 @@ import {
 type Props = {
   scene: Scene | null;
   count?: number;
+  mask: {
+    scale: number;
+    scaleX: number;
+    scaleY: number;
+    feather: number;
+    invert: boolean;
+    lockScale: boolean;
+  };
 };
 
-const CloudLayer: React.FC<Props> = ({ scene, count = 14 }) => {
+const CloudLayer: React.FC<Props> = ({ scene, count = 14, mask }) => {
   useEffect(() => {
     if (!scene) return;
     const root = new TransformNode("cloudLayerRoot", scene);
     const clouds: { mesh: Mesh; drift: Vector3 }[] = [];
 
     const texture = new DynamicTexture("cloudBlobTex", { width: 256, height: 256 }, scene, true);
-    const ctx = texture.getContext();
-    ctx.clearRect(0, 0, 256, 256);
-    ctx.filter = "blur(8px)";
-    for (let i = 0; i < 6; i += 1) {
-      const radius = 48 + Math.random() * 40;
-      const x = 60 + Math.random() * 140;
-      const y = 60 + Math.random() * 140;
-      const alpha = 0.35 + Math.random() * 0.3;
+    const ctx = texture.getContext() as CanvasRenderingContext2D;
+    const drawTexture = () => {
+      ctx.clearRect(0, 0, 256, 256);
+      ctx.filter = "blur(18px)";
+      for (let i = 0; i < 6; i += 1) {
+        const radius = 48 + Math.random() * 40;
+        const x = 60 + Math.random() * 140;
+        const y = 60 + Math.random() * 140;
+        const alpha = 0.35 + Math.random() * 0.25;
+        ctx.beginPath();
+        const grad = ctx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
+        grad.addColorStop(0, `rgba(210,210,220,${alpha})`);
+        grad.addColorStop(0.7, `rgba(200,200,210,${alpha * 0.6})`);
+        grad.addColorStop(1, "rgba(200,200,210,0)");
+        ctx.fillStyle = grad;
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.filter = "none";
+      const baseScale = Math.max(0.1, mask.scale);
+      const scaleX = baseScale * (mask.lockScale ? 1 : mask.scaleX);
+      const scaleY = baseScale * (mask.lockScale ? 1 : mask.scaleY);
+      const rx = 110 * scaleX;
+      const ry = 110 * scaleY;
+      const feather = Math.max(0, Math.min(0.98, mask.feather));
+      ctx.save();
+      ctx.translate(128, 128);
+      ctx.scale(rx, ry);
+      ctx.globalCompositeOperation = mask.invert ? "destination-out" : "destination-in";
+      const inner = Math.max(0.01, 1 - feather);
+      const gradMask = ctx.createRadialGradient(0, 0, inner, 0, 0, 1);
+      gradMask.addColorStop(0, "rgba(0,0,0,1)");
+      gradMask.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gradMask;
       ctx.beginPath();
-      ctx.fillStyle = `rgba(200,200,210,${alpha})`;
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.arc(0, 0, 1, 0, Math.PI * 2);
       ctx.fill();
-    }
-    ctx.filter = "none";
-    texture.update();
+      ctx.restore();
+      texture.update();
+    };
+    drawTexture();
 
     const mat = new StandardMaterial("cloudMat", scene);
     mat.diffuseTexture = texture;
@@ -44,7 +78,8 @@ const CloudLayer: React.FC<Props> = ({ scene, count = 14 }) => {
     mat.emissiveColor = new Color3(0.8, 0.82, 0.85);
     mat.disableLighting = true;
     mat.backFaceCulling = false;
-    mat.alpha = 0.55;
+    mat.useAlphaFromDiffuseTexture = true;
+    mat.alpha = 0.45;
     mat.fogEnabled = false;
 
     for (let i = 0; i < count; i += 1) {
@@ -52,6 +87,7 @@ const CloudLayer: React.FC<Props> = ({ scene, count = 14 }) => {
       cloud.parent = root;
       cloud.material = mat;
       cloud.isPickable = false;
+      cloud.billboardMode = Mesh.BILLBOARDMODE_ALL;
       cloud.position = new Vector3(
         (Math.random() - 0.5) * 900,
         160 + Math.random() * 120,
@@ -81,7 +117,7 @@ const CloudLayer: React.FC<Props> = ({ scene, count = 14 }) => {
       texture.dispose();
       root.dispose();
     };
-  }, [scene, count]);
+  }, [scene, count, mask]);
 
   return null;
 };
