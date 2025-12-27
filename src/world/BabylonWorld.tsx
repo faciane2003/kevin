@@ -867,11 +867,11 @@ const BabylonWorld: React.FC = () => {
       "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_B%20copy.jpg",
       scene
     );
-    groundMat.normalTexture = new Texture(
+    groundMat.bumpTexture = new Texture(
       "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_N.jpg",
       scene
     );
-    groundMat.normalTexture.level = 1.25;
+    groundMat.bumpTexture.level = 1.25;
     groundMat.metallicTexture = new Texture(
       "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_ORM.jpg",
       scene
@@ -882,16 +882,19 @@ const BabylonWorld: React.FC = () => {
     groundMat.metallic = 1;
     groundMat.roughness = 1;
     if (groundMat.albedoTexture) {
-      groundMat.albedoTexture.uScale = 70;
-      groundMat.albedoTexture.vScale = 70;
+      const albedoTex = groundMat.albedoTexture as Texture;
+      albedoTex.uScale = 70;
+      albedoTex.vScale = 70;
     }
-    if (groundMat.normalTexture) {
-      groundMat.normalTexture.uScale = 70;
-      groundMat.normalTexture.vScale = 70;
+    if (groundMat.bumpTexture) {
+      const bumpTex = groundMat.bumpTexture as Texture;
+      bumpTex.uScale = 70;
+      bumpTex.vScale = 70;
     }
     if (groundMat.metallicTexture) {
-      groundMat.metallicTexture.uScale = 70;
-      groundMat.metallicTexture.vScale = 70;
+      const ormTex = groundMat.metallicTexture as Texture;
+      ormTex.uScale = 70;
+      ormTex.vScale = 70;
     }
     ground.material = groundMat;
     ground.checkCollisions = true;
@@ -1878,7 +1881,6 @@ const BabylonWorld: React.FC = () => {
       previewRoot.position = startPos.add(previewDir.scale(8));
       previewRoot.position.y = 0.1;
       previewRoot.scaling = new Vector3(0.9, 0.9, 0.9);
-      previewRoot.isPickable = false;
       catRoots.push(previewRoot);
       catRootsRef.current = catRoots;
       catRootsRef.current.forEach((root) => root.setEnabled(assetTogglesRef.current.cats));
