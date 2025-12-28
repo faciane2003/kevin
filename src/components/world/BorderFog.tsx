@@ -17,6 +17,7 @@ type BorderFogSettings = {
   height: number;
   inset: number;
   fadeTop: number;
+  fadeBottom: number;
   offsetX: number;
   offsetY: number;
   offsetZ: number;
@@ -36,13 +37,19 @@ const BorderFog: React.FC<Props> = ({ scene, groundSize, settings }) => {
   const gradientRef = useRef<DynamicTexture | null>(null);
 
   const buildGradient = useMemo(() => {
-    return (texture: DynamicTexture, opacity: number, fadeTop: number) => {
+    return (texture: DynamicTexture, opacity: number, fadeTop: number, fadeBottom: number) => {
       const ctx = texture.getContext();
       const size = texture.getSize();
       const grad = ctx.createLinearGradient(0, size.height, 0, 0);
-      const clampedFade = Math.min(1, Math.max(0, fadeTop));
-      const fadeStart = Math.max(0, 1 - clampedFade);
-      grad.addColorStop(0, `rgba(255,255,255,${opacity})`);
+      const clampedTop = Math.min(1, Math.max(0, fadeTop));
+      const clampedBottom = Math.min(1, Math.max(0, fadeBottom));
+      const fadeStart = Math.max(0, 1 - clampedTop);
+      if (clampedBottom > 0) {
+        grad.addColorStop(0, "rgba(255,255,255,0)");
+        grad.addColorStop(Math.min(clampedBottom, fadeStart), `rgba(255,255,255,${opacity})`);
+      } else {
+        grad.addColorStop(0, `rgba(255,255,255,${opacity})`);
+      }
       grad.addColorStop(fadeStart, `rgba(255,255,255,${opacity})`);
       grad.addColorStop(1, "rgba(255,255,255,0)");
       ctx.clearRect(0, 0, size.width, size.height);
@@ -104,7 +111,7 @@ const BorderFog: React.FC<Props> = ({ scene, groundSize, settings }) => {
     const zOffset = half - inset;
     const xOffset = half - inset;
 
-    buildGradient(gradientRef.current, settings.opacity, settings.fadeTop);
+    buildGradient(gradientRef.current, settings.opacity, settings.fadeTop, settings.fadeBottom);
     matRef.current.emissiveColor = settings.color.clone();
     matRef.current.diffuseColor = settings.color.clone();
     matRef.current.alpha = settings.enabled ? 1 : 0;

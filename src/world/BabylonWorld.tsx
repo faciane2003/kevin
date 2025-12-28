@@ -38,6 +38,7 @@ import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
 import CloudLayer from "../components/world/CloudLayer";
 import CityStars from "../components/world/CityStars";
+import AtmosphereProps from "../components/world/AtmosphereProps";
 import {
   AlleyFog,
   AlleyRumble,
@@ -73,10 +74,11 @@ const BabylonWorld: React.FC = () => {
   const fogOpacityRef = useRef(0);
   const [borderFogSettings, setBorderFogSettings] = useState({
     enabled: true,
-    opacity: 0.5,
+    opacity: 1,
     height: 76,
     inset: 26,
     fadeTop: 1,
+    fadeBottom: 0,
     offsetX: -6,
     offsetY: -7,
     offsetZ: -4,
@@ -84,11 +86,12 @@ const BabylonWorld: React.FC = () => {
   });
   const [topFogSettings, setTopFogSettings] = useState({
     enabled: true,
-    opacity: 0.01,
+    opacity: 0.02,
     blur: 2,
     height: 164,
     radius: 1200,
     fadeTop: 0.94,
+    fadeBottom: 0,
     timeScale: 0.1,
     offsetX: 48,
     offsetY: 150,
@@ -97,11 +100,12 @@ const BabylonWorld: React.FC = () => {
   });
   const [middleFogSettings, setMiddleFogSettings] = useState({
     enabled: true,
-    opacity: 0.01,
+    opacity: 0.02,
     blur: 7,
     height: 74,
     radius: 1200,
     fadeTop: 1,
+    fadeBottom: 0,
     timeScale: 0.1,
     offsetX: 48,
     offsetY: -16,
@@ -110,11 +114,12 @@ const BabylonWorld: React.FC = () => {
   });
   const [bottomFogSettings, setBottomFogSettings] = useState({
     enabled: false,
-    opacity: 0.07,
+    opacity: 0.14,
     blur: 8,
     height: 19,
     radius: 1200,
     fadeTop: 1,
+    fadeBottom: 0,
     timeScale: 0.1,
     offsetX: 48,
     offsetY: -16,
@@ -154,6 +159,16 @@ const BabylonWorld: React.FC = () => {
     neonBillboards: true,
     clouds: false,
     airplanes: true,
+  });
+  const [atmosphereProps, setAtmosphereProps] = useState({
+    enabled: true,
+    count: 100,
+    seed: 1337,
+    horror: true,
+    action: true,
+    thriller: true,
+    dystopian: true,
+    neon: true,
   });
   const [realismSettings, setRealismSettings] = useState({
     aoDecals: true,
@@ -226,28 +241,28 @@ const BabylonWorld: React.FC = () => {
     () => ({
       ...borderFogSettings,
       enabled: borderFogSettings.enabled && perfSettings.borderFog,
-      opacity: borderFogSettings.opacity * fogOpacityMaster,
+      opacity: fogOpacityMaster === 0 ? 0 : Math.min(borderFogSettings.opacity, fogOpacityMaster),
     }),
     [borderFogSettings, fogOpacityMaster, perfSettings.borderFog]
   );
   const topFogSettingsMemo = useMemo(
     () => ({
       ...topFogSettings,
-      opacity: topFogSettings.opacity * fogOpacityMaster,
+      opacity: fogOpacityMaster === 0 ? 0 : Math.min(topFogSettings.opacity, fogOpacityMaster),
     }),
     [fogOpacityMaster, topFogSettings]
   );
   const middleFogSettingsMemo = useMemo(
     () => ({
       ...middleFogSettings,
-      opacity: middleFogSettings.opacity * fogOpacityMaster,
+      opacity: fogOpacityMaster === 0 ? 0 : Math.min(middleFogSettings.opacity, fogOpacityMaster),
     }),
     [fogOpacityMaster, middleFogSettings]
   );
   const bottomFogSettingsMemo = useMemo(
     () => ({
       ...bottomFogSettings,
-      opacity: bottomFogSettings.opacity * fogOpacityMaster,
+      opacity: fogOpacityMaster === 0 ? 0 : Math.min(bottomFogSettings.opacity, fogOpacityMaster),
     }),
     [bottomFogSettings, fogOpacityMaster]
   );
@@ -270,9 +285,10 @@ const BabylonWorld: React.FC = () => {
         return;
       }
       const t = elapsed - 10;
-      const phase = (Math.sin(t * Math.PI * 2 * 0.05 - Math.PI / 2) + 1) / 2;
-      fogOpacityRef.current = phase;
-      setFogOpacityMaster((prev) => (Math.abs(prev - phase) < 0.01 ? prev : phase));
+      const phase = (Math.sin((t * Math.PI * 2) / 10 - Math.PI / 2) + 1) / 2;
+      const opacity = 0.01 + 0.04 * phase;
+      fogOpacityRef.current = opacity;
+      setFogOpacityMaster((prev) => (Math.abs(prev - opacity) < 0.001 ? prev : opacity));
     }, 120);
     return () => window.clearInterval(interval);
   }, []);
@@ -557,8 +573,8 @@ const BabylonWorld: React.FC = () => {
     let lookInputY = 0;
     const hintTimers: number[] = [];
     const hintAnimations: Animation[] = [];
-    const lookSensitivity = 0.002;
-    const lookHoldSpeed = 0.9;
+    const lookSensitivity = 0.001333;
+    const lookHoldSpeed = 0.6;
     const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
     if (isTouchDevice) {
       interactZone = document.createElement("div");
@@ -892,12 +908,12 @@ const BabylonWorld: React.FC = () => {
 
     // Ambient light and neon city glow
     const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0.6;
+    hemi.intensity = 0;
     hemi.diffuse = new Color3(0.2, 0.45, 0.9);
     hemi.groundColor = new Color3(0.05, 0.05, 0.5);
 
     const ambientLight = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 2.65;
+    ambientLight.intensity = 3;
     ambientLight.diffuse = new Color3(0.08, 0.12, 0.2);
     ambientLight.groundColor = new Color3(0.02, 0.03, 0.06);
 
@@ -928,7 +944,7 @@ const BabylonWorld: React.FC = () => {
 
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 1.4;
+    moonLight.intensity = 0.5;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
     const moonSpotPos = new Vector3(340, 717, -130);
@@ -1099,7 +1115,7 @@ const BabylonWorld: React.FC = () => {
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
     glowLayerRef.current = glowLayer;
-    glowLayer.intensity = 0.7;
+    glowLayer.intensity = 0.2;
     glowLayer.addExcludedMesh(moon);
     glowLayer.addExcludedMesh(halo);
 
@@ -1169,7 +1185,7 @@ const BabylonWorld: React.FC = () => {
     // Slightly reduce quality on touch devices
     if (isTouchDevice) {
       pipeline.depthOfFieldBlurLevel = 1;
-      glowLayer.intensity = 0.7;
+      glowLayer.intensity = 0.2;
     }
 
     const onLightSettings = (evt: Event) => {
@@ -1206,6 +1222,7 @@ const BabylonWorld: React.FC = () => {
         typeof detail.borderFogHeight === "number" ||
         typeof detail.borderFogInset === "number" ||
         typeof detail.borderFogFadeTop === "number" ||
+        typeof detail.borderFogFadeBottom === "number" ||
         typeof detail.borderFogOffsetX === "number" ||
         typeof detail.borderFogOffsetY === "number" ||
         typeof detail.borderFogOffsetZ === "number" ||
@@ -1217,6 +1234,8 @@ const BabylonWorld: React.FC = () => {
           height: typeof detail.borderFogHeight === "number" ? detail.borderFogHeight : prev.height,
           inset: typeof detail.borderFogInset === "number" ? detail.borderFogInset : prev.inset,
           fadeTop: typeof detail.borderFogFadeTop === "number" ? detail.borderFogFadeTop : prev.fadeTop,
+          fadeBottom:
+            typeof detail.borderFogFadeBottom === "number" ? detail.borderFogFadeBottom : prev.fadeBottom,
           offsetX: typeof detail.borderFogOffsetX === "number" ? detail.borderFogOffsetX : prev.offsetX,
           offsetY: typeof detail.borderFogOffsetY === "number" ? detail.borderFogOffsetY : prev.offsetY,
           offsetZ: typeof detail.borderFogOffsetZ === "number" ? detail.borderFogOffsetZ : prev.offsetZ,
@@ -1329,12 +1348,27 @@ const BabylonWorld: React.FC = () => {
       planeTrailsRef.current.forEach((trail) => {
         if (trail?.setEnabled) trail.setEnabled(nextToggles.airplanes);
       });
-    };
-    window.addEventListener("asset-toggles", onAssetToggles as EventListener);
-    const onRealismSettings = (evt: Event) => {
-      const detail = (evt as CustomEvent<any>).detail;
-      if (!detail) return;
-      setRealismSettings((prev) => ({ ...prev, ...detail }));
+      };
+      window.addEventListener("asset-toggles", onAssetToggles as EventListener);
+      const onAtmosphereProps = (evt: Event) => {
+        const detail = (evt as CustomEvent<any>).detail;
+        if (!detail) return;
+        setAtmosphereProps((prev) => ({
+          enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
+          count: typeof detail.count === "number" ? detail.count : prev.count,
+          seed: typeof detail.seed === "number" ? detail.seed : prev.seed,
+          horror: typeof detail.horror === "boolean" ? detail.horror : prev.horror,
+          action: typeof detail.action === "boolean" ? detail.action : prev.action,
+          thriller: typeof detail.thriller === "boolean" ? detail.thriller : prev.thriller,
+          dystopian: typeof detail.dystopian === "boolean" ? detail.dystopian : prev.dystopian,
+          neon: typeof detail.neon === "boolean" ? detail.neon : prev.neon,
+        }));
+      };
+      window.addEventListener("atmosphere-props-settings", onAtmosphereProps as EventListener);
+      const onRealismSettings = (evt: Event) => {
+        const detail = (evt as CustomEvent<any>).detail;
+        if (!detail) return;
+        setRealismSettings((prev) => ({ ...prev, ...detail }));
     };
     window.addEventListener("realism-settings", onRealismSettings as EventListener);
     const onWalkInput = (evt: Event) => {
@@ -1354,6 +1388,7 @@ const BabylonWorld: React.FC = () => {
         height: typeof detail.height === "number" ? detail.height : prev.height,
         inset: typeof detail.inset === "number" ? detail.inset : prev.inset,
         fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        fadeBottom: typeof detail.fadeBottom === "number" ? detail.fadeBottom : prev.fadeBottom,
         offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
         offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
         offsetZ: typeof detail.offsetZ === "number" ? detail.offsetZ : prev.offsetZ,
@@ -1371,6 +1406,7 @@ const BabylonWorld: React.FC = () => {
         height: typeof detail.height === "number" ? detail.height : prev.height,
         radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
         fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        fadeBottom: typeof detail.fadeBottom === "number" ? detail.fadeBottom : prev.fadeBottom,
         timeScale: typeof detail.timeScale === "number" ? detail.timeScale : prev.timeScale,
         offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
         offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
@@ -1389,6 +1425,7 @@ const BabylonWorld: React.FC = () => {
         height: typeof detail.height === "number" ? detail.height : prev.height,
         radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
         fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        fadeBottom: typeof detail.fadeBottom === "number" ? detail.fadeBottom : prev.fadeBottom,
         timeScale: typeof detail.timeScale === "number" ? detail.timeScale : prev.timeScale,
         offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
         offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
@@ -1407,6 +1444,7 @@ const BabylonWorld: React.FC = () => {
         height: typeof detail.height === "number" ? detail.height : prev.height,
         radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
         fadeTop: typeof detail.fadeTop === "number" ? detail.fadeTop : prev.fadeTop,
+        fadeBottom: typeof detail.fadeBottom === "number" ? detail.fadeBottom : prev.fadeBottom,
         timeScale: typeof detail.timeScale === "number" ? detail.timeScale : prev.timeScale,
         offsetX: typeof detail.offsetX === "number" ? detail.offsetX : prev.offsetX,
         offsetY: typeof detail.offsetY === "number" ? detail.offsetY : prev.offsetY,
@@ -1488,7 +1526,15 @@ const BabylonWorld: React.FC = () => {
       const size = winTex.getSize();
       ctx.fillStyle = "rgba(0,0,0,1)";
       ctx.fillRect(0, 0, size.width, size.height);
-      const windowOnPalette = ["#ffd76a", "#6bb7ff", "#ff8de0", "#6bff9d", "#ffbf8f"];
+      const pickWindowColor = () => {
+        const roll = rand();
+        if (roll < 0.3) return "#ffb347"; // amber
+        if (roll < 0.6) return "#ffe066"; // yellow
+        if (roll < 0.7) return "#b27dff"; // purple
+        if (roll < 0.8) return "#6bb7ff"; // blue
+        if (roll < 0.9) return "#ff5f6d"; // red
+        return "#f7f4ea"; // warm white
+      };
       const windowOffPalette = ["#0a0d12", "#10131a", "#0b0f16", "#0f1218"];
       const windowRects: {
         x: number;
@@ -1508,7 +1554,7 @@ const BabylonWorld: React.FC = () => {
           const winW = 12 + Math.floor(rand() * 18);
           const gapX = 6 + Math.floor(rand() * 12);
           const lit = rand() > 0.15;
-          const litColor = windowOnPalette[Math.floor(rand() * windowOnPalette.length)];
+          const litColor = pickWindowColor();
           const offColor = windowOffPalette[Math.floor(rand() * windowOffPalette.length)];
           ctx.fillStyle = lit ? litColor : offColor;
           ctx.fillRect(x, y, winW, winH);
@@ -1536,6 +1582,9 @@ const BabylonWorld: React.FC = () => {
 
     let buildingMeshes: any[] = [];
     let buildingMats: StandardMaterial[] = [];
+    let buildingNeonMeshes: Mesh[] = [];
+    let buildingNeonMats: StandardMaterial[] = [];
+    let neonFrameTex: DynamicTexture | null = null;
     const makeRng = (seed: number) => {
       let t = seed >>> 0;
       return () => {
@@ -1567,6 +1616,14 @@ const BabylonWorld: React.FC = () => {
       buildingMeshes = [];
       buildingMats.forEach((mat) => mat.dispose(true, true));
       buildingMats = [];
+      buildingNeonMeshes.forEach((mesh) => mesh.dispose());
+      buildingNeonMeshes = [];
+      buildingNeonMats.forEach((mat) => mat.dispose(true, true));
+      buildingNeonMats = [];
+      if (neonFrameTex) {
+        neonFrameTex.dispose();
+        neonFrameTex = null;
+      }
       const rand = makeRng(seed);
       const newBuildingInfos: BuildingInfo[] = [];
       const isNearSign = (x: number, z: number) =>
@@ -1581,6 +1638,45 @@ const BabylonWorld: React.FC = () => {
         createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#c9c9c9", "#0a0d12", rand),
         createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", rand),
       ];
+      neonFrameTex = new DynamicTexture("neonFrameTex", { width: 256, height: 256 }, scene, false);
+      const frameCtx = neonFrameTex.getContext() as CanvasRenderingContext2D;
+      frameCtx.clearRect(0, 0, 256, 256);
+      frameCtx.strokeStyle = "rgba(0, 0, 0, 0.9)";
+      frameCtx.lineWidth = 24;
+      frameCtx.strokeRect(18, 18, 220, 220);
+      frameCtx.strokeStyle = "rgba(255, 209, 102, 1)";
+      frameCtx.lineWidth = 10;
+      frameCtx.strokeRect(24, 24, 208, 208);
+      neonFrameTex.update();
+      neonFrameTex.hasAlpha = true;
+      const neonFrameMat = new StandardMaterial("neonFrameMat", scene);
+      neonFrameMat.diffuseTexture = neonFrameTex;
+      neonFrameMat.opacityTexture = neonFrameTex;
+      neonFrameMat.emissiveTexture = neonFrameTex;
+      neonFrameMat.emissiveColor = new Color3(1, 0.85, 0.35);
+      neonFrameMat.disableLighting = true;
+      neonFrameMat.backFaceCulling = false;
+      neonFrameMat.transparencyMode = Material.MATERIAL_ALPHABLEND;
+      buildingNeonMats.push(neonFrameMat);
+      const neonColors = [
+        new Color3(1.0, 0.25, 0.8),
+        new Color3(0.1, 0.9, 1.0),
+        new Color3(0.3, 1.0, 0.6),
+        new Color3(1.0, 0.55, 0.2),
+        new Color3(0.85, 0.3, 0.95),
+        new Color3(0.95, 0.2, 0.35),
+      ];
+      const neonPanelMats = neonColors.map((color, index) => {
+        const mat = new StandardMaterial(`neonPanelMat_${index}`, scene);
+        mat.emissiveColor = color;
+        mat.diffuseColor = color.scale(0.2);
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        mat.transparencyMode = Material.MATERIAL_ALPHABLEND;
+        mat.alpha = 0.95;
+        buildingNeonMats.push(mat);
+        return mat;
+      });
       for (let i = 0; i < count; i++) {
         const shapeRoll = rand();
         let w = 0;
@@ -1620,6 +1716,49 @@ const BabylonWorld: React.FC = () => {
         b.material = buildingMats[Math.floor(rand() * buildingMats.length)];
         b.isPickable = false;
         b.checkCollisions = true;
+        if (rand() < 0.15) {
+          const face = Math.floor(rand() * 4);
+          const panelWidth = Math.max(6 * scale, Math.min(w * 0.9, 26 * scale));
+          const panelHeight = Math.max(4 * scale, Math.min(h * 0.25, 12 * scale));
+          const panelY = Math.min(6 * scale, h * 0.2);
+          const normal = new Vector3(0, 0, 1);
+          let rotationY = 0;
+          if (face === 1) {
+            normal.z = -1;
+            rotationY = Math.PI;
+          } else if (face === 2) {
+            normal.x = 1;
+            normal.z = 0;
+            rotationY = Math.PI / 2;
+          } else if (face === 3) {
+            normal.x = -1;
+            normal.z = 0;
+            rotationY = -Math.PI / 2;
+          }
+          const panel = MeshBuilder.CreatePlane(`building_neon_${i}`, { width: panelWidth, height: panelHeight }, scene);
+          panel.parent = b;
+          panel.material = neonPanelMats[Math.floor(rand() * neonPanelMats.length)];
+          panel.isPickable = false;
+          panel.position = new Vector3(normal.x * (w / 2 + 0.12), panelY, normal.z * (d / 2 + 0.12));
+          panel.rotation.y = rotationY;
+          buildingNeonMeshes.push(panel);
+
+          const frame = MeshBuilder.CreatePlane(
+            `building_neon_frame_${i}`,
+            { width: panelWidth * 1.08, height: panelHeight * 1.08 },
+            scene
+          );
+          frame.parent = b;
+          frame.material = neonFrameMat;
+          frame.isPickable = false;
+          frame.position = new Vector3(
+            normal.x * (w / 2 + 0.18),
+            panelY,
+            normal.z * (d / 2 + 0.18)
+          );
+          frame.rotation.y = rotationY;
+          buildingNeonMeshes.push(frame);
+        }
         const collider = MeshBuilder.CreateBox(
           `building_collider_${i}`,
           { width: w * 1.1, depth: d * 1.1, height: h * 1.1 },
@@ -1944,7 +2083,7 @@ const BabylonWorld: React.FC = () => {
     const npcWalkers: { mesh: any; angle: number; radius: number; center: Vector3; speed: number }[] = [];
     npcIds.forEach((id, idx) => {
       const npc = MeshBuilder.CreateCylinder(`npc_${id}`, { height: 5, diameter: 2.8 }, scene);
-      npc.position = new Vector3(-30 + idx * 12, 2.8, -60 + (idx % 2) * 10);
+      npc.position = new Vector3(-30 + idx * 12, 2.5, -60 + (idx % 2) * 10);
       npc.material = npcMat;
       npc.isPickable = true;
       npc.metadata = { type: "npc", id };
@@ -2210,7 +2349,7 @@ const BabylonWorld: React.FC = () => {
       const radius = 420 + i * 40;
       const angle = Math.random() * Math.PI * 2;
       const speed = 0.12 + Math.random() * 0.08;
-      const height = 120 + i * 12;
+      const height = 260 + i * 14;
       const driftAngle = Math.random() * Math.PI * 2;
       const driftSpeed = 6 + Math.random() * 8;
       const drift = new Vector3(Math.cos(driftAngle) * driftSpeed, 0, Math.sin(driftAngle) * driftSpeed);
@@ -2277,19 +2416,43 @@ const BabylonWorld: React.FC = () => {
         });
       }
 
-      if (assetTogglesRef.current.airplanes) {
-        planes.forEach((p) => {
-          p.center.addInPlace(p.drift.scale(dt));
-          if (p.center.x > planeBounds.maxX) p.center.x = planeBounds.minX;
-          if (p.center.x < planeBounds.minX) p.center.x = planeBounds.maxX;
-          if (p.center.z > planeBounds.maxZ) p.center.z = planeBounds.minZ;
-          if (p.center.z < planeBounds.minZ) p.center.z = planeBounds.maxZ;
+        if (assetTogglesRef.current.airplanes) {
+          planes.forEach((p) => {
+            p.center.addInPlace(p.drift.scale(dt));
+            if (p.center.x > planeBounds.maxX) p.center.x = planeBounds.minX;
+            if (p.center.x < planeBounds.minX) p.center.x = planeBounds.maxX;
+            if (p.center.z > planeBounds.maxZ) p.center.z = planeBounds.minZ;
+            if (p.center.z < planeBounds.minZ) p.center.z = planeBounds.maxZ;
 
-          p.angle += p.speed * dt;
-          const px = p.center.x + Math.cos(p.angle) * p.radius;
-          const pz = p.center.z + Math.sin(p.angle) * p.radius;
-          p.root.position.set(px, p.height, pz);
-          p.root.rotation.y = -p.angle + Math.PI / 2;
+            p.angle += p.speed * dt;
+            const px = p.center.x + Math.cos(p.angle) * p.radius;
+            const pz = p.center.z + Math.sin(p.angle) * p.radius;
+            const candidate = new Vector3(px, 0, pz);
+            if (isNearAvoid(candidate, 40)) {
+              const centers = getAvoidCenters();
+              let nearest = null as null | { position: Vector3; radius: number };
+              let nearestDist = Infinity;
+              centers.forEach((c) => {
+                const dx = candidate.x - c.position.x;
+                const dz = candidate.z - c.position.z;
+                const dist = dx * dx + dz * dz;
+                const limit = (c.radius + 40) * (c.radius + 40);
+                if (dist < limit && dist < nearestDist) {
+                  nearest = c;
+                  nearestDist = dist;
+                }
+              });
+              if (nearest) {
+                const push = candidate.subtract(nearest.position);
+                push.y = 0;
+                if (push.lengthSquared() < 0.01) push.x = 1;
+                push.normalize();
+                p.center.addInPlace(push.scale(6));
+                p.angle += p.speed * dt * 3;
+              }
+            }
+            p.root.position.set(px, p.height, pz);
+            p.root.rotation.y = -p.angle + Math.PI / 2;
 
           p.trailPoints.pop();
           p.trailPoints.unshift(new Vector3(px, p.height, pz));
@@ -2440,7 +2603,7 @@ const BabylonWorld: React.FC = () => {
     let lastMoving = false;
 
     // Movement: W/S move forward/back relative to camera view, A/D strafe left/right
-    const moveSpeed = 24; // world units per second (tune as needed)
+    const moveSpeed = 16; // world units per second (tune as needed)
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
       if (lookPointerActive) {
@@ -2557,6 +2720,7 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("cloud-settings", onCloudSettings as EventListener); } catch {}
       try { window.removeEventListener("postfx-settings", onPostFxSettings as EventListener); } catch {}
       try { window.removeEventListener("asset-toggles", onAssetToggles as EventListener); } catch {}
+      try { window.removeEventListener("atmosphere-props-settings", onAtmosphereProps as EventListener); } catch {}
       try { window.removeEventListener("realism-settings", onRealismSettings as EventListener); } catch {}
       try { window.removeEventListener("walk-input", onWalkInput as EventListener); } catch {}
       try { window.removeEventListener("hud-close", onHudClose as EventListener); } catch {}
@@ -2628,10 +2792,10 @@ const BabylonWorld: React.FC = () => {
         <BuildingWindowFlicker
           scene={sceneInstance}
           materials={buildingMaterials}
-          intervalMs={3000}
-          flickerPercent={0.12}
-          stepMs={600}
-          offDurationMs={4000}
+          intervalMs={2000}
+          flickerPercent={0.2}
+          stepMs={400}
+          offDurationMs={6000}
         />
       ) : null}
       <BorderFog
@@ -2698,6 +2862,7 @@ const BabylonWorld: React.FC = () => {
       <LODManager scene={sceneInstance} enabled={realismSettings.lod} />
       <VegetationSway scene={sceneInstance} enabled={realismSettings.vegetationSway} />
       <AlleyFog scene={sceneInstance} enabled={realismSettings.alleyFog} />
+      <AtmosphereProps scene={sceneInstance} settings={atmosphereProps} />
     </>
   );
 };

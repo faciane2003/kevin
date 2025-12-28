@@ -19,6 +19,7 @@ type BottomFogSettings = {
   height: number;
   radius: number;
   fadeTop: number;
+  fadeBottom: number;
   timeScale: number;
   offsetX: number;
   offsetY: number;
@@ -48,6 +49,7 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
       opacity: number,
       blur: number,
       fadeTop: number,
+      fadeBottom: number,
       holes: { x: number; y: number; radius: number; speed: number; phase: number }[],
       timeSec: number
     ) => {
@@ -56,12 +58,20 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
       ctx.clearRect(0, 0, size.width, size.height);
       const blurPx = Math.max(0, blur);
       ctx.filter = `blur(${blurPx}px)`;
-      const clampedFade = Math.min(1, Math.max(0.02, fadeTop));
-      const fadeStart = Math.max(0, 1 - clampedFade);
+      const clampedTop = Math.min(1, Math.max(0.02, fadeTop));
+      const clampedBottom = Math.min(1, Math.max(0, fadeBottom));
+      const fadeStart = Math.max(0, 1 - clampedTop);
       for (let y = 0; y < size.height; y += 1) {
         const t = y / (size.height - 1);
         const fadeT = t < fadeStart ? 0 : (t - fadeStart) / (1 - fadeStart);
-        const smooth = fadeT <= 0 ? 1 : fadeT >= 1 ? 0 : 1 - fadeT * fadeT * (3 - 2 * fadeT);
+        const topSmooth = fadeT <= 0 ? 1 : fadeT >= 1 ? 0 : 1 - fadeT * fadeT * (3 - 2 * fadeT);
+        const bottomSmooth =
+          clampedBottom <= 0
+            ? 1
+            : t >= clampedBottom
+              ? 1
+              : t / clampedBottom;
+        const smooth = topSmooth * bottomSmooth;
         const noise = 0.85 + 0.15 * (0.5 + 0.5 * Math.sin((y + 13.7) * 0.21));
         const alpha = opacity * smooth * noise;
         ctx.fillStyle = `rgba(255,255,255,${alpha})`;
@@ -159,6 +169,7 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
       settings.opacity,
       settings.blur,
       settings.fadeTop,
+      settings.fadeBottom,
       holesRef.current,
       (performance.now() / 1000) * settings.timeScale
     );
@@ -183,6 +194,7 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
         settings.opacity,
         settings.blur,
         settings.fadeTop,
+        settings.fadeBottom,
         holesRef.current,
         (now / 1000) * settings.timeScale
       );
@@ -190,7 +202,7 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
     return () => {
       scene.onBeforeRenderObservable.remove(observer);
     };
-  }, [scene, settings.opacity, settings.blur, settings.fadeTop, settings.timeScale, buildGradient]);
+  }, [scene, settings.opacity, settings.blur, settings.fadeTop, settings.fadeBottom, settings.timeScale, buildGradient]);
 
   return null;
 };
