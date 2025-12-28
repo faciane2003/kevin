@@ -38,16 +38,39 @@ import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
 import CloudLayer from "../components/world/CloudLayer";
 import CityStars from "../components/world/CityStars";
+import {
+  AlleyFog,
+  AlleyRumble,
+  AmbientOcclusionDecals,
+  Banners,
+  CameraBob,
+  DebrisScatter,
+  FootstepZones,
+  LightCones,
+  LODManager,
+  MovingShadows,
+  NightColorGrade,
+  PuddleDecals,
+  SirenSweep,
+  SkylineBackdrop,
+  SteamVents,
+  StreetSigns,
+  TrafficLights,
+  VegetationSway,
+} from "../components/world/RealismExtras";
 
 type BuildingInfo = { mesh: any; width: number; depth: number; height: number };
 
 const BabylonWorld: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isTouchDevice =
+    typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   const [sceneInstance, setSceneInstance] = useState<Scene | null>(null);
   const [buildingMaterials, setBuildingMaterials] = useState<StandardMaterial[]>([]);
   const [buildingInfos, setBuildingInfos] = useState<BuildingInfo[]>([]);
   const buildingInfosRef = useRef<BuildingInfo[]>([]);
-  const fogOpacityMaster = 0.1;
+  const [fogOpacityMaster, setFogOpacityMaster] = useState(0);
+  const fogOpacityRef = useRef(0);
   const [borderFogSettings, setBorderFogSettings] = useState({
     enabled: true,
     opacity: 0.5,
@@ -98,14 +121,25 @@ const BabylonWorld: React.FC = () => {
     offsetZ: -1,
     color: new Color3(0.53, 0.51, 0.79),
   });
-  const [perfSettings, setPerfSettings] = useState({
-    glow: true,
-    postFx: true,
-    collisions: true,
-    windowFlicker: true,
-    borderFog: true,
-    gargoyles: true,
-  });
+  const [perfSettings, setPerfSettings] = useState(() =>
+    isTouchDevice
+      ? {
+          glow: false,
+          postFx: false,
+          collisions: false,
+          windowFlicker: false,
+          borderFog: false,
+          gargoyles: false,
+        }
+      : {
+          glow: true,
+          postFx: true,
+          collisions: true,
+          windowFlicker: true,
+          borderFog: true,
+          gargoyles: true,
+        }
+  );
   const [starSettings, setStarSettings] = useState({
     enabled: true,
     count: 55,
@@ -121,6 +155,29 @@ const BabylonWorld: React.FC = () => {
     clouds: false,
     airplanes: true,
   });
+  const [realismSettings, setRealismSettings] = useState({
+    aoDecals: true,
+    puddles: true,
+    lightCones: true,
+    skyline: true,
+    cameraBob: true,
+    footstepZones: true,
+    steamVents: true,
+    movingShadows: true,
+    debris: true,
+    trafficLights: true,
+    streetSigns: true,
+    sirenSweep: true,
+    banners: true,
+    nightGrade: true,
+    alleyRumble: false,
+    lod: true,
+    vegetationSway: true,
+    alleyFog: true,
+  });
+  const cameraRef = useRef<UniversalCamera | null>(null);
+  const [walkInputActive, setWalkInputActive] = useState(false);
+  const walkInputActiveRef = useRef(false);
   const [cloudMaskSettings, setCloudMaskSettings] = useState({
     scale: 0.55,
     scaleX: 0.8,
@@ -146,6 +203,12 @@ const BabylonWorld: React.FC = () => {
     shadowsHue: 227,
     shadowsDensity: 44,
     shadowsSaturation: 20,
+  });
+  const [playerHaloSettings, setPlayerHaloSettings] = useState({
+    opacity: 1,
+    blur: 8.6,
+    radius: 8.9,
+    color: "#000000",
   });
   const [treePositions, setTreePositions] = useState<Vector3[]>([]);
   const treePositionsRef = useRef<Vector3[]>([]);
@@ -198,6 +261,47 @@ const BabylonWorld: React.FC = () => {
   }, [assetToggles]);
 
   useEffect(() => {
+    const start = performance.now();
+    const interval = window.setInterval(() => {
+      const elapsed = (performance.now() - start) / 1000;
+      if (elapsed < 10) {
+        setFogOpacityMaster((prev) => (prev === 0 ? prev : 0));
+        fogOpacityRef.current = 0;
+        return;
+      }
+      const t = elapsed - 10;
+      const phase = (Math.sin(t * Math.PI * 2 * 0.05 - Math.PI / 2) + 1) / 2;
+      fogOpacityRef.current = phase;
+      setFogOpacityMaster((prev) => (Math.abs(prev - phase) < 0.01 ? prev : phase));
+    }, 120);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!isTouchDevice) return;
+    const stages: Array<keyof typeof perfSettings> = [
+      "borderFog",
+      "windowFlicker",
+      "gargoyles",
+      "collisions",
+      "glow",
+      "postFx",
+    ];
+    let index = 0;
+    const timer = window.setInterval(() => {
+      if (index >= stages.length) {
+        window.clearInterval(timer);
+        return;
+      }
+      const key = stages[index];
+      index += 1;
+      setPerfSettings((prev) => ({ ...prev, [key]: true }));
+      window.dispatchEvent(new CustomEvent("performance-settings", { detail: { [key]: true } }));
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [isTouchDevice]);
+
+  useEffect(() => {
     if (!canvasRef.current) return;
 
     const engine = new Engine(canvasRef.current, true);
@@ -229,6 +333,7 @@ const BabylonWorld: React.FC = () => {
       startTarget = new Vector3(savedStart.target.x, savedStart.target.y, savedStart.target.z);
     }
     const camera = new UniversalCamera("camera", startPos.clone(), scene);
+    cameraRef.current = camera;
     camera.setTarget(startTarget.clone());
     scene.collisionsEnabled = true;
     camera.checkCollisions = true;
@@ -250,6 +355,25 @@ const BabylonWorld: React.FC = () => {
 
     const sparkleAnchor = new TransformNode("sparkleAnchor", scene);
     const sparkleTimers: number[] = [];
+    let rollerSparkleTimer: number | null = null;
+    const scheduleRollerSparkles = () => {
+      if (!sprintModeRef.current) return;
+      if (!walkInputActiveRef.current) return;
+      const delay = 7000 + Math.random() * 8000;
+      rollerSparkleTimer = window.setTimeout(() => {
+        if (sprintModeRef.current && walkInputActiveRef.current) {
+          spawnFootSparkles(new Color4(1, 0.25, 0.2, 1));
+        }
+        scheduleRollerSparkles();
+      }, delay);
+    };
+    const updateRollerSparkles = () => {
+      if (rollerSparkleTimer) {
+        window.clearTimeout(rollerSparkleTimer);
+        rollerSparkleTimer = null;
+      }
+      scheduleRollerSparkles();
+    };
     const spawnFootSparkles = (color: Color4) => {
       const system = new ParticleSystem("footSparkles", 180, scene);
       system.particleTexture = sparkleTexture;
@@ -257,15 +381,15 @@ const BabylonWorld: React.FC = () => {
       sparkleAnchor.position = camera.position.add(forward.scale(2.2));
       sparkleAnchor.position.y = camera.position.y - 1.2;
       system.emitter = sparkleAnchor as any;
-      system.minEmitBox = new Vector3(-1.2, -0.4, -1.2);
-      system.maxEmitBox = new Vector3(1.2, 0.4, 1.2);
+      system.minEmitBox = new Vector3(-3.6, -1.2, -3.6);
+      system.maxEmitBox = new Vector3(3.6, 1.2, 3.6);
       system.color1 = color;
       system.color2 = color;
       system.colorDead = new Color4(color.r, color.g, color.b, 0);
       system.minSize = 0.175;
       system.maxSize = 0.45;
-      system.minLifeTime = 2;
-      system.maxLifeTime = 5;
+      system.minLifeTime = 6;
+      system.maxLifeTime = 15;
       system.emitRate = 1600;
       system.gravity = new Vector3(0, 1.8, 0);
       system.direction1 = new Vector3(-0.6, 1.2, -0.6);
@@ -278,7 +402,7 @@ const BabylonWorld: React.FC = () => {
       const timer = window.setTimeout(() => {
         system.stop();
         system.dispose();
-      }, 1800);
+      }, 5400);
       sparkleTimers.push(timer);
     };
 
@@ -290,6 +414,7 @@ const BabylonWorld: React.FC = () => {
       spawnFootSparkles(
         sprintModeRef.current ? new Color4(1, 0.84, 0.2, 1) : new Color4(0.3, 0.6, 1, 1)
       );
+      updateRollerSparkles();
     };
     window.addEventListener("hud-item-click", onHudItemClick as EventListener);
 
@@ -299,6 +424,11 @@ const BabylonWorld: React.FC = () => {
       canvasRef.current?.requestPointerLock?.();
     };
     canvasRef.current?.addEventListener("click", requestLock);
+    const onHudClose = () => {
+      if (isTouchDevice) return;
+      canvasRef.current?.requestPointerLock?.();
+    };
+    window.addEventListener("hud-close", onHudClose as EventListener);
 
     const debugOverlayWrap = document.createElement("div");
     debugOverlayWrap.style.position = "fixed";
@@ -400,7 +530,6 @@ const BabylonWorld: React.FC = () => {
     };
 
 
-    const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) {
       try {
         // @ts-ignore - touch input may not be publicly typed in some versions
@@ -899,12 +1028,59 @@ const BabylonWorld: React.FC = () => {
     ground.material = groundMat;
     ground.checkCollisions = true;
 
+    const haloTexture = new DynamicTexture("playerHaloTex", { width: 256, height: 256 }, scene, true);
+    haloTexture.hasAlpha = true;
+    const updateHaloTexture = (blur: number, colorHex: string) => {
+      const ctx = haloTexture.getContext();
+      const size = haloTexture.getSize();
+      const center = size.width / 2;
+      const outer = size.width / 2;
+      const edge = Math.max(0.05, Math.min(1, blur / 10));
+      const inner = outer * (1 - 0.6 * edge);
+      const haloColor = parseHexColor(colorHex);
+      const r = Math.round(haloColor.r * 255);
+      const g = Math.round(haloColor.g * 255);
+      const b = Math.round(haloColor.b * 255);
+      const grad = ctx.createRadialGradient(center, center, inner, center, center, outer);
+      grad.addColorStop(0, `rgba(${r},${g},${b},1)`);
+      grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.clearRect(0, 0, size.width, size.height);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size.width, size.height);
+      haloTexture.update();
+    };
+    updateHaloTexture(playerHaloSettings.blur, playerHaloSettings.color);
+
+    const haloBaseRadius = 6;
+    const halo = MeshBuilder.CreateDisc("playerHalo", { radius: haloBaseRadius, tessellation: 64 }, scene);
+    halo.rotation.x = Math.PI / 2;
+    halo.position = new Vector3(camera.position.x, 0.05, camera.position.z);
+    halo.isPickable = false;
+    const haloMat = new StandardMaterial("playerHaloMat", scene);
+    haloMat.diffuseColor = new Color3(1, 1, 1);
+    haloMat.diffuseTexture = haloTexture;
+    haloMat.emissiveColor = new Color3(0, 0, 0);
+    haloMat.ambientColor = new Color3(0, 0, 0);
+    haloMat.opacityTexture = haloTexture;
+    haloMat.useAlphaFromDiffuseTexture = true;
+    haloMat.alpha = playerHaloSettings.opacity;
+    haloMat.specularColor = new Color3(0, 0, 0);
+    haloMat.disableLighting = true;
+    halo.material = haloMat;
+    halo.scaling.setAll(playerHaloSettings.radius / haloBaseRadius);
+
+    const haloObserver = scene.onBeforeRenderObservable.add(() => {
+      halo.position.x = camera.position.x;
+      halo.position.z = camera.position.z;
+      halo.position.y = 0.05;
+    });
+
     const walkMeshes = new Set([ground.name]);
 
     // Distant mountains removed for now
 
     // Sky texture already applied above.
-    // Neon haze for atmosphere
+    // Atmospheric fog
     const fogSettings = {
       enabled: true,
       density: 0.0045,
@@ -915,12 +1091,17 @@ const BabylonWorld: React.FC = () => {
     scene.fogMode = Scene.FOGMODE_EXP2;
     scene.fogDensity = fogSettings.density;
     scene.fogColor = fogSettings.color;
+    const fogObserver = scene.onBeforeRenderObservable.add(() => {
+      scene.fogDensity = fogSettings.enabled ? fogSettings.density * fogOpacityRef.current : 0;
+      scene.fogColor = fogSettings.color;
+    });
 
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
     glowLayerRef.current = glowLayer;
     glowLayer.intensity = 0.7;
     glowLayer.addExcludedMesh(moon);
+    glowLayer.addExcludedMesh(halo);
 
     const pipeline = new DefaultRenderingPipeline(
       "defaultPipeline",
@@ -1150,6 +1331,20 @@ const BabylonWorld: React.FC = () => {
       });
     };
     window.addEventListener("asset-toggles", onAssetToggles as EventListener);
+    const onRealismSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      setRealismSettings((prev) => ({ ...prev, ...detail }));
+    };
+    window.addEventListener("realism-settings", onRealismSettings as EventListener);
+    const onWalkInput = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ active?: boolean }>).detail;
+      const active = !!detail?.active;
+      walkInputActiveRef.current = active;
+      setWalkInputActive(active);
+      updateRollerSparkles();
+    };
+    window.addEventListener("walk-input", onWalkInput as EventListener);
     const onBorderFogSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -1233,6 +1428,29 @@ const BabylonWorld: React.FC = () => {
       }));
     };
     window.addEventListener("star-settings", onStarSettings as EventListener);
+    const onPlayerHaloSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent<any>).detail;
+      if (!detail) return;
+      if (typeof detail.opacity === "number") haloMat.alpha = detail.opacity;
+      if (typeof detail.radius === "number") {
+        const scale = Math.max(0.1, detail.radius) / haloBaseRadius;
+        halo.scaling.setAll(scale);
+      }
+      const nextBlur =
+        typeof detail.blur === "number" ? detail.blur : playerHaloSettings.blur;
+      const nextColor =
+        typeof detail.color === "string" ? detail.color : playerHaloSettings.color;
+      if (typeof detail.blur === "number" || typeof detail.color === "string") {
+        updateHaloTexture(nextBlur, nextColor);
+      }
+      setPlayerHaloSettings((prev) => ({
+        opacity: typeof detail.opacity === "number" ? detail.opacity : prev.opacity,
+        blur: typeof detail.blur === "number" ? detail.blur : prev.blur,
+        radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
+        color: typeof detail.color === "string" ? detail.color : prev.color,
+      }));
+    };
+    window.addEventListener("player-halo-settings", onPlayerHaloSettings as EventListener);
     const onBuildingSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -1270,18 +1488,34 @@ const BabylonWorld: React.FC = () => {
       const size = winTex.getSize();
       ctx.fillStyle = "rgba(0,0,0,1)";
       ctx.fillRect(0, 0, size.width, size.height);
-      const winW = 18;
-      const winH = 26;
-      const gapX = 10;
-      const gapY = 14;
-      const windowRects: { x: number; y: number; w: number; h: number; lit: boolean }[] = [];
-      for (let y = 20; y < size.height - winH - 10; y += winH + gapY) {
-        for (let x = 16; x < size.width - winW - 10; x += winW + gapX) {
-          const lit = rand() > 0.3;
-          ctx.fillStyle = lit ? windowOn : windowOff;
+      const windowOnPalette = ["#ffd76a", "#6bb7ff", "#ff8de0", "#6bff9d", "#ffbf8f"];
+      const windowOffPalette = ["#0a0d12", "#10131a", "#0b0f16", "#0f1218"];
+      const windowRects: {
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        lit: boolean;
+        onColor: string;
+        offColor: string;
+      }[] = [];
+      let y = 20;
+      while (y < size.height - 30) {
+        const winH = 18 + Math.floor(rand() * 14);
+        const gapY = 8 + Math.floor(rand() * 12);
+        let x = 16;
+        while (x < size.width - 28) {
+          const winW = 12 + Math.floor(rand() * 18);
+          const gapX = 6 + Math.floor(rand() * 12);
+          const lit = rand() > 0.15;
+          const litColor = windowOnPalette[Math.floor(rand() * windowOnPalette.length)];
+          const offColor = windowOffPalette[Math.floor(rand() * windowOffPalette.length)];
+          ctx.fillStyle = lit ? litColor : offColor;
           ctx.fillRect(x, y, winW, winH);
-          windowRects.push({ x, y, w: winW, h: winH, lit });
+          windowRects.push({ x, y, w: winW, h: winH, lit, onColor: litColor, offColor });
+          x += winW + gapX;
         }
+        y += winH + gapY;
       }
       winTex.update();
       winTex.uScale = 1.0;
@@ -2323,11 +2557,15 @@ const BabylonWorld: React.FC = () => {
       try { window.removeEventListener("cloud-settings", onCloudSettings as EventListener); } catch {}
       try { window.removeEventListener("postfx-settings", onPostFxSettings as EventListener); } catch {}
       try { window.removeEventListener("asset-toggles", onAssetToggles as EventListener); } catch {}
+      try { window.removeEventListener("realism-settings", onRealismSettings as EventListener); } catch {}
+      try { window.removeEventListener("walk-input", onWalkInput as EventListener); } catch {}
+      try { window.removeEventListener("hud-close", onHudClose as EventListener); } catch {}
       try { window.removeEventListener("border-fog-settings", onBorderFogSettings as EventListener); } catch {}
       try { window.removeEventListener("top-fog-settings", onTopFogSettings as EventListener); } catch {}
       try { window.removeEventListener("middle-fog-settings", onMiddleFogSettings as EventListener); } catch {}
       try { window.removeEventListener("bottom-fog-settings", onBottomFogSettings as EventListener); } catch {}
       try { window.removeEventListener("star-settings", onStarSettings as EventListener); } catch {}
+      try { window.removeEventListener("player-halo-settings", onPlayerHaloSettings as EventListener); } catch {}
       try { window.removeEventListener("building-settings", onBuildingSettings as EventListener); } catch {}
       try { window.removeEventListener("tree-positions", onTreePositions as EventListener); } catch {}
       try { window.removeEventListener("hud-item-click", onHudItemClick as EventListener); } catch {}
@@ -2356,6 +2594,9 @@ const BabylonWorld: React.FC = () => {
       sparkleTimers.forEach((timer) => {
         try { window.clearTimeout(timer); } catch {}
       });
+      if (rollerSparkleTimer) {
+        try { window.clearTimeout(rollerSparkleTimer); } catch {}
+      }
       try { sparkleTexture.dispose(); } catch {}
       try { sparkleAnchor.dispose(); } catch {}
       catRoots.forEach((root) => {
@@ -2368,6 +2609,11 @@ const BabylonWorld: React.FC = () => {
         try { shape.material?.dispose(); } catch {}
         try { shape.dispose(); } catch {}
       });
+      try { scene.onBeforeRenderObservable.remove(fogObserver); } catch {}
+      try { scene.onBeforeRenderObservable.remove(haloObserver); } catch {}
+      try { haloMat.dispose(); } catch {}
+      try { haloTexture.dispose(); } catch {}
+      try { halo.dispose(); } catch {}
       scene.dispose();
       engine.dispose();
       setSceneInstance(null);
@@ -2382,10 +2628,10 @@ const BabylonWorld: React.FC = () => {
         <BuildingWindowFlicker
           scene={sceneInstance}
           materials={buildingMaterials}
-          intervalMs={8000}
-          flickerPercent={0.6}
-          stepMs={2000}
-          offDurationMs={10000}
+          intervalMs={3000}
+          flickerPercent={0.12}
+          stepMs={600}
+          offDurationMs={4000}
         />
       ) : null}
       <BorderFog
@@ -2422,6 +2668,36 @@ const BabylonWorld: React.FC = () => {
       ) : null}
       {perfSettings.gargoyles ? <GargoyleStatues scene={sceneInstance} buildings={buildingInfos} /> : null}
       <TreeField scene={sceneInstance} buildings={buildingInfos} signPositions={signPositions} />
+      <AmbientOcclusionDecals
+        scene={sceneInstance}
+        enabled={realismSettings.aoDecals}
+        buildings={buildingInfos.map((b) => ({ mesh: b.mesh, width: b.width, depth: b.depth }))}
+      />
+      <PuddleDecals scene={sceneInstance} enabled={realismSettings.puddles} />
+      <LightCones scene={sceneInstance} enabled={realismSettings.lightCones} />
+      <SkylineBackdrop scene={sceneInstance} enabled={realismSettings.skyline} />
+      <CameraBob
+        scene={sceneInstance}
+        camera={cameraRef.current}
+        enabled={realismSettings.cameraBob && walkInputActive}
+      />
+      <FootstepZones
+        scene={sceneInstance}
+        camera={cameraRef.current}
+        enabled={realismSettings.footstepZones}
+      />
+      <SteamVents scene={sceneInstance} enabled={realismSettings.steamVents} />
+      <MovingShadows scene={sceneInstance} enabled={realismSettings.movingShadows} />
+      <DebrisScatter scene={sceneInstance} enabled={realismSettings.debris} />
+      <TrafficLights scene={sceneInstance} enabled={realismSettings.trafficLights} />
+      <StreetSigns scene={sceneInstance} enabled={realismSettings.streetSigns} />
+      <SirenSweep scene={sceneInstance} enabled={realismSettings.sirenSweep} />
+      <Banners scene={sceneInstance} enabled={realismSettings.banners} />
+      <NightColorGrade scene={sceneInstance} enabled={realismSettings.nightGrade} />
+      <AlleyRumble enabled={realismSettings.alleyRumble} />
+      <LODManager scene={sceneInstance} enabled={realismSettings.lod} />
+      <VegetationSway scene={sceneInstance} enabled={realismSettings.vegetationSway} />
+      <AlleyFog scene={sceneInstance} enabled={realismSettings.alleyFog} />
     </>
   );
 };

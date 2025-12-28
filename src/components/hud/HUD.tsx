@@ -353,6 +353,7 @@ const DialoguePanel: React.FC<{
 const HUDInner: React.FC = () => {
   const { setActiveTab, setActiveSlot, addInventoryItem } = useHUD();
   const [activeNpc, setActiveNpc] = useState<string | null>(null);
+  const [hudPanelOpen, setHudPanelOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -385,8 +386,30 @@ const HUDInner: React.FC = () => {
     };
   }, [addInventoryItem]);
 
+  useEffect(() => {
+    const onPanelState = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ open?: boolean }>).detail;
+      setHudPanelOpen(!!detail?.open);
+    };
+    window.addEventListener("hud-panel-state", onPanelState as EventListener);
+    return () => window.removeEventListener("hud-panel-state", onPanelState as EventListener);
+  }, []);
+
+  const closeHudPanels = () => {
+    setActiveTab(null);
+    window.dispatchEvent(new CustomEvent("hud-close"));
+  };
+
   return (
     <div className="hud-container" aria-hidden={false}>
+      {hudPanelOpen && (
+        <button
+          type="button"
+          className="hud-overlay"
+          aria-label="Close HUD"
+          onClick={closeHudPanels}
+        />
+      )}
       {/* Stats bars hidden per request */}
       <MenuTabs />
       <JournalPanel />

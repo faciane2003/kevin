@@ -104,6 +104,15 @@ type CloudMaskSettings = {
   lockScale: boolean;
 };
 
+type PlayerHaloSettings = {
+  opacity: number;
+  blur: number;
+  radius: number;
+  color: string;
+};
+
+type PlayerHaloNumericKey = "opacity" | "blur" | "radius";
+
 type PostFxSettings = {
   enabled: boolean;
   depthOfFieldEnabled: boolean;
@@ -129,6 +138,27 @@ type AssetToggles = {
   neonBillboards: boolean;
   clouds: boolean;
   airplanes: boolean;
+};
+
+type RealismSettings = {
+  aoDecals: boolean;
+  puddles: boolean;
+  lightCones: boolean;
+  skyline: boolean;
+  cameraBob: boolean;
+  footstepZones: boolean;
+  steamVents: boolean;
+  movingShadows: boolean;
+  debris: boolean;
+  trafficLights: boolean;
+  streetSigns: boolean;
+  sirenSweep: boolean;
+  banners: boolean;
+  nightGrade: boolean;
+  alleyRumble: boolean;
+  lod: boolean;
+  vegetationSway: boolean;
+  alleyFog: boolean;
 };
 
 const DEFAULT_LIGHTS: LightSettings = {
@@ -234,6 +264,13 @@ const DEFAULT_CLOUD_MASK: CloudMaskSettings = {
   lockScale: false,
 };
 
+const DEFAULT_PLAYER_HALO: PlayerHaloSettings = {
+  opacity: 1,
+  blur: 8.6,
+  radius: 8.9,
+  color: "#000000",
+};
+
 const DEFAULT_POSTFX: PostFxSettings = {
   enabled: true,
   depthOfFieldEnabled: false,
@@ -261,6 +298,27 @@ const DEFAULT_ASSETS: AssetToggles = {
   airplanes: true,
 };
 
+const DEFAULT_REALISM: RealismSettings = {
+  aoDecals: true,
+  puddles: true,
+  lightCones: true,
+  skyline: true,
+  cameraBob: true,
+  footstepZones: true,
+  steamVents: true,
+  movingShadows: true,
+  debris: true,
+  trafficLights: true,
+  streetSigns: true,
+  sirenSweep: true,
+  banners: true,
+  nightGrade: true,
+  alleyRumble: false,
+  lod: true,
+  vegetationSway: true,
+  alleyFog: true,
+};
+
 const DebugPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [cameraInfo, setCameraInfo] = useState<{
@@ -273,11 +331,25 @@ const DebugPanel: React.FC = () => {
   const [topFog, setTopFog] = useState<TopFogSettings>(DEFAULT_TOP_FOG);
   const [middleFog, setMiddleFog] = useState<MiddleFogSettings>(DEFAULT_MIDDLE_FOG);
   const [bottomFog, setBottomFog] = useState<BottomFogSettings>(DEFAULT_BOTTOM_FOG);
-  const [perf, setPerf] = useState<PerfSettings>(DEFAULT_PERF);
+  const [perf, setPerf] = useState<PerfSettings>(() => {
+    const isTouch =
+      typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+    if (!isTouch) return DEFAULT_PERF;
+    return {
+      glow: false,
+      postFx: false,
+      collisions: false,
+      windowFlicker: false,
+      borderFog: false,
+      gargoyles: false,
+    };
+  });
   const [stars, setStars] = useState<StarSettings>(DEFAULT_STARS);
   const [cloudMask, setCloudMask] = useState<CloudMaskSettings>(DEFAULT_CLOUD_MASK);
   const [postFx, setPostFx] = useState<PostFxSettings>(DEFAULT_POSTFX);
   const [assets, setAssets] = useState<AssetToggles>(DEFAULT_ASSETS);
+  const [realism, setRealism] = useState<RealismSettings>(DEFAULT_REALISM);
+  const [playerHalo, setPlayerHalo] = useState<PlayerHaloSettings>(DEFAULT_PLAYER_HALO);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -334,6 +406,10 @@ const DebugPanel: React.FC = () => {
   }, [stars]);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent("player-halo-settings", { detail: playerHalo }));
+  }, [playerHalo]);
+
+  useEffect(() => {
     window.dispatchEvent(new CustomEvent("cloud-settings", { detail: cloudMask }));
   }, [cloudMask]);
 
@@ -344,6 +420,10 @@ const DebugPanel: React.FC = () => {
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("asset-toggles", { detail: assets }));
   }, [assets]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("realism-settings", { detail: realism }));
+  }, [realism]);
 
   const copyAll = async () => {
     const payload: Record<string, unknown> = {
@@ -356,6 +436,7 @@ const DebugPanel: React.FC = () => {
       cloudMask,
       postFx,
       assets,
+      realism,
       performance: perf,
     };
     if (syncCameraStart && cameraInfo) {
@@ -668,6 +749,40 @@ const DebugPanel: React.FC = () => {
       </div>
 
       <div className="debug-section">
+        <div className="debug-section-title">Player Halo</div>
+        {(
+          [
+            ["opacity", "Opacity", 0, 1, 0.01],
+            ["blur", "Blur", 0, 10, 0.1],
+            ["radius", "Radius", 1, 20, 0.1],
+          ] as Array<[PlayerHaloNumericKey, string, number, number, number]>
+        ).map(([key, label, min, max, step]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={playerHalo[key]}
+              onChange={(e) =>
+                setPlayerHalo((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="light-value">{(playerHalo[key] as number).toFixed(2)}</span>
+          </label>
+        ))}
+        <label className="light-row">
+          <span>Color</span>
+          <input
+            type="color"
+            value={playerHalo.color}
+            onChange={(e) => setPlayerHalo((prev) => ({ ...prev, color: e.target.value }))}
+          />
+        </label>
+      </div>
+
+      <div className="debug-section">
         <div className="debug-section-title">Cloud Mask</div>
         {(
           [
@@ -977,6 +1092,41 @@ const DebugPanel: React.FC = () => {
               type="checkbox"
               checked={assets[key]}
               onChange={(e) => setAssets((prev) => ({ ...prev, [key]: e.target.checked }))}
+            />
+          </label>
+        ))}
+      </div>
+
+      <div className="debug-section">
+        <div className="debug-section-title">Realism Extras</div>
+        {(
+          [
+            ["aoDecals", "AO Decals"],
+            ["puddles", "Puddles"],
+            ["lightCones", "Light Cones"],
+            ["skyline", "Skyline Backdrop"],
+            ["cameraBob", "Camera Bob"],
+            ["footstepZones", "Footstep Zones"],
+            ["steamVents", "Steam Vents"],
+            ["movingShadows", "Moving Shadows"],
+            ["debris", "Debris Scatter"],
+            ["trafficLights", "Traffic Lights"],
+            ["streetSigns", "Street Signs"],
+            ["sirenSweep", "Siren Sweep"],
+            ["banners", "Banners"],
+            ["nightGrade", "Night Color Grade"],
+            ["alleyRumble", "Alley Rumble"],
+            ["lod", "LOD Manager"],
+            ["vegetationSway", "Vegetation Sway"],
+            ["alleyFog", "Alley Fog"],
+          ] as Array<[keyof RealismSettings, string]>
+        ).map(([key, label]) => (
+          <label key={key} className="light-row">
+            <span>{label}</span>
+            <input
+              type="checkbox"
+              checked={realism[key]}
+              onChange={(e) => setRealism((prev) => ({ ...prev, [key]: e.target.checked }))}
             />
           </label>
         ))}

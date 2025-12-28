@@ -70,6 +70,16 @@ const MenuTabs: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
+    const onClose = () => {
+      setActiveTab(null);
+      setMusicOpen(false);
+      window.dispatchEvent(new CustomEvent("music-visibility", { detail: { visible: false } }));
+    };
+    window.addEventListener("hud-close", onClose as EventListener);
+    return () => window.removeEventListener("hud-close", onClose as EventListener);
+  }, [setActiveTab]);
+
+  React.useEffect(() => {
     const scheduleCollapse = () => {
       if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
       collapseTimerRef.current = window.setTimeout(() => {
@@ -89,6 +99,9 @@ const MenuTabs: React.FC = () => {
   }, [collapseIcons]);
 
   React.useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("hud-panel-state", { detail: { open: !!(activeTab || musicOpen) } })
+    );
     if (!iconsExpanded && musicOpen) {
       setMusicOpen(false);
       window.dispatchEvent(new CustomEvent("music-visibility", { detail: { visible: false } }));
@@ -143,6 +156,11 @@ const MenuTabs: React.FC = () => {
               } as React.CSSProperties
             }
           >
+            <span className="menu-tab-sparkles" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, sparkleIdx) => (
+                <span key={`${t}-sparkle-${sparkleIdx}`} className="menu-tab-sparkle" />
+              ))}
+            </span>
             <img src={TAB_ICONS[t]} alt={t} className="menu-tab-icon" />
             {!active && <span className="menu-tab-tooltip">{t}</span>}
           </button>
@@ -169,6 +187,11 @@ const MenuTabs: React.FC = () => {
           } as React.CSSProperties
         }
       >
+        <span className="menu-tab-sparkles" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, sparkleIdx) => (
+            <span key={`music-sparkle-${sparkleIdx}`} className="menu-tab-sparkle" />
+          ))}
+        </span>
         <img src={MUSIC_ICON} alt="Music" className="menu-tab-icon" />
         {!musicOpen && <span className="menu-tab-tooltip">Music</span>}
       </button>
@@ -185,6 +208,11 @@ const MenuTabs: React.FC = () => {
           } as React.CSSProperties
         }
       >
+        <span className="menu-tab-sparkles" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, sparkleIdx) => (
+            <span key={`power-sparkle-${sparkleIdx}`} className="menu-tab-sparkle" />
+          ))}
+        </span>
         <img src={POWER_ICON} alt="Power" className="menu-tab-icon menu-tab-icon-power" />
         {iconsExpanded && <span className="menu-tab-tooltip">Power</span>}
       </button>

@@ -1,7 +1,15 @@
 import { useEffect } from "react";
 import { DynamicTexture, Scene, StandardMaterial } from "@babylonjs/core";
 
-type WindowRect = { x: number; y: number; w: number; h: number; lit: boolean };
+type WindowRect = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  lit: boolean;
+  onColor: string;
+  offColor: string;
+};
 
 type WindowMeta = {
   windowTex: DynamicTexture;
@@ -65,14 +73,14 @@ const BuildingWindowFlicker: React.FC<Props> = ({
       if (!rect) return;
       if (!rect.lit) return;
       rect.lit = false;
-      item.meta.ctx.fillStyle = item.meta.windowOff;
+      item.meta.ctx.fillStyle = rect.offColor || item.meta.windowOff;
       item.meta.ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
       item.meta.windowTex.update();
       const existing = offTimers.get(rect);
       if (existing) window.clearTimeout(existing);
       const timer = window.setTimeout(() => {
         rect.lit = true;
-        item.meta.ctx.fillStyle = item.meta.windowOn;
+        item.meta.ctx.fillStyle = rect.onColor || item.meta.windowOn;
         item.meta.ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
         item.meta.windowTex.update();
         offTimers.delete(rect);
