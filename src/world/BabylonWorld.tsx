@@ -38,6 +38,7 @@ import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
 import CloudLayer from "../components/world/CloudLayer";
 import CityStars from "../components/world/CityStars";
+import ShootingStars from "../components/world/ShootingStars";
 import AtmosphereProps from "../components/world/AtmosphereProps";
 import {
   AlleyFog,
@@ -152,6 +153,13 @@ const BabylonWorld: React.FC = () => {
     minHeight: 165,
     maxHeight: 440,
     scale: 0.8,
+  });
+  const [shootingStarSettings, setShootingStarSettings] = useState({
+    enabled: true,
+    count: 6,
+    radius: 800,
+    minHeight: 260,
+    maxHeight: 520,
   });
   const [assetToggles, setAssetToggles] = useState({
     glowSculptures: true,
@@ -1773,9 +1781,21 @@ const BabylonWorld: React.FC = () => {
       }
       applyBuildingTiling();
       setBuildingMaterials([...buildingMats]);
-      buildingInfosRef.current = [...newBuildingInfos];
-      setBuildingInfos(newBuildingInfos);
-    };
+        buildingInfosRef.current = [...newBuildingInfos];
+        setBuildingInfos(newBuildingInfos);
+        const maxHeight = newBuildingInfos.length
+          ? Math.max(...newBuildingInfos.map((b) => b.height))
+          : 120;
+        setShootingStarSettings((prev) => {
+          const minHeight = Math.max(220, maxHeight + 60);
+          const maxHeightBound = Math.max(minHeight + 140, maxHeight + 320);
+          return {
+            ...prev,
+            minHeight,
+            maxHeight: maxHeightBound,
+          };
+        });
+      };
 
     const buildingSeedState = { value: 4864 };
     const buildingCountState = { value: 800 };
@@ -1858,12 +1878,12 @@ const BabylonWorld: React.FC = () => {
     signMatA.emissiveColor = new Color3(0, 0, 0);
     signMatA.disableLighting = false;
     signMatA.backFaceCulling = false;
-    const signPoleA = MeshBuilder.CreateCylinder("billboard_pole_a", { height: 26, diameter: 1.6 }, scene);
-    signPoleA.position = new Vector3(-120, 13, 20);
+    const signPoleA = MeshBuilder.CreateCylinder("billboard_pole_a", { height: 92, diameter: 1.6 }, scene);
+    signPoleA.position = new Vector3(-120, 46, 20);
     signPoleA.material = metalMat;
     const signAGroup = new TransformNode("billboard_a_group", scene);
     signAGroup.parent = signPoleA;
-    signAGroup.position = new Vector3(0, 22, 0);
+    signAGroup.position = new Vector3(0, 55, 0);
     const signA = MeshBuilder.CreatePlane("billboard_a", { width: 50, height: 18 }, scene);
     signA.rotation = new Vector3(0, Math.PI / 6, 0);
     signA.material = signMatA;
@@ -1892,12 +1912,12 @@ const BabylonWorld: React.FC = () => {
     signMatB.emissiveColor = new Color3(0, 0, 0);
     signMatB.disableLighting = false;
     signMatB.backFaceCulling = false;
-    const signPoleB = MeshBuilder.CreateCylinder("billboard_pole_b", { height: 24, diameter: 1.6 }, scene);
-    signPoleB.position = new Vector3(180, 12, 10);
+    const signPoleB = MeshBuilder.CreateCylinder("billboard_pole_b", { height: 84, diameter: 1.6 }, scene);
+    signPoleB.position = new Vector3(180, 42, 10);
     signPoleB.material = metalMat;
     const signBGroup = new TransformNode("billboard_b_group", scene);
     signBGroup.parent = signPoleB;
-    signBGroup.position = new Vector3(0, 20, 0);
+    signBGroup.position = new Vector3(0, 50, 0);
     const signB = MeshBuilder.CreatePlane("billboard_b", { width: 46, height: 16 }, scene);
     signB.rotation = new Vector3(0, -Math.PI / 5, 0);
     signB.material = signMatB;
@@ -1982,6 +2002,7 @@ const BabylonWorld: React.FC = () => {
     const adPlane = MeshBuilder.CreatePlane("ad_plane_main", { width: adPlaneBaseHeight, height: adPlaneBaseHeight }, scene);
     adPlane.position = adAnchor.clone();
     adPlane.rotation = new Vector3(adSettings.rotX, adSettings.rotY, adSettings.rotZ);
+    adPlane.checkCollisions = false;
     const adMaterial = new StandardMaterial("ad_plane_main_mat", scene);
     adMaterial.emissiveColor = new Color3(0.4, 0.4, 0.4);
     adMaterial.backFaceCulling = false;
@@ -2314,6 +2335,13 @@ const BabylonWorld: React.FC = () => {
     planeMat.diffuseColor = new Color3(0.9, 0.92, 0.95);
     planeMat.emissiveColor = new Color3(0.1, 0.1, 0.12);
     planeMat.fogEnabled = false;
+    const maxBuildingHeight =
+      buildingInfosRef.current.length > 0
+        ? Math.max(...buildingInfosRef.current.map((b) => b.height))
+        : 120;
+    const skyRadius = sky.getBoundingInfo().boundingSphere.radius;
+    const planeCeiling = skyRadius * 0.6;
+    const planeBaseHeight = maxBuildingHeight + 50;
     const planeBounds = { minX: -520, maxX: 520, minZ: -520, maxZ: 520 };
     const planes: {
       root: TransformNode;
@@ -2332,13 +2360,16 @@ const BabylonWorld: React.FC = () => {
       const body = MeshBuilder.CreateBox(`plane_body_${i}`, { width: 6, height: 1.2, depth: 2 }, scene);
       body.material = planeMat;
       body.parent = root;
+      body.checkCollisions = false;
       const wing = MeshBuilder.CreateBox(`plane_wing_${i}`, { width: 10, height: 0.2, depth: 2.8 }, scene);
       wing.material = planeMat;
       wing.parent = root;
+      wing.checkCollisions = false;
       wing.position = new Vector3(0, 0, 0);
       const tail = MeshBuilder.CreateBox(`plane_tail_${i}`, { width: 2, height: 0.8, depth: 0.2 }, scene);
       tail.material = planeMat;
       tail.parent = root;
+      tail.checkCollisions = false;
       tail.position = new Vector3(-2.8, 0.7, 0);
 
       const center = new Vector3(
@@ -2349,7 +2380,7 @@ const BabylonWorld: React.FC = () => {
       const radius = 420 + i * 40;
       const angle = Math.random() * Math.PI * 2;
       const speed = 0.12 + Math.random() * 0.08;
-      const height = 260 + i * 14;
+      const height = Math.min(planeBaseHeight + i * 14, planeCeiling);
       const driftAngle = Math.random() * Math.PI * 2;
       const driftSpeed = 6 + Math.random() * 8;
       const drift = new Vector3(Math.cos(driftAngle) * driftSpeed, 0, Math.sin(driftAngle) * driftSpeed);
@@ -2417,6 +2448,9 @@ const BabylonWorld: React.FC = () => {
       }
 
         if (assetTogglesRef.current.airplanes) {
+          const minPlaneHeight = buildingInfosRef.current.length
+            ? Math.max(...buildingInfosRef.current.map((b) => b.height)) + 50
+            : planeBaseHeight;
           planes.forEach((p) => {
             p.center.addInPlace(p.drift.scale(dt));
             if (p.center.x > planeBounds.maxX) p.center.x = planeBounds.minX;
@@ -2451,11 +2485,12 @@ const BabylonWorld: React.FC = () => {
                 p.angle += p.speed * dt * 3;
               }
             }
-            p.root.position.set(px, p.height, pz);
+            const flightY = Math.max(Math.min(p.height, planeCeiling), minPlaneHeight);
+            p.root.position.set(px, flightY, pz);
             p.root.rotation.y = -p.angle + Math.PI / 2;
 
           p.trailPoints.pop();
-          p.trailPoints.unshift(new Vector3(px, p.height, pz));
+          p.trailPoints.unshift(new Vector3(px, flightY, pz));
           MeshBuilder.CreateLines(
             "plane_trail_update",
             { points: p.trailPoints, colors: p.trailColors, instance: p.trail },
@@ -2818,6 +2853,16 @@ const BabylonWorld: React.FC = () => {
           scale={starSettings.scale}
         />
       ) : null}
+      {shootingStarSettings.enabled ? (
+        <ShootingStars
+          scene={sceneInstance}
+          enabled={shootingStarSettings.enabled}
+          count={shootingStarSettings.count}
+          radius={shootingStarSettings.radius}
+          minHeight={shootingStarSettings.minHeight}
+          maxHeight={shootingStarSettings.maxHeight}
+        />
+      ) : null}
       {starSettings.enabled ? (
         <CityStars
           scene={sceneInstance}
@@ -2860,7 +2905,11 @@ const BabylonWorld: React.FC = () => {
       <NightColorGrade scene={sceneInstance} enabled={realismSettings.nightGrade} />
       <AlleyRumble enabled={realismSettings.alleyRumble} />
       <LODManager scene={sceneInstance} enabled={realismSettings.lod} />
-      <VegetationSway scene={sceneInstance} enabled={realismSettings.vegetationSway} />
+      <VegetationSway
+        scene={sceneInstance}
+        enabled={realismSettings.vegetationSway}
+        amount={0.09}
+      />
       <AlleyFog scene={sceneInstance} enabled={realismSettings.alleyFog} />
       <AtmosphereProps scene={sceneInstance} settings={atmosphereProps} />
     </>

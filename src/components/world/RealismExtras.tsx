@@ -584,16 +584,28 @@ export const VegetationSway: React.FC<VegetationSwayProps> = ({
   useEffect(() => {
     if (!scene || !enabled) return;
     const roots = scene.meshes.filter((m) => m.name.startsWith("tree_"));
+    const getTreeId = (name: string) => {
+      const match = name.match(/_(\d+)$/);
+      return match ? parseInt(match[1], 10) : null;
+    };
+    const swayMeshes = roots.filter((mesh) => {
+      const id = getTreeId(mesh.name);
+      return id !== null && id % 5 === 0;
+    });
+    const windOffsets = swayMeshes.map((_, idx) => (idx * 0.37) % (Math.PI * 2));
+    const windPeriods = swayMeshes.map((_, idx) => 3 + ((idx * 17) % 50) / 10); // 3..8s
     const start = performance.now();
     const obs = scene.onBeforeRenderObservable.add(() => {
       const t = (performance.now() - start) / 1000;
-      roots.forEach((mesh, idx) => {
-        mesh.rotation.z = Math.sin(t * speed + idx) * amount;
+      swayMeshes.forEach((mesh, idx) => {
+        const windPhase = (Math.sin((t * Math.PI * 2) / windPeriods[idx] + windOffsets[idx]) + 1) * 0.5;
+        const swayAmount = amount * (0.35 + windPhase * 0.65);
+        mesh.rotation.z = Math.sin(t * speed + idx) * swayAmount;
       });
     });
     return () => {
       scene.onBeforeRenderObservable.remove(obs);
-      roots.forEach((mesh) => { mesh.rotation.z = 0; });
+      swayMeshes.forEach((mesh) => { mesh.rotation.z = 0; });
     };
   }, [scene, enabled, amount, speed]);
   return null;

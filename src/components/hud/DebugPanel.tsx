@@ -354,10 +354,6 @@ const SECTION_KEYS = [
   "lighting",
   "moonSpotlight",
   "fog",
-  "borderFog",
-  "topFog",
-  "middleFog",
-  "bottomFog",
   "stars",
   "playerHalo",
   "cloudMask",
@@ -606,6 +602,7 @@ const DebugPanel: React.FC = () => {
         </div>
       </div>
 
+      <div className="debug-panel-grid">
       {renderSection(
         "camera",
         "Camera",
@@ -743,13 +740,7 @@ const DebugPanel: React.FC = () => {
               onChange={(e) => setLights((prev) => ({ ...prev, fogColor: e.target.value }))}
             />
           </label>
-        </>
-      )}
-
-      {renderSection(
-        "borderFog",
-        "Border Fog",
-        <>
+          <div className="debug-subtitle">Border Fog</div>
           <label className="light-row">
             <span>Enabled</span>
             <input
@@ -795,13 +786,7 @@ const DebugPanel: React.FC = () => {
               onChange={(e) => setLights((prev) => ({ ...prev, borderFogColor: e.target.value }))}
             />
           </label>
-        </>
-      )}
-
-      {renderSection(
-        "topFog",
-        "Top Fog",
-        <>
+          <div className="debug-subtitle">Top Fog</div>
           <label className="light-row">
             <span>Enabled</span>
             <input
@@ -845,6 +830,98 @@ const DebugPanel: React.FC = () => {
               type="color"
               value={topFog.color}
               onChange={(e) => setTopFog((prev) => ({ ...prev, color: e.target.value }))}
+            />
+          </label>
+          <div className="debug-subtitle">Middle Fog</div>
+          <label className="light-row">
+            <span>Enabled</span>
+            <input
+              type="checkbox"
+              checked={middleFog.enabled}
+              onChange={(e) => setMiddleFog((prev) => ({ ...prev, enabled: e.target.checked }))}
+            />
+          </label>
+          {(
+            [
+              ["opacity", "Opacity", 0, 1, 0.02],
+              ["blur", "Blur", 0, 16, 0.5],
+              ["height", "Height", 2, 200, 1],
+              ["radius", "Radius", 100, 1200, 10],
+              ["fadeTop", "Top Fade", 0, 1, 0.02],
+              ["fadeBottom", "Bottom Fade", 0, 1, 0.02],
+              ["timeScale", "Timing", 0.1, 3, 0.05],
+              ["offsetX", "Offset X", -300, 300, 1],
+              ["offsetY", "Offset Y", -50, 150, 1],
+              ["offsetZ", "Offset Z", -300, 300, 1],
+            ] as Array<[keyof MiddleFogSettings, string, number, number, number]>
+          ).map(([key, label, min, max, step]) => (
+            <label key={key} className="light-row">
+              <span>{label}</span>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={middleFog[key] as number}
+                onChange={(e) =>
+                  setMiddleFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                }
+              />
+              <span className="light-value">{(middleFog[key] as number).toFixed(2)}</span>
+            </label>
+          ))}
+          <label className="light-row">
+            <span>Color</span>
+            <input
+              type="color"
+              value={middleFog.color}
+              onChange={(e) => setMiddleFog((prev) => ({ ...prev, color: e.target.value }))}
+            />
+          </label>
+          <div className="debug-subtitle">Bottom Fog</div>
+          <label className="light-row">
+            <span>Enabled</span>
+            <input
+              type="checkbox"
+              checked={bottomFog.enabled}
+              onChange={(e) => setBottomFog((prev) => ({ ...prev, enabled: e.target.checked }))}
+            />
+          </label>
+          {(
+            [
+              ["opacity", "Opacity", 0, 1, 0.02],
+              ["blur", "Blur", 0, 16, 0.5],
+              ["height", "Height", 2, 200, 1],
+              ["radius", "Radius", 100, 1200, 10],
+              ["fadeTop", "Top Fade", 0, 1, 0.02],
+              ["fadeBottom", "Bottom Fade", 0, 1, 0.02],
+              ["timeScale", "Timing", 0.1, 3, 0.05],
+              ["offsetX", "Offset X", -300, 300, 1],
+              ["offsetY", "Offset Y", -50, 150, 1],
+              ["offsetZ", "Offset Z", -300, 300, 1],
+            ] as Array<[keyof BottomFogSettings, string, number, number, number]>
+          ).map(([key, label, min, max, step]) => (
+            <label key={key} className="light-row">
+              <span>{label}</span>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={bottomFog[key] as number}
+                onChange={(e) =>
+                  setBottomFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                }
+              />
+              <span className="light-value">{(bottomFog[key] as number).toFixed(2)}</span>
+            </label>
+          ))}
+          <label className="light-row">
+            <span>Color</span>
+            <input
+              type="color"
+              value={bottomFog.color}
+              onChange={(e) => setBottomFog((prev) => ({ ...prev, color: e.target.value }))}
             />
           </label>
         </>
@@ -977,58 +1054,6 @@ const DebugPanel: React.FC = () => {
       )}
 
       {renderSection(
-        "middleFog",
-        "Middle Fog",
-        <>
-          <label className="light-row">
-            <span>Enabled</span>
-            <input
-              type="checkbox"
-              checked={middleFog.enabled}
-              onChange={(e) => setMiddleFog((prev) => ({ ...prev, enabled: e.target.checked }))}
-            />
-          </label>
-          {(
-            [
-              ["opacity", "Opacity", 0, 1, 0.02],
-              ["blur", "Blur", 0, 16, 0.5],
-              ["height", "Height", 2, 200, 1],
-              ["radius", "Radius", 100, 1200, 10],
-              ["fadeTop", "Top Fade", 0, 1, 0.02],
-              ["fadeBottom", "Bottom Fade", 0, 1, 0.02],
-              ["timeScale", "Timing", 0.1, 3, 0.05],
-              ["offsetX", "Offset X", -300, 300, 1],
-              ["offsetY", "Offset Y", -50, 150, 1],
-              ["offsetZ", "Offset Z", -300, 300, 1],
-            ] as Array<[keyof MiddleFogSettings, string, number, number, number]>
-          ).map(([key, label, min, max, step]) => (
-            <label key={key} className="light-row">
-              <span>{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={middleFog[key] as number}
-                onChange={(e) =>
-                  setMiddleFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                }
-              />
-              <span className="light-value">{(middleFog[key] as number).toFixed(2)}</span>
-            </label>
-          ))}
-          <label className="light-row">
-            <span>Color</span>
-            <input
-              type="color"
-              value={middleFog.color}
-              onChange={(e) => setMiddleFog((prev) => ({ ...prev, color: e.target.value }))}
-            />
-          </label>
-        </>
-      )}
-
-      {renderSection(
         "postFx",
         "Post FX",
         <>
@@ -1111,58 +1136,6 @@ const DebugPanel: React.FC = () => {
               <span className="light-value">{(postFx[key] as number).toFixed(0)}</span>
             </label>
           ))}
-        </>
-      )}
-
-      {renderSection(
-        "bottomFog",
-        "Bottom Fog",
-        <>
-          <label className="light-row">
-            <span>Enabled</span>
-            <input
-              type="checkbox"
-              checked={bottomFog.enabled}
-              onChange={(e) => setBottomFog((prev) => ({ ...prev, enabled: e.target.checked }))}
-            />
-          </label>
-          {(
-            [
-              ["opacity", "Opacity", 0, 1, 0.02],
-              ["blur", "Blur", 0, 16, 0.5],
-              ["height", "Height", 2, 200, 1],
-              ["radius", "Radius", 100, 1200, 10],
-              ["fadeTop", "Top Fade", 0, 1, 0.02],
-              ["fadeBottom", "Bottom Fade", 0, 1, 0.02],
-              ["timeScale", "Timing", 0.1, 3, 0.05],
-              ["offsetX", "Offset X", -300, 300, 1],
-              ["offsetY", "Offset Y", -50, 150, 1],
-              ["offsetZ", "Offset Z", -300, 300, 1],
-            ] as Array<[keyof BottomFogSettings, string, number, number, number]>
-          ).map(([key, label, min, max, step]) => (
-            <label key={key} className="light-row">
-              <span>{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={bottomFog[key] as number}
-                onChange={(e) =>
-                  setBottomFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                }
-              />
-              <span className="light-value">{(bottomFog[key] as number).toFixed(2)}</span>
-            </label>
-          ))}
-          <label className="light-row">
-            <span>Color</span>
-            <input
-              type="color"
-              value={bottomFog.color}
-              onChange={(e) => setBottomFog((prev) => ({ ...prev, color: e.target.value }))}
-            />
-          </label>
         </>
       )}
 
@@ -1376,6 +1349,7 @@ const DebugPanel: React.FC = () => {
           ))}
         </>
       )}
+      </div>
     </div>
   );
 };
