@@ -66,16 +66,18 @@ const CloudLayer: React.FC<Props> = ({ scene, count = 14 }) => {
         160 + Math.random() * 120,
         (Math.random() - 0.5) * 900
       );
-      cloud.rotation.y = Math.random() * Math.PI * 2;
-      cloud.rotation.x = (Math.random() - 0.5) * 0.15;
       const drift = new Vector3((Math.random() - 0.5) * 0.6, 0, (Math.random() - 0.5) * 0.6);
       clouds.push({ mesh: cloud, drift });
     }
 
     const onBeforeRender = scene.onBeforeRenderObservable.add(() => {
       const dt = scene.getEngine().getDeltaTime() / 1000;
+      const camera = scene.activeCamera;
       clouds.forEach((c) => {
         c.mesh.position.addInPlace(c.drift.scale(dt * 8));
+        if (camera) {
+          c.mesh.lookAt(camera.position);
+        }
         if (c.mesh.position.x > 520) c.mesh.position.x = -520;
         if (c.mesh.position.x < -520) c.mesh.position.x = 520;
         if (c.mesh.position.z > 520) c.mesh.position.z = -520;
