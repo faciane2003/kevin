@@ -402,7 +402,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         if (camera.inputs?.attached?.touch) {
           // Lower values = faster rotation on touch
           // @ts-ignore
-          camera.inputs.attached.touch.touchAngularSensibility = 7000;
+          camera.inputs.attached.touch.touchAngularSensibility = 3000;
         }
       } catch {}
     }
@@ -423,8 +423,8 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     let lookTargetY = 0;
     const hintTimers: number[] = [];
     const hintAnimations: Animation[] = [];
-    const lookSensitivity = 0.00056;
-    const lookHoldSpeed = 0.72;
+    const lookSensitivity = 0.00112;
+    const lookHoldSpeed = 1.4;
     const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
     if (isTouchDevice) {
       interactZone = document.createElement("div");
