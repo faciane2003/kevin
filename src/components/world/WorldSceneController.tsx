@@ -2469,7 +2469,6 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         try { shape.dispose(); } catch {}
       });
       try { scene.onBeforeRenderObservable.remove(fogObserver); } catch {}
-      try { halo.dispose(); } catch {}
       scene.dispose();
       engine.dispose();
       setSceneInstance(null);
