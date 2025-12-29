@@ -402,7 +402,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         if (camera.inputs?.attached?.touch) {
           // Lower values = faster rotation on touch
           // @ts-ignore
-          camera.inputs.attached.touch.touchAngularSensibility = 14000;
+          camera.inputs.attached.touch.touchAngularSensibility = 7000;
         }
       } catch {}
     }
@@ -421,13 +421,10 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     let lastLookY = 0;
     let lookTargetX = 0;
     let lookTargetY = 0;
-    let lookSmoothedX = 0;
-    let lookSmoothedY = 0;
     const hintTimers: number[] = [];
     const hintAnimations: Animation[] = [];
-    const lookSensitivity = 0.00028;
-    const lookHoldSpeed = 0.12;
-    const lookSmoothStrength = 6;
+    const lookSensitivity = 0.00056;
+    const lookHoldSpeed = 0.72;
     const clampPitch = (value: number) => Math.max(-1.4, Math.min(1.4, value));
     if (isTouchDevice) {
       interactZone = document.createElement("div");
@@ -2305,12 +2302,9 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     const moveSpeed = 10.67; // world units per second (tuned)
     scene.onBeforeRenderObservable.add(() => {
       const dt = engine.getDeltaTime() / 1000;
-      const lookBlend = Math.min(1, dt * lookSmoothStrength);
-      lookSmoothedX += (lookTargetX - lookSmoothedX) * lookBlend;
-      lookSmoothedY += (lookTargetY - lookSmoothedY) * lookBlend;
-      if (lookPointerActive || Math.abs(lookSmoothedX) > 0.0001 || Math.abs(lookSmoothedY) > 0.0001) {
-        camera.rotation.y += lookSmoothedX * lookHoldSpeed * dt;
-        camera.rotation.x = clampPitch(camera.rotation.x + lookSmoothedY * lookHoldSpeed * dt);
+      if (lookPointerActive || Math.abs(lookTargetX) > 0.0001 || Math.abs(lookTargetY) > 0.0001) {
+        camera.rotation.y += lookTargetX * lookHoldSpeed * dt;
+        camera.rotation.x = clampPitch(camera.rotation.x + lookTargetY * lookHoldSpeed * dt);
       }
       // forward vector: camera look direction flattened to XZ plane
       const forward = camera.getDirection(new Vector3(0, 0, 1));

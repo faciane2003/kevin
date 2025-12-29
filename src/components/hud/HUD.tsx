@@ -35,6 +35,19 @@ const pickEchoWord = (text: string) => {
   return words[Math.floor(Math.random() * words.length)];
 };
 
+const pickUniqueEchoWords = (seedBase: string, text: string, count: number) => {
+  const pool = extractWords(text);
+  const fallback = pool.length === 0 ? ["that", "something", "today"] : pool.slice();
+  const picks: string[] = [];
+  for (let idx = 0; idx < count; idx += 1) {
+    const source = fallback.length > 0 ? fallback : ["that"];
+    const pickIndex = hashSeed(`${seedBase}:${idx}`) % source.length;
+    const [picked] = source.splice(pickIndex, 1);
+    picks.push(picked ?? "that");
+  }
+  return picks;
+};
+
 const hashSeed = (input: string) => {
   let hash = 0;
   for (let i = 0; i < input.length; i += 1) {
@@ -324,7 +337,6 @@ const DialoguePanel: React.FC<{
   const visibleOptions = node ? node.options.filter((opt) => opt.next) : [];
   const isTerminal = !!node && visibleOptions.length === 0;
   const npcLineForEcho = lastNpcLine || node?.text || "";
-  const echoNpcWord = pickEchoWord(npcLineForEcho);
   const echoPlayerWord = pickEchoWord(lastPlayerLine);
   const renderedText =
     nodeId === "start" || !node
@@ -332,18 +344,24 @@ const DialoguePanel: React.FC<{
       : node.text.replace(/\{echoPlayer\}/g, echoPlayerWord);
   const displayOptions = useMemo(() => {
     if (!node) return [];
+    const uniqueWords = pickUniqueEchoWords(
+      `${npcId ?? ""}:${nodeId}`,
+      npcLineForEcho || lastPlayerLine || node.text,
+      visibleOptions.length
+    );
     return visibleOptions.map((opt, idx) => {
       const seed = hashSeed(`${npcId ?? ""}:${nodeId}:${idx}`);
       const useMetaphor = seed % 2 === 0;
+      const word = uniqueWords[idx] ?? "that";
       const base = opt.text.includes("{echoNpc}")
-        ? opt.text.replace(/\{echoNpc\}/g, echoNpcWord)
+        ? opt.text.replace(/\{echoNpc\}/g, word)
         : opt.text;
       const text = useMetaphor
-        ? `${base} It feels like ${echoNpcWord} is a storm you can't see coming.`
-        : `${base} I keep thinking about ${echoNpcWord}.`;
+        ? `${base} It feels like ${word} is a storm you can't see coming.`
+        : `${base} I keep thinking about ${word}.`;
       return { ...opt, text };
     });
-  }, [echoNpcWord, node, nodeId, npcId, visibleOptions]);
+  }, [lastPlayerLine, node, nodeId, npcId, npcLineForEcho, visibleOptions]);
 
   useEffect(() => {
     setNodeId("start");
@@ -409,6 +427,11 @@ const DialoguePanel: React.FC<{
       className={`dialogue-overlay${isClosing ? " dialogue-overlay-closing" : ""}`}
       role="dialog"
       aria-label="NPC Dialogue"
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        setIsClosing(true);
+        window.setTimeout(() => onClose(), 250);
+      }}
     >
       <div className="dialogue-stack">
         {portraitSrc ? (
@@ -442,7 +465,10 @@ const DialoguePanel: React.FC<{
             <img src={portraitSrc} alt={tree.name} />
           </div>
         ) : null}
-        <div className="dialogue-panel">
+        <div
+          className="dialogue-panel"
+          onClick={(event) => event.stopPropagation()}
+        >
         <div className="dialogue-sparkles dialogue-sparkles-back" aria-hidden="true">
           {DIALOGUE_SPARKLES.map((pos, idx) => (
             <span

@@ -6,7 +6,6 @@ import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
 import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
 import CloudLayer from "../components/world/CloudLayer";
-import LensFlareEffect from "../components/world/LensFlareEffect";
 import CityStars from "../components/world/CityStars";
 import ShootingStars from "../components/world/ShootingStars";
 import { AtmosphereProps } from "../components/world/AtmosphereProps";
@@ -79,9 +78,8 @@ const BabylonWorld: React.FC = () => {
     glowSculptures: true,
     cats: true,
     neonBillboards: true,
-    clouds: false,
+    clouds: true,
     airplanes: true,
-    lensFlare: true,
   });
   const [atmosphereProps, setAtmosphereProps] = useState({
     enabled: true,
@@ -312,7 +310,6 @@ const BabylonWorld: React.FC = () => {
           scale={shootingStarSettings.scale}
         />
       ) : null}
-      <LensFlareEffect scene={sceneInstance} enabled={assetToggles.lensFlare} />
       {starSettings.enabled ? (
         <CityStars
           scene={sceneInstance}
