@@ -1,5 +1,6 @@
 import React from "react";
 import { useHUD } from "./HUDContext";
+import MiniMap from "./MiniMap";
 import "./HUD.css";
 
 const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
@@ -22,11 +23,7 @@ const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
   },
   Map: {
     title: "Map",
-    body: [
-      "Error 404: Snow Crash",
-      "Location...Tracking",
-      "Ninja en route..."
-    ],
+    body: [],
   },
   Spells: {
     title: "Tech",
@@ -65,26 +62,22 @@ const TAB_CONTENT: Record<string, { title: string; body: string[] }> = {
 };
 
 const SPARKLE_POSITIONS = [
-  { left: "8%", top: "6px" },
-  { left: "22%", top: "6px" },
-  { left: "38%", top: "6px" },
-  { left: "52%", top: "6px" },
-  { left: "66%", top: "6px" },
-  { left: "82%", top: "6px" },
-  { right: "6px", top: "14%" },
-  { right: "6px", top: "32%" },
-  { right: "6px", top: "50%" },
-  { right: "6px", top: "68%" },
-  { right: "6px", top: "86%" },
-  { left: "82%", bottom: "6px" },
-  { left: "66%", bottom: "6px" },
-  { left: "52%", bottom: "6px" },
-  { left: "38%", bottom: "6px" },
-  { left: "22%", bottom: "6px" },
-  { left: "8%", bottom: "6px" },
-  { left: "6px", top: "14%" },
-  { left: "6px", top: "50%" },
-  { left: "6px", top: "86%" },
+  { left: "6%", top: "6px" },
+  { left: "16%", top: "6px" },
+  { left: "84%", top: "6px" },
+  { left: "94%", top: "6px" },
+  { right: "6px", top: "10%" },
+  { right: "6px", top: "22%" },
+  { right: "6px", top: "78%" },
+  { right: "6px", top: "90%" },
+  { left: "94%", bottom: "6px" },
+  { left: "84%", bottom: "6px" },
+  { left: "16%", bottom: "6px" },
+  { left: "6%", bottom: "6px" },
+  { left: "6px", top: "10%" },
+  { left: "6px", top: "22%" },
+  { left: "6px", top: "78%" },
+  { left: "6px", top: "90%" },
 ];
 
 const JournalPanel: React.FC = () => {
@@ -171,8 +164,18 @@ const JournalPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent("hud-item-click", { detail: { label } }));
   };
 
+  const onOverlayClick = () => {
+    setActiveTab(null);
+    window.dispatchEvent(new CustomEvent("hud-close"));
+  };
+
   return (
-    <div className="journal-overlay" role="dialog" aria-label={`${activeTab} Journal`}>
+    <div
+      className="journal-overlay"
+      role="dialog"
+      aria-label={`${activeTab} Journal`}
+      onClick={onOverlayClick}
+    >
       <div
         className="journal-panel"
         style={
@@ -184,6 +187,7 @@ const JournalPanel: React.FC = () => {
             top: `${panelPos.top}px`,
           } as React.CSSProperties
         }
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="hud-sparkles hud-sparkles-back" aria-hidden="true">
           {SPARKLE_POSITIONS.map((pos, idx) => (
@@ -200,21 +204,22 @@ const JournalPanel: React.FC = () => {
         </div>
         <div className={`journal-header journal-header-${activeTab?.toLowerCase() ?? ""}`}>
           <span className="journal-title">{content.title}</span>
-          <button className="journal-close" onClick={() => setActiveTab(null)} aria-label="Close journal">
-            Close
-          </button>
         </div>
         <div className={`journal-body journal-body-${activeTab?.toLowerCase() ?? ""}`}>
-          {content.body.map((line) => (
-            <button
-              key={line}
-              type="button"
-              className="journal-item"
-              onClick={() => onItemClick(line)}
-            >
-              {line}
-            </button>
-          ))}
+          {activeTab === "Map" ? (
+            <MiniMap embedded />
+          ) : (
+            content.body.map((line) => (
+              <button
+                key={line}
+                type="button"
+                className="journal-item"
+                onClick={() => onItemClick(line)}
+              >
+                {line}
+              </button>
+            ))
+          )}
         </div>
         <div className="hud-sparkles hud-sparkles-front" aria-hidden="true">
           {SPARKLE_POSITIONS.map((pos, idx) => (

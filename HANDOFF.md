@@ -67,7 +67,7 @@ Other HUD/audio events:
 - Top fog: opacity 0.02, blur 2, height 164, radius 1200.
 - Middle fog: opacity 0.02, blur 7, height 74.
 - Bottom fog: opacity 0.0, blur 6, height 2.
-- Stars: count 55, radius 200, height 165–440, scale 0.8.
+- Stars: count 55, radius 200, height 165ï¿½440, scale 0.8.
 - Performance: glow/postFx/collisions/windowFlicker/borderFog/gargoyles true.
 - Asset toggles: glowSculptures, cats, neonBillboards true; clouds false; airplanes true.
 
@@ -87,7 +87,8 @@ Other HUD/audio events:
 - Sounds: `public/sounds/*.m4a` including power sfx, music tracks, ambient/cat/wind/footsteps.
 
 ## Known behavior
-- Fog opacity is globally gated by `fogOpacityMaster` in `BabylonWorld.tsx`. It stays off for 10 seconds at boot and then fades/oscillates.
+- Fog uses Babylon scene fog (`Scene.FOGMODE_EXP2`) only; top/middle/bottom/border fog meshes are removed.
+- NPC dialogue: options are expanded with `{echoNpc}` using a seeded 50/50 metaphor vs reference; NPC replies use `{echoPlayer}` from the last player choice. Terminal dialogue auto-closes after 5 seconds (`DialoguePanel` in `src/components/hud/HUD.tsx`).
 - On mobile, heavy systems are off by default and re-enable in stages every 3 seconds.
 - Menu icon sparkles are purely CSS (`HUD.css`).
 

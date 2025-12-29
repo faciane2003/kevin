@@ -41,7 +41,6 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
   const holesRef = useRef<
     { x: number; y: number; radius: number; speed: number; phase: number }[]
   >([]);
-  const lastUpdateRef = useRef(0);
 
   const buildGradient = useMemo(() => {
     return (
@@ -50,8 +49,7 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
       blur: number,
       fadeTop: number,
       fadeBottom: number,
-      holes: { x: number; y: number; radius: number; speed: number; phase: number }[],
-      timeSec: number
+      holes: { x: number; y: number; radius: number; speed: number; phase: number }[]
     ) => {
       const ctx = texture.getContext() as CanvasRenderingContext2D;
       const size = texture.getSize();
@@ -82,8 +80,7 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
       ctx.filter = `blur(${blurPx}px)`;
       ctx.fillStyle = "rgba(0,0,0,1)";
       holes.forEach((hole) => {
-        const pulse = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(timeSec * hole.speed + hole.phase));
-        const radius = hole.radius * pulse;
+        const radius = hole.radius;
         ctx.beginPath();
         ctx.arc(hole.x * size.width, hole.y * size.height, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -170,8 +167,7 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
       settings.blur,
       settings.fadeTop,
       settings.fadeBottom,
-      holesRef.current,
-      (performance.now() / 1000) * settings.timeScale
+      holesRef.current
     );
     matRef.current.emissiveColor = settings.color.clone();
     matRef.current.diffuseColor = settings.color.clone();
@@ -181,28 +177,6 @@ const BottomFog: React.FC<Props> = ({ scene, settings }) => {
     rootRef.current.position = new Vector3(settings.offsetX, settings.offsetY + settings.height / 2, settings.offsetZ);
     applySurfaceNoise(fogRef.current);
   }, [scene, settings, buildGradient]);
-
-  useEffect(() => {
-    if (!scene || !gradientRef.current) return;
-    const observer = scene.onBeforeRenderObservable.add(() => {
-      const now = performance.now();
-      if (now - lastUpdateRef.current < 220) return;
-      lastUpdateRef.current = now;
-      if (!gradientRef.current) return;
-      buildGradient(
-        gradientRef.current,
-        settings.opacity,
-        settings.blur,
-        settings.fadeTop,
-        settings.fadeBottom,
-        holesRef.current,
-        (now / 1000) * settings.timeScale
-      );
-    });
-    return () => {
-      scene.onBeforeRenderObservable.remove(observer);
-    };
-  }, [scene, settings.opacity, settings.blur, settings.fadeTop, settings.fadeBottom, settings.timeScale, buildGradient]);
 
   return null;
 };

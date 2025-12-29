@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
   Color3,
   Color4,
+  LinesMesh,
   Mesh,
   MeshBuilder,
   Scene,
@@ -12,7 +13,7 @@ import {
 
 type Star = {
   head: Mesh;
-  tail: Mesh;
+  tail: LinesMesh;
   trailPoints: Vector3[];
   velocity: Vector3;
   life: number;
@@ -27,6 +28,7 @@ type Props = {
   radius?: number;
   minHeight?: number;
   maxHeight?: number;
+  scale?: number;
 };
 
 const randRange = (min: number, max: number) => min + Math.random() * (max - min);
@@ -38,6 +40,7 @@ const ShootingStars: React.FC<Props> = ({
   radius = 800,
   minHeight = 260,
   maxHeight = 520,
+  scale = 1,
 }) => {
   useEffect(() => {
     if (!scene || !enabled) return;
@@ -54,7 +57,7 @@ const ShootingStars: React.FC<Props> = ({
       return new Color4(1, 0.45, 0.05, t * 0.8);
     });
 
-    const spawnStar = (star: Star) => {
+  const spawnStar = (star: Star) => {
       const start = new Vector3(
         (Math.random() - 0.5) * radius * 2,
         randRange(minHeight, maxHeight),
@@ -63,17 +66,21 @@ const ShootingStars: React.FC<Props> = ({
       const dir = new Vector3(randRange(-1, 1), randRange(-0.15, 0.1), randRange(-1, 1));
       if (dir.lengthSquared() < 0.01) dir.x = 1;
       dir.normalize();
-      const speed = randRange(120, 220);
+      const speed = randRange(240, 440);
       star.head.position.copyFrom(start);
       star.velocity = dir.scale(speed);
       star.life = 0;
-      star.maxLife = randRange(3, 5);
+      star.maxLife = randRange(0.3, 0.9);
       star.trailPoints = Array.from({ length: tailColors.length }, () => start.clone());
     };
 
     const stars: Star[] = [];
     for (let i = 0; i < count; i += 1) {
-      const head = MeshBuilder.CreateSphere(`shooting_star_${i}`, { diameter: 2.2, segments: 8 }, scene);
+      const head = MeshBuilder.CreateSphere(
+        `shooting_star_${i}`,
+        { diameter: 2.2 * scale, segments: 8 },
+        scene
+      );
       head.material = starMat;
       head.parent = root;
       head.isPickable = false;
@@ -109,14 +116,19 @@ const ShootingStars: React.FC<Props> = ({
         if (star.life >= star.maxLife) {
           spawnStar(star);
         }
+        const lifeT = Math.min(1, Math.max(0, star.life / Math.max(0.001, star.maxLife)));
+        const fadeIn = Math.min(1, lifeT / 0.15);
+        const fadeOut = Math.min(1, (1 - lifeT) / 0.25);
+        const fade = Math.max(0, Math.min(fadeIn, fadeOut));
         star.head.position.addInPlace(star.velocity.scale(dt));
         const flicker = 0.55 + 0.45 * Math.sin(t * 12 + star.phase + idx);
-        star.head.visibility = flicker;
+        star.head.visibility = flicker * fade;
         star.trailPoints.pop();
         star.trailPoints.unshift(star.head.position.clone());
+        const dynamicColors = tailColors.map((c) => new Color4(c.r, c.g, c.b, c.a * fade));
         MeshBuilder.CreateLines(
           "shooting_star_tail_update",
-          { points: star.trailPoints, colors: tailColors, instance: star.tail },
+          { points: star.trailPoints, colors: dynamicColors, instance: star.tail },
           scene
         );
       });
@@ -131,7 +143,7 @@ const ShootingStars: React.FC<Props> = ({
       starMat.dispose();
       root.dispose();
     };
-  }, [scene, enabled, count, radius, minHeight, maxHeight]);
+  }, [scene, enabled, count, radius, minHeight, maxHeight, scale]);
 
   return null;
 };

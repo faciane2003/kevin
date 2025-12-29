@@ -36,9 +36,15 @@ const MenuTabs: React.FC = () => {
   const { activeTab, setActiveTab } = useHUD();
   const [iconsExpanded, setIconsExpanded] = React.useState(false);
   const [musicOpen, setMusicOpen] = React.useState(false);
+  const [powerVisible, setPowerVisible] = React.useState(false);
   const musicIndex = TABS.length;
   const powerIndex = TABS.length + 1;
   const collapseTimerRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setPowerVisible(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const collapseIcons = React.useCallback(() => {
     setIconsExpanded(false);
@@ -63,16 +69,20 @@ const MenuTabs: React.FC = () => {
       if (evt.key.toLowerCase() !== "m") return;
       const active = document.activeElement;
       if (active && ["input", "textarea"].includes(active.tagName.toLowerCase())) return;
-      setMusicOpen((prev) => !prev);
+      setIconsExpanded(true);
+      setActiveTab((prev) => (prev === "Map" ? null : "Map"));
+      setMusicOpen(false);
     };
     window.addEventListener("keydown", onHotkey);
     return () => window.removeEventListener("keydown", onHotkey);
-  }, []);
+  }, [setActiveTab]);
 
   React.useEffect(() => {
     const onClose = () => {
       setActiveTab(null);
       setMusicOpen(false);
+      setIconsExpanded(false);
+      window.dispatchEvent(new CustomEvent("power-toggle", { detail: { expanded: false } }));
       window.dispatchEvent(new CustomEvent("music-visibility", { detail: { visible: false } }));
     };
     window.addEventListener("hud-close", onClose as EventListener);
@@ -133,6 +143,15 @@ const MenuTabs: React.FC = () => {
     >
       {TABS.map((t, idx) => {
         const active = activeTab === t;
+        const tabColor = TAB_COLORS[t];
+        const sparkle = {
+          gold: "#ffd66b",
+          red: "#ff6b6b",
+          blue: "#6bb7ff",
+          green: "#6bff9d",
+          purple: "#c99bff",
+          pink: "#ff8de0",
+        }[tabColor];
         return (
           <button
             key={t}
@@ -153,6 +172,7 @@ const MenuTabs: React.FC = () => {
                 "--collapse-offset": `calc((var(--tab-size) + var(--tab-gap)) * ${
                   powerIndex - idx
                 })`,
+                "--sparkle-color": sparkle,
               } as React.CSSProperties
             }
           >
@@ -184,6 +204,7 @@ const MenuTabs: React.FC = () => {
             "--collapse-offset": `calc((var(--tab-size) + var(--tab-gap)) * ${
               powerIndex - musicIndex
             })`,
+            "--sparkle-color": "#ff8de0",
           } as React.CSSProperties
         }
       >
@@ -195,27 +216,32 @@ const MenuTabs: React.FC = () => {
         <img src={MUSIC_ICON} alt="Music" className="menu-tab-icon" />
         {!musicOpen && <span className="menu-tab-tooltip">Music</span>}
       </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={false}
-        className="menu-tab-button menu-tab-power"
-        onClick={togglePower}
-        title="Power"
-        style={
-          {
-            "--collapse-offset": "0px",
-          } as React.CSSProperties
-        }
-      >
-        <span className="menu-tab-sparkles" aria-hidden="true">
-          {Array.from({ length: 6 }).map((_, sparkleIdx) => (
-            <span key={`power-sparkle-${sparkleIdx}`} className="menu-tab-sparkle" />
-          ))}
-        </span>
-        <img src={POWER_ICON} alt="Power" className="menu-tab-icon menu-tab-icon-power" />
-        {iconsExpanded && <span className="menu-tab-tooltip">Power</span>}
-      </button>
+      {powerVisible ? (
+        <>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={false}
+            className="menu-tab-button menu-tab-power"
+            onClick={togglePower}
+            title="Power"
+            style={
+              {
+                "--collapse-offset": "0px",
+                "--sparkle-color": "#6bfffb",
+              } as React.CSSProperties
+            }
+          >
+            <span className="menu-tab-sparkles" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, sparkleIdx) => (
+                <span key={`power-sparkle-${sparkleIdx}`} className="menu-tab-sparkle" />
+              ))}
+            </span>
+            <img src={POWER_ICON} alt="Power" className="menu-tab-icon menu-tab-icon-power" />
+            {iconsExpanded && <span className="menu-tab-tooltip">Power</span>}
+          </button>
+        </>
+      ) : null}
     </div>
   );
 };

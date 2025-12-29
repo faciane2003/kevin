@@ -22,7 +22,16 @@ const DEFAULT_LEVELS = {
   musicMissMisery: 1,
   musicEarthquake: 1,
   musicFlightOfTheNavigator: 1,
+  musicNights: 1,
+  musicGrandFinale: 1,
 };
+
+const CAT_SOUND_FILES = [
+  "cat-meow-left.m4a",
+  "cat-meow-right.m4a",
+  "cat-meow-left2.mp3",
+  "cat-meow-right3.wav",
+];
 
 const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const levels = DEFAULT_LEVELS;
@@ -67,8 +76,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
 
   const htmlAmbientRef = useRef<HTMLAudioElement | null>(null);
   const htmlAirplaneRef = useRef<HTMLAudioElement | null>(null);
-  const htmlCatLeftRef = useRef<HTMLAudioElement | null>(null);
-  const htmlCatRightRef = useRef<HTMLAudioElement | null>(null);
+  const htmlCatRefs = useRef<HTMLAudioElement[]>([]);
   const htmlWindRef = useRef<HTMLAudioElement | null>(null);
   const htmlPeopleRef = useRef<HTMLAudioElement | null>(null);
   const htmlFootstepsRef = useRef<HTMLAudioElement | null>(null);
@@ -80,8 +88,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
   const htmlFootstepsActiveRef = useRef(false);
   const ambientCityRef = useRef<Sound | null>(null);
   const airplaneFxRef = useRef<Sound | null>(null);
-  const catMeowLeftRef = useRef<Sound | null>(null);
-  const catMeowRightRef = useRef<Sound | null>(null);
+  const catSoundsRef = useRef<Sound[]>([]);
   const windFxRef = useRef<Sound | null>(null);
   const peopleTalkingRef = useRef<Sound | null>(null);
   const footstepsRef = useRef<Sound | null>(null);
@@ -102,7 +109,9 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     scene.audioEnabled = true;
     const audioContextSupported = !!Engine.audioEngine?.audioContext;
 
-    const soundUrl = (name: string) => `/sounds/${encodeURIComponent(name)}`;
+    const cacheBust =
+      (window as any).__audioVersion ?? ((window as any).__audioVersion = Date.now());
+    const soundUrl = (name: string) => `/sounds/${encodeURIComponent(name)}?v=${cacheBust}`;
 
     const ambientTargetVolume = levelsRef.current.ambient;
     const peopleTargetVolume = levelsRef.current.people;
@@ -125,19 +134,15 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       undefined,
       { loop: false, autoplay: false, volume: 0.7 }
     );
-    const catMeowLeft = new Sound(
-      "cat-meow-left",
-      soundUrl("cat-meow-left.m4a"),
-      scene,
-      undefined,
-      { loop: false, autoplay: false, volume: catTargetVolume }
-    );
-    const catMeowRight = new Sound(
-      "cat-meow-right",
-      soundUrl("cat-meow-right.m4a"),
-      scene,
-      undefined,
-      { loop: false, autoplay: false, volume: catTargetVolume }
+    const catSounds = CAT_SOUND_FILES.map(
+      (file, idx) =>
+        new Sound(
+          `cat-meow-${idx}`,
+          soundUrl(file),
+          scene,
+          undefined,
+          { loop: false, autoplay: false, volume: catTargetVolume }
+        )
     );
     const windFx = new Sound(
       "wind-fx",
@@ -196,6 +201,13 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         file: "Flight of the Navigator.m4a",
         volume: levelsRef.current.musicFlightOfTheNavigator,
       },
+      { name: "music-nights", title: "Nights", file: "Nights.m4a", volume: levelsRef.current.musicNights },
+      {
+        name: "music-grand-finale",
+        title: "The Grand Finale",
+        file: "The Grand Finale.m4a",
+        volume: levelsRef.current.musicGrandFinale,
+      },
     ];
     const musicTracks: Sound[] = [];
 
@@ -204,10 +216,11 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     htmlAmbient.volume = ambientTargetVolume;
     const htmlAirplane = new Audio(soundUrl("airplane.m4a"));
     htmlAirplane.volume = 0.7;
-    const htmlCatLeft = new Audio(soundUrl("cat-meow-left.m4a"));
-    htmlCatLeft.volume = catTargetVolume;
-    const htmlCatRight = new Audio(soundUrl("cat-meow-right.m4a"));
-    htmlCatRight.volume = catTargetVolume;
+    const htmlCatSounds = CAT_SOUND_FILES.map((file) => {
+      const audio = new Audio(soundUrl(file));
+      audio.volume = catTargetVolume;
+      return audio;
+    });
     const htmlWind = new Audio(soundUrl("wind.m4a"));
     htmlWind.volume = 0.6;
     const htmlCarPass = new Audio("/carpass.m4a");
@@ -227,8 +240,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
 
     htmlAmbientRef.current = htmlAmbient;
     htmlAirplaneRef.current = htmlAirplane;
-    htmlCatLeftRef.current = htmlCatLeft;
-    htmlCatRightRef.current = htmlCatRight;
+    htmlCatRefs.current = htmlCatSounds;
     htmlWindRef.current = htmlWind;
     htmlPeopleRef.current = htmlPeopleTalking;
     htmlFootstepsRef.current = htmlFootsteps;
@@ -238,8 +250,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     htmlCarPassRef.current = htmlCarPass;
     ambientCityRef.current = ambientCity;
     airplaneFxRef.current = airplaneFx;
-    catMeowLeftRef.current = catMeowLeft;
-    catMeowRightRef.current = catMeowRight;
+    catSoundsRef.current = catSounds;
     windFxRef.current = windFx;
     peopleTalkingRef.current = peopleTalking;
     footstepsRef.current = footsteps;
@@ -288,15 +299,18 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     const safeHtmlPlay = (audio: HTMLAudioElement) => audio.play().catch(() => {});
 
     const playCatMeow = () => {
-      const pickLeft = Math.random() < 0.5;
+      const index = Math.floor(Math.random() * CAT_SOUND_FILES.length);
       if (useHtmlAudioRef.current) {
-        const audio = pickLeft ? htmlCatLeft : htmlCatRight;
+        const audio = htmlCatRefs.current[index];
+        if (!audio) return;
         audio.currentTime = 0;
         safeHtmlPlay(audio);
         return;
       }
-      const sound = pickLeft ? catMeowLeft : catMeowRight;
-      if (!sound.isPlaying) sound.play();
+      const sound = catSoundsRef.current[index];
+      if (!sound) return;
+      if (sound.isPlaying) sound.stop();
+      sound.play();
     };
 
     const scheduleCarPass = () => {
@@ -312,6 +326,14 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       }, delay);
     };
 
+    const scheduleCatMeow = () => {
+      const delay = 20000 + Math.random() * 40000;
+      catTimer = window.setTimeout(() => {
+        playCatMeow();
+        scheduleCatMeow();
+      }, delay);
+    };
+
     const startLoopedSfx = () => {
       airplaneTimer = window.setInterval(() => {
         if (useHtmlAudioRef.current) {
@@ -321,9 +343,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
         }
         if (!airplaneFx.isPlaying) airplaneFx.play();
       }, 15000);
-      catTimer = window.setInterval(() => {
-        playCatMeow();
-      }, 60000);
+      scheduleCatMeow();
       windTimer = window.setInterval(() => {
         if (useHtmlAudioRef.current) {
           htmlWind.currentTime = 0;
@@ -606,8 +626,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       const allNotReady =
         !ambientCity.isReady() &&
         !airplaneFx.isReady() &&
-        !catMeowLeft.isReady() &&
-        !catMeowRight.isReady() &&
+        catSounds.every((sound) => !sound.isReady()) &&
         !windFx.isReady() &&
         musicTracks.every((track) => !track.isReady());
       if (allNotReady && !audioContextSupported) {
@@ -687,7 +706,7 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       try { window.removeEventListener("power-toggle", onPowerToggle as EventListener); } catch {}
       try { window.removeEventListener("walk-input", onWalkInput as EventListener); } catch {}
       try { if (airplaneTimer) window.clearInterval(airplaneTimer); } catch {}
-      try { if (catTimer) window.clearInterval(catTimer); } catch {}
+      try { if (catTimer) window.clearTimeout(catTimer); } catch {}
       try { if (windTimer) window.clearInterval(windTimer); } catch {}
       try { if (carPassTimer) window.clearTimeout(carPassTimer); } catch {}
       try { if (startTimer) window.clearTimeout(startTimer); } catch {}
@@ -701,8 +720,9 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
       });
       try { ambientCity.dispose(); } catch {}
       try { airplaneFx.dispose(); } catch {}
-      try { catMeowLeft.dispose(); } catch {}
-      try { catMeowRight.dispose(); } catch {}
+      catSounds.forEach((sound) => {
+        try { sound.dispose(); } catch {}
+      });
       try { windFx.dispose(); } catch {}
       try { peopleTalking.dispose(); } catch {}
       try { footsteps.dispose(); } catch {}
@@ -729,15 +749,15 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     if (peopleTalkingRef.current) peopleTalkingRef.current.setVolume(lv.people);
     if (footstepsRef.current) footstepsRef.current.setVolume(lv.footsteps);
     if (airplaneFxRef.current) airplaneFxRef.current.setVolume(lv.airplane);
-    if (catMeowLeftRef.current) catMeowLeftRef.current.setVolume(lv.cat);
-    if (catMeowRightRef.current) catMeowRightRef.current.setVolume(lv.cat);
+    catSoundsRef.current.forEach((sound) => sound.setVolume(lv.cat));
     if (windFxRef.current) windFxRef.current.setVolume(lv.wind);
     if (htmlAmbientRef.current) htmlAmbientRef.current.volume = clamp01(lv.ambient);
     if (htmlPeopleRef.current) htmlPeopleRef.current.volume = clamp01(lv.people);
     if (htmlFootstepsRef.current) htmlFootstepsRef.current.volume = clamp01(lv.footsteps);
     if (htmlAirplaneRef.current) htmlAirplaneRef.current.volume = clamp01(lv.airplane);
-    if (htmlCatLeftRef.current) htmlCatLeftRef.current.volume = clamp01(lv.cat);
-    if (htmlCatRightRef.current) htmlCatRightRef.current.volume = clamp01(lv.cat);
+    htmlCatRefs.current.forEach((audio) => {
+      audio.volume = clamp01(lv.cat);
+    });
     if (htmlWindRef.current) htmlWindRef.current.volume = clamp01(lv.wind);
     const tracks = musicTracksRef.current;
     tracks[0]?.setVolume(lv.musicMissMisery);
@@ -748,6 +768,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     tracks[5]?.setVolume(lv.musicDarkAllDay);
     tracks[6]?.setVolume(lv.musicEarthquake);
     tracks[7]?.setVolume(lv.musicFlightOfTheNavigator);
+    tracks[8]?.setVolume(lv.musicNights);
+    tracks[9]?.setVolume(lv.musicGrandFinale);
     const htmlTracks = htmlMusicRefs.current;
     if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicMissMisery);
     if (htmlTracks[1]) htmlTracks[1].volume = clamp01(lv.musicSycamore);
@@ -757,6 +779,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicDarkAllDay);
     if (htmlTracks[6]) htmlTracks[6].volume = clamp01(lv.musicEarthquake);
     if (htmlTracks[7]) htmlTracks[7].volume = clamp01(lv.musicFlightOfTheNavigator);
+    if (htmlTracks[8]) htmlTracks[8].volume = clamp01(lv.musicNights);
+    if (htmlTracks[9]) htmlTracks[9].volume = clamp01(lv.musicGrandFinale);
   }, []);
 
   useEffect(() => {
@@ -771,6 +795,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     tracks[5]?.setVolume(lv.musicDarkAllDay * musicGainRef.current);
     tracks[6]?.setVolume(lv.musicEarthquake * musicGainRef.current);
     tracks[7]?.setVolume(lv.musicFlightOfTheNavigator * musicGainRef.current);
+    tracks[8]?.setVolume(lv.musicNights * musicGainRef.current);
+    tracks[9]?.setVolume(lv.musicGrandFinale * musicGainRef.current);
     const htmlTracks = htmlMusicRefs.current;
     if (htmlTracks[0]) htmlTracks[0].volume = clamp01(lv.musicMissMisery * musicGainRef.current);
     if (htmlTracks[1]) htmlTracks[1].volume = clamp01(lv.musicSycamore * musicGainRef.current);
@@ -780,6 +806,8 @@ const WorldSounds: React.FC<WorldSoundsProps> = ({ scene }) => {
     if (htmlTracks[5]) htmlTracks[5].volume = clamp01(lv.musicDarkAllDay * musicGainRef.current);
     if (htmlTracks[6]) htmlTracks[6].volume = clamp01(lv.musicEarthquake * musicGainRef.current);
     if (htmlTracks[7]) htmlTracks[7].volume = clamp01(lv.musicFlightOfTheNavigator * musicGainRef.current);
+    if (htmlTracks[8]) htmlTracks[8].volume = clamp01(lv.musicNights * musicGainRef.current);
+    if (htmlTracks[9]) htmlTracks[9].volume = clamp01(lv.musicGrandFinale * musicGainRef.current);
   }, [musicGain]);
 
   if (!musicHudVisible) return null;

@@ -583,29 +583,37 @@ export const VegetationSway: React.FC<VegetationSwayProps> = ({
 }) => {
   useEffect(() => {
     if (!scene || !enabled) return;
-    const roots = scene.meshes.filter((m) => m.name.startsWith("tree_"));
+    const crownMeshes = scene.meshes.filter((m) => m.name.startsWith("tree_crown"));
     const getTreeId = (name: string) => {
       const match = name.match(/_(\d+)$/);
       return match ? parseInt(match[1], 10) : null;
     };
-    const swayMeshes = roots.filter((mesh) => {
-      const id = getTreeId(mesh.name);
-      return id !== null && id % 5 === 0;
-    });
-    const windOffsets = swayMeshes.map((_, idx) => (idx * 0.37) % (Math.PI * 2));
-    const windPeriods = swayMeshes.map((_, idx) => 3 + ((idx * 17) % 50) / 10); // 3..8s
+    const swayTargets = crownMeshes
+      .map((mesh) => ({ mesh, id: getTreeId(mesh.name) }))
+      .filter((entry) => entry.id !== null) as Array<{ mesh: AbstractMesh; id: number }>;
+    const basePositions = swayTargets.map((entry) => entry.mesh.position.clone());
+    const windOffsets = swayTargets.map((entry) => (entry.id * 0.37) % (Math.PI * 2));
+    const windPeriods = swayTargets.map((entry) => 3 + ((entry.id * 17) % 50) / 10); // 3..8s
+    const swayMultipliers = swayTargets.map(() => 3 + Math.random() * 3);
     const start = performance.now();
     const obs = scene.onBeforeRenderObservable.add(() => {
       const t = (performance.now() - start) / 1000;
-      swayMeshes.forEach((mesh, idx) => {
+      swayTargets.forEach((entry, idx) => {
         const windPhase = (Math.sin((t * Math.PI * 2) / windPeriods[idx] + windOffsets[idx]) + 1) * 0.5;
-        const swayAmount = amount * (0.35 + windPhase * 0.65);
-        mesh.rotation.z = Math.sin(t * speed + idx) * swayAmount;
+        const swayAmount = amount * swayMultipliers[idx] * (0.35 + windPhase * 0.65);
+        const offset = Math.sin(t * speed + entry.id) * swayAmount;
+        const base = basePositions[idx];
+        entry.mesh.position.x = base.x + offset;
+        entry.mesh.position.z = base.z + offset * 0.6;
       });
     });
     return () => {
       scene.onBeforeRenderObservable.remove(obs);
-      swayMeshes.forEach((mesh) => { mesh.rotation.z = 0; });
+      swayTargets.forEach((entry, idx) => {
+        const base = basePositions[idx];
+        entry.mesh.position.x = base.x;
+        entry.mesh.position.z = base.z;
+      });
     };
   }, [scene, enabled, amount, speed]);
   return null;

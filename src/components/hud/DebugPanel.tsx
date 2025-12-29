@@ -18,16 +18,6 @@ type LightSettings = {
   fogIntensity: number;
   fogHeightFalloff: number;
   fogColor: string;
-  borderFogEnabled: boolean;
-  borderFogOpacity: number;
-  borderFogHeight: number;
-  borderFogInset: number;
-  borderFogFadeTop: number;
-  borderFogFadeBottom: number;
-  borderFogOffsetX: number;
-  borderFogOffsetY: number;
-  borderFogOffsetZ: number;
-  borderFogColor: string;
 };
 
 type BuildingSettings = {
@@ -36,57 +26,11 @@ type BuildingSettings = {
   scale: number;
 };
 
-type TopFogSettings = {
-  enabled: boolean;
-  opacity: number;
-  blur: number;
-  height: number;
-  radius: number;
-  fadeTop: number;
-  fadeBottom: number;
-  timeScale: number;
-  offsetX: number;
-  offsetY: number;
-  offsetZ: number;
-  color: string;
-};
-
-type MiddleFogSettings = {
-  enabled: boolean;
-  opacity: number;
-  blur: number;
-  height: number;
-  radius: number;
-  fadeTop: number;
-  fadeBottom: number;
-  timeScale: number;
-  offsetX: number;
-  offsetY: number;
-  offsetZ: number;
-  color: string;
-};
-
-type BottomFogSettings = {
-  enabled: boolean;
-  opacity: number;
-  blur: number;
-  height: number;
-  radius: number;
-  fadeTop: number;
-  fadeBottom: number;
-  timeScale: number;
-  offsetX: number;
-  offsetY: number;
-  offsetZ: number;
-  color: string;
-};
-
 type PerfSettings = {
   glow: boolean;
   postFx: boolean;
   collisions: boolean;
   windowFlicker: boolean;
-  borderFog: boolean;
   gargoyles: boolean;
 };
 
@@ -108,14 +52,6 @@ type CloudMaskSettings = {
   lockScale: boolean;
 };
 
-type PlayerHaloSettings = {
-  opacity: number;
-  blur: number;
-  radius: number;
-  color: string;
-};
-
-type PlayerHaloNumericKey = "opacity" | "blur" | "radius";
 
 type PostFxSettings = {
   enabled: boolean;
@@ -193,16 +129,6 @@ const DEFAULT_LIGHTS: LightSettings = {
   fogIntensity: 0.2,
   fogHeightFalloff: 0.001,
   fogColor: "#282f3e",
-  borderFogEnabled: true,
-  borderFogOpacity: 1,
-  borderFogHeight: 76,
-  borderFogInset: 26,
-  borderFogFadeTop: 1,
-  borderFogFadeBottom: 0,
-  borderFogOffsetX: -6,
-  borderFogOffsetY: -7,
-  borderFogOffsetZ: -4,
-  borderFogColor: "#110f33",
 };
 
 const DEFAULT_BUILDINGS: BuildingSettings = {
@@ -211,58 +137,12 @@ const DEFAULT_BUILDINGS: BuildingSettings = {
   scale: 1.4,
 };
 
-const DEFAULT_TOP_FOG: TopFogSettings = {
-  enabled: true,
-  opacity: 0.02,
-  blur: 2,
-  height: 164,
-  radius: 1200,
-  fadeTop: 0.94,
-  fadeBottom: 0,
-  timeScale: 0.1,
-  offsetX: 48,
-  offsetY: 150,
-  offsetZ: 300,
-  color: "#8782c9",
-};
-
 const DEFAULT_PERF: PerfSettings = {
   glow: true,
   postFx: true,
   collisions: true,
   windowFlicker: true,
-  borderFog: true,
   gargoyles: true,
-};
-
-const DEFAULT_MIDDLE_FOG: MiddleFogSettings = {
-  enabled: true,
-  opacity: 0.02,
-  blur: 7,
-  height: 74,
-  radius: 1200,
-  fadeTop: 1,
-  fadeBottom: 0,
-  timeScale: 0.1,
-  offsetX: 48,
-  offsetY: -16,
-  offsetZ: -1,
-  color: "#8782c9",
-};
-
-const DEFAULT_BOTTOM_FOG: BottomFogSettings = {
-  enabled: false,
-  opacity: 0.14,
-  blur: 8,
-  height: 19,
-  radius: 1200,
-  fadeTop: 1,
-  fadeBottom: 0,
-  timeScale: 0.1,
-  offsetX: 48,
-  offsetY: -16,
-  offsetZ: -1,
-  color: "#8782c9",
 };
 
 const DEFAULT_STARS: StarSettings = {
@@ -283,12 +163,6 @@ const DEFAULT_CLOUD_MASK: CloudMaskSettings = {
   lockScale: false,
 };
 
-const DEFAULT_PLAYER_HALO: PlayerHaloSettings = {
-  opacity: 1,
-  blur: 8.6,
-  radius: 8.9,
-  color: "#000000",
-};
 
 const DEFAULT_POSTFX: PostFxSettings = {
   enabled: true,
@@ -355,7 +229,6 @@ const SECTION_KEYS = [
   "moonSpotlight",
   "fog",
   "stars",
-  "playerHalo",
   "cloudMask",
   "postFx",
   "buildings",
@@ -363,6 +236,7 @@ const SECTION_KEYS = [
   "assets",
   "realism",
   "atmosphereProps",
+  "rpgSystems",
 ] as const;
 
 type SectionKey = typeof SECTION_KEYS[number];
@@ -370,6 +244,9 @@ type SectionKey = typeof SECTION_KEYS[number];
 const DebugPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [expandAll, setExpandAll] = useState(false);
+  const [perfMaster, setPerfMaster] = useState(1);
+  const [perfMasterLocked, setPerfMasterLocked] = useState(false);
+  const [fps, setFps] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>(() => {
     const initial = {} as Record<SectionKey, boolean>;
     SECTION_KEYS.forEach((key) => {
@@ -384,9 +261,6 @@ const DebugPanel: React.FC = () => {
   const [syncCameraStart, setSyncCameraStart] = useState(false);
   const [lights, setLights] = useState<LightSettings>(DEFAULT_LIGHTS);
   const [buildings, setBuildings] = useState<BuildingSettings>(DEFAULT_BUILDINGS);
-  const [topFog, setTopFog] = useState<TopFogSettings>(DEFAULT_TOP_FOG);
-  const [middleFog, setMiddleFog] = useState<MiddleFogSettings>(DEFAULT_MIDDLE_FOG);
-  const [bottomFog, setBottomFog] = useState<BottomFogSettings>(DEFAULT_BOTTOM_FOG);
   const [perf, setPerf] = useState<PerfSettings>(() => {
     const isTouch =
       typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
@@ -396,7 +270,6 @@ const DebugPanel: React.FC = () => {
       postFx: false,
       collisions: false,
       windowFlicker: false,
-      borderFog: false,
       gargoyles: false,
     };
   });
@@ -405,9 +278,9 @@ const DebugPanel: React.FC = () => {
   const [postFx, setPostFx] = useState<PostFxSettings>(DEFAULT_POSTFX);
   const [assets, setAssets] = useState<AssetToggles>(DEFAULT_ASSETS);
   const [realism, setRealism] = useState<RealismSettings>(DEFAULT_REALISM);
-  const [playerHalo, setPlayerHalo] = useState<PlayerHaloSettings>(DEFAULT_PLAYER_HALO);
   const [atmosphereProps, setAtmosphereProps] =
     useState<AtmospherePropsSettings>(DEFAULT_ATMOSPHERE_PROPS);
+  const [rpgPanelOpen, setRpgPanelOpen] = useState(false);
 
   const setAllSections = (value: boolean) => {
     setExpandAll(value);
@@ -484,20 +357,36 @@ const DebugPanel: React.FC = () => {
   }, [lights]);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent("performance-master", { detail: { value: perfMaster } }));
+  }, [perfMaster]);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    let frames = 0;
+    let lastAdjust = 0;
+    const tick = () => {
+      frames += 1;
+      const now = performance.now();
+      if (now - last >= 1000) {
+        const currentFps = Math.round((frames * 1000) / (now - last));
+        setFps(currentFps);
+        frames = 0;
+        last = now;
+        if (!perfMasterLocked && currentFps < 20 && now - lastAdjust > 900) {
+          setPerfMaster((prev) => Math.max(0.1, parseFloat((prev - 0.05).toFixed(2))));
+          lastAdjust = now;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [perfMasterLocked]);
+
+  useEffect(() => {
     window.dispatchEvent(new CustomEvent("building-settings", { detail: buildings }));
   }, [buildings]);
-
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("top-fog-settings", { detail: topFog }));
-  }, [topFog]);
-
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("middle-fog-settings", { detail: middleFog }));
-  }, [middleFog]);
-
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("bottom-fog-settings", { detail: bottomFog }));
-  }, [bottomFog]);
 
 
   useEffect(() => {
@@ -508,9 +397,6 @@ const DebugPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent("star-settings", { detail: stars }));
   }, [stars]);
 
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("player-halo-settings", { detail: playerHalo }));
-  }, [playerHalo]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("cloud-settings", { detail: cloudMask }));
@@ -532,13 +418,19 @@ const DebugPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent("atmosphere-props-settings", { detail: atmosphereProps }));
   }, [atmosphereProps]);
 
+  useEffect(() => {
+    const onRpgState = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ open?: boolean }>).detail;
+      setRpgPanelOpen(!!detail?.open);
+    };
+    window.addEventListener("rpg-panel-state", onRpgState as EventListener);
+    return () => window.removeEventListener("rpg-panel-state", onRpgState as EventListener);
+  }, []);
+
   const copyAll = async () => {
     const payload: Record<string, unknown> = {
       lighting: lights,
       buildings,
-      topFog,
-      middleFog,
-      bottomFog,
       stars,
       cloudMask,
       postFx,
@@ -600,6 +492,31 @@ const DebugPanel: React.FC = () => {
           <button onClick={copyAll}>Copy All</button>
           <button onClick={() => setOpen(false)}>Close</button>
         </div>
+      </div>
+
+      <div className="debug-panel-master">
+        <label className="light-row">
+          <span>Performance Master</span>
+          <input
+            type="range"
+            min={0.1}
+            max={1}
+            step={0.05}
+            value={perfMaster}
+            onChange={(e) => setPerfMaster(parseFloat(e.target.value))}
+            disabled={perfMasterLocked}
+          />
+          <span className="light-value">{perfMaster.toFixed(2)}</span>
+        </label>
+        <label className="light-row" style={{ marginTop: "4px" }}>
+          <span>Lock</span>
+          <input
+            type="checkbox"
+            checked={perfMasterLocked}
+            onChange={(e) => setPerfMasterLocked(e.target.checked)}
+          />
+        </label>
+        <div className="debug-panel-fps">FPS: {fps}</div>
       </div>
 
       <div className="debug-panel-grid">
@@ -740,190 +657,6 @@ const DebugPanel: React.FC = () => {
               onChange={(e) => setLights((prev) => ({ ...prev, fogColor: e.target.value }))}
             />
           </label>
-          <div className="debug-subtitle">Border Fog</div>
-          <label className="light-row">
-            <span>Enabled</span>
-            <input
-              type="checkbox"
-              checked={lights.borderFogEnabled}
-              onChange={(e) =>
-                setLights((prev) => ({ ...prev, borderFogEnabled: e.target.checked }))
-              }
-            />
-          </label>
-          {(
-            [
-              ["borderFogOpacity", "Opacity", 0, 1, 0.02],
-              ["borderFogHeight", "Height", 10, 320, 2],
-              ["borderFogInset", "Inset", 0, 200, 2],
-              ["borderFogFadeTop", "Top Fade", 0, 1, 0.02],
-              ["borderFogFadeBottom", "Bottom Fade", 0, 1, 0.02],
-              ["borderFogOffsetX", "Offset X", -200, 200, 1],
-              ["borderFogOffsetY", "Offset Y", -50, 100, 1],
-              ["borderFogOffsetZ", "Offset Z", -200, 200, 1],
-            ] as Array<[keyof LightSettings, string, number, number, number]>
-          ).map(([key, label, min, max, step]) => (
-            <label key={key} className="light-row">
-              <span>{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={lights[key] as number}
-                onChange={(e) =>
-                  setLights((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                }
-              />
-              <span className="light-value">{(lights[key] as number).toFixed(2)}</span>
-            </label>
-          ))}
-          <label className="light-row">
-            <span>Color</span>
-            <input
-              type="color"
-              value={lights.borderFogColor}
-              onChange={(e) => setLights((prev) => ({ ...prev, borderFogColor: e.target.value }))}
-            />
-          </label>
-          <div className="debug-subtitle">Top Fog</div>
-          <label className="light-row">
-            <span>Enabled</span>
-            <input
-              type="checkbox"
-              checked={topFog.enabled}
-              onChange={(e) => setTopFog((prev) => ({ ...prev, enabled: e.target.checked }))}
-            />
-          </label>
-          {(
-            [
-              ["opacity", "Opacity", 0, 1, 0.02],
-              ["blur", "Blur", 0, 16, 0.5],
-              ["height", "Height", 2, 200, 1],
-              ["radius", "Radius", 100, 1200, 10],
-              ["fadeTop", "Top Fade", 0, 1, 0.02],
-              ["fadeBottom", "Bottom Fade", 0, 1, 0.02],
-              ["timeScale", "Timing", 0.1, 3, 0.05],
-              ["offsetX", "Offset X", -300, 300, 1],
-              ["offsetY", "Offset Y", -50, 150, 1],
-              ["offsetZ", "Offset Z", -300, 300, 1],
-            ] as Array<[keyof TopFogSettings, string, number, number, number]>
-          ).map(([key, label, min, max, step]) => (
-            <label key={key} className="light-row">
-              <span>{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={topFog[key] as number}
-                onChange={(e) =>
-                  setTopFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                }
-              />
-              <span className="light-value">{(topFog[key] as number).toFixed(2)}</span>
-            </label>
-          ))}
-          <label className="light-row">
-            <span>Color</span>
-            <input
-              type="color"
-              value={topFog.color}
-              onChange={(e) => setTopFog((prev) => ({ ...prev, color: e.target.value }))}
-            />
-          </label>
-          <div className="debug-subtitle">Middle Fog</div>
-          <label className="light-row">
-            <span>Enabled</span>
-            <input
-              type="checkbox"
-              checked={middleFog.enabled}
-              onChange={(e) => setMiddleFog((prev) => ({ ...prev, enabled: e.target.checked }))}
-            />
-          </label>
-          {(
-            [
-              ["opacity", "Opacity", 0, 1, 0.02],
-              ["blur", "Blur", 0, 16, 0.5],
-              ["height", "Height", 2, 200, 1],
-              ["radius", "Radius", 100, 1200, 10],
-              ["fadeTop", "Top Fade", 0, 1, 0.02],
-              ["fadeBottom", "Bottom Fade", 0, 1, 0.02],
-              ["timeScale", "Timing", 0.1, 3, 0.05],
-              ["offsetX", "Offset X", -300, 300, 1],
-              ["offsetY", "Offset Y", -50, 150, 1],
-              ["offsetZ", "Offset Z", -300, 300, 1],
-            ] as Array<[keyof MiddleFogSettings, string, number, number, number]>
-          ).map(([key, label, min, max, step]) => (
-            <label key={key} className="light-row">
-              <span>{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={middleFog[key] as number}
-                onChange={(e) =>
-                  setMiddleFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                }
-              />
-              <span className="light-value">{(middleFog[key] as number).toFixed(2)}</span>
-            </label>
-          ))}
-          <label className="light-row">
-            <span>Color</span>
-            <input
-              type="color"
-              value={middleFog.color}
-              onChange={(e) => setMiddleFog((prev) => ({ ...prev, color: e.target.value }))}
-            />
-          </label>
-          <div className="debug-subtitle">Bottom Fog</div>
-          <label className="light-row">
-            <span>Enabled</span>
-            <input
-              type="checkbox"
-              checked={bottomFog.enabled}
-              onChange={(e) => setBottomFog((prev) => ({ ...prev, enabled: e.target.checked }))}
-            />
-          </label>
-          {(
-            [
-              ["opacity", "Opacity", 0, 1, 0.02],
-              ["blur", "Blur", 0, 16, 0.5],
-              ["height", "Height", 2, 200, 1],
-              ["radius", "Radius", 100, 1200, 10],
-              ["fadeTop", "Top Fade", 0, 1, 0.02],
-              ["fadeBottom", "Bottom Fade", 0, 1, 0.02],
-              ["timeScale", "Timing", 0.1, 3, 0.05],
-              ["offsetX", "Offset X", -300, 300, 1],
-              ["offsetY", "Offset Y", -50, 150, 1],
-              ["offsetZ", "Offset Z", -300, 300, 1],
-            ] as Array<[keyof BottomFogSettings, string, number, number, number]>
-          ).map(([key, label, min, max, step]) => (
-            <label key={key} className="light-row">
-              <span>{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={bottomFog[key] as number}
-                onChange={(e) =>
-                  setBottomFog((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                }
-              />
-              <span className="light-value">{(bottomFog[key] as number).toFixed(2)}</span>
-            </label>
-          ))}
-          <label className="light-row">
-            <span>Color</span>
-            <input
-              type="color"
-              value={bottomFog.color}
-              onChange={(e) => setBottomFog((prev) => ({ ...prev, color: e.target.value }))}
-            />
-          </label>
         </>
       )}
 
@@ -970,42 +703,6 @@ const DebugPanel: React.FC = () => {
         </>
       )}
 
-      {renderSection(
-        "playerHalo",
-        "Player Halo",
-        <>
-          {(
-            [
-              ["opacity", "Opacity", 0, 1, 0.01],
-              ["blur", "Blur", 0, 10, 0.1],
-              ["radius", "Radius", 1, 20, 0.1],
-            ] as Array<[PlayerHaloNumericKey, string, number, number, number]>
-          ).map(([key, label, min, max, step]) => (
-            <label key={key} className="light-row">
-              <span>{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={playerHalo[key]}
-                onChange={(e) =>
-                  setPlayerHalo((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                }
-              />
-              <span className="light-value">{(playerHalo[key] as number).toFixed(2)}</span>
-            </label>
-          ))}
-          <label className="light-row">
-            <span>Color</span>
-            <input
-              type="color"
-              value={playerHalo.color}
-              onChange={(e) => setPlayerHalo((prev) => ({ ...prev, color: e.target.value }))}
-            />
-          </label>
-        </>
-      )}
 
       {renderSection(
         "cloudMask",
@@ -1198,7 +895,6 @@ const DebugPanel: React.FC = () => {
               ["postFx", "Post FX Pipeline"],
               ["collisions", "Collisions"],
               ["windowFlicker", "Window Flicker"],
-              ["borderFog", "Border Fog"],
               ["gargoyles", "Gargoyles"],
             ] as Array<[keyof PerfSettings, string]>
           ).map(([key, label]) => (
@@ -1340,13 +1036,41 @@ const DebugPanel: React.FC = () => {
               <span>{label}</span>
               <input
                 type="checkbox"
-                checked={atmosphereProps[key]}
+                checked={atmosphereProps[key] as boolean}
                 onChange={(e) =>
                   setAtmosphereProps((prev) => ({ ...prev, [key]: e.target.checked }))
                 }
               />
             </label>
           ))}
+        </>
+      )}
+
+      {renderSection(
+        "rpgSystems",
+        "RPG Systems",
+        <>
+          <label className="light-row">
+            <span>Panel</span>
+            <input
+              type="checkbox"
+              checked={rpgPanelOpen}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setRpgPanelOpen(next);
+                window.dispatchEvent(new CustomEvent("rpg-panel", { detail: { open: next } }));
+              }}
+            />
+          </label>
+          <div className="light-row">
+            <button onClick={() => window.dispatchEvent(new CustomEvent("rpg-panel"))}>
+              Toggle Panel
+            </button>
+          </div>
+          <div className="light-row">
+            <span>Systems loaded</span>
+            <span className="light-value">23</span>
+          </div>
         </>
       )}
       </div>

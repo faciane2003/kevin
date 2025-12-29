@@ -13,17 +13,9 @@ import {
 type Props = {
   scene: Scene | null;
   count?: number;
-  mask: {
-    scale: number;
-    scaleX: number;
-    scaleY: number;
-    feather: number;
-    invert: boolean;
-    lockScale: boolean;
-  };
 };
 
-const CloudLayer: React.FC<Props> = ({ scene, count = 14, mask }) => {
+const CloudLayer: React.FC<Props> = ({ scene, count = 14 }) => {
   useEffect(() => {
     if (!scene) return;
     const root = new TransformNode("cloudLayerRoot", scene);
@@ -49,25 +41,6 @@ const CloudLayer: React.FC<Props> = ({ scene, count = 14, mask }) => {
         ctx.fill();
       }
       ctx.filter = "none";
-      const baseScale = Math.max(0.1, mask.scale);
-      const scaleX = baseScale * (mask.lockScale ? 1 : mask.scaleX);
-      const scaleY = baseScale * (mask.lockScale ? 1 : mask.scaleY);
-      const rx = 110 * scaleX;
-      const ry = 110 * scaleY;
-      const feather = Math.max(0, Math.min(0.98, mask.feather));
-      ctx.save();
-      ctx.translate(128, 128);
-      ctx.scale(rx, ry);
-      ctx.globalCompositeOperation = mask.invert ? "destination-out" : "destination-in";
-      const inner = Math.max(0.01, 1 - feather);
-      const gradMask = ctx.createRadialGradient(0, 0, inner, 0, 0, 1);
-      gradMask.addColorStop(0, "rgba(0,0,0,1)");
-      gradMask.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = gradMask;
-      ctx.beginPath();
-      ctx.arc(0, 0, 1, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
       texture.update();
     };
     drawTexture();
@@ -117,7 +90,7 @@ const CloudLayer: React.FC<Props> = ({ scene, count = 14, mask }) => {
       texture.dispose();
       root.dispose();
     };
-  }, [scene, count, mask]);
+  }, [scene, count]);
 
   return null;
 };

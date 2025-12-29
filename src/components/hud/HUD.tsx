@@ -1,9 +1,12 @@
 // File: src/components/hud/HUD.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { HUDProvider, useHUD } from "./HUDContext";
 import MenuTabs from "./MenuTabs";
 import JournalPanel from "./JournalPanel";
 import DebugPanel from "./DebugPanel";
+import PerformanceMonitor from "./PerformanceMonitor";
+import { RpgProvider } from "../rpg/RpgContext";
+import RpgSystemsPanel from "../rpg/RpgSystemsPanel";
 import "./HUD.css";
 
 type DialogueOption = { text: string; next?: string };
@@ -17,6 +20,28 @@ const NPC_PORTRAITS: Record<string, string> = {
   vex: "/portraits/vex.jpg",
   lux: "/portraits/lux.jpg",
   zed: "/portraits/zed.jpg",
+};
+
+const extractWords = (text: string) =>
+  text
+    .replace(/[^a-zA-Z'\s]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 4);
+
+const pickEchoWord = (text: string) => {
+  const words = extractWords(text);
+  if (words.length === 0) return "that";
+  return words[Math.floor(Math.random() * words.length)];
+};
+
+const hashSeed = (input: string) => {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
 };
 
 const DIALOGUE_SPARKLES = [
@@ -54,38 +79,38 @@ const NPC_DIALOGUE: Record<string, DialogueTree> = {
     name: "Aria Vex",
     nodes: {
       start: {
-        text: "The grid's humming tonight. You looking for work or answers?",
+        text: "Hey. How are you holding up today?",
         options: [
-          { text: "Work.", next: "work" },
-          { text: "Answers.", next: "answers" },
-          { text: "Just passing by.", next: "bye" },
+          { text: "I’m doing alright, just tired.", next: "doing" },
+          { text: "I’ve had a rough morning, honestly.", next: "doing" },
+          { text: "Somewhere in the middle, not great but not awful.", next: "doing" },
         ],
       },
-      work: {
-        text: "Deliver this relay core to Sector 9. Quietly.",
+      doing: {
+        text:
+          "I’m waiting on a call from my mom’s doctor and trying not to spiral. " +
+          "Last week my kid had an accident at school and I’m still embarrassed about it. " +
+          "What have you been up to?",
         options: [
-          { text: "I'm in.", next: "accept" },
-          { text: "Too risky.", next: "bye" },
+          { text: "About {echoNpc}, I’ve been keeping things together and trying to be kind.", next: "responseWarm" },
+          { text: "When you said {echoNpc}, it felt like juggling plates on a windy balcony.", next: "responseHumor" },
+          { text: "Hearing {echoNpc} reminds me I’m just trying to get through the day.", next: "responseWit" },
         ],
       },
-      answers: {
-        text: "Answers cost credits. I take secrets, too.",
-        options: [
-          { text: "I have a secret.", next: "secret" },
-          { text: "Never mind.", next: "bye" },
-        ],
+      responseWarm: {
+        text:
+          "I hear you about {echoPlayer}. It’s a lot to carry, and you’re still standing.",
+        options: [],
       },
-      secret: {
-        text: "Interesting. Keep digging around the bazaar.",
-        options: [{ text: "Got it.", next: "bye" }],
+      responseHumor: {
+        text:
+          "Yeah, {echoPlayer} sounds like a slapstick routine with real feelings mixed in.",
+        options: [],
       },
-      accept: {
-        text: "Meet my courier at the neon bridge.",
-        options: [{ text: "On my way.", next: "bye" }],
-      },
-      bye: {
-        text: "Stay alive out there.",
-        options: [{ text: "Close" }],
+      responseWit: {
+        text:
+          "You mentioned {echoPlayer}—that sticks. Some days that’s the only win.",
+        options: [],
       },
     },
   },
@@ -93,113 +118,195 @@ const NPC_DIALOGUE: Record<string, DialogueTree> = {
     name: "Kade N7",
     nodes: {
       start: {
-        text: "Your optics are glitching. Need a tune?",
+        text: "Hey. How are you doing?",
         options: [
-          { text: "Upgrade me.", next: "upgrade" },
-          { text: "Seen any drones?", next: "drones" },
-          { text: "Later.", next: "bye" },
+          { text: "I’m okay, just stretched thin.", next: "doing" },
+          { text: "Not great. Everything feels heavy lately.", next: "doing" },
+          { text: "I’m hanging in, one hour at a time.", next: "doing" },
         ],
       },
-      upgrade: {
-        text: "Bring me two glowcells and I'll boost your jump.",
+      doing: {
+        text:
+          "My partner and I had another argument last night, and I slept on the couch. " +
+          "I’m in the middle of fixing a leaky sink that’s been dripping for weeks. " +
+          "What have you been up to?",
         options: [
-          { text: "Deal.", next: "bye" },
-          { text: "No thanks.", next: "bye" },
+          { text: "About {echoNpc}, I’m trying to be patient with people I love.", next: "responseTragic" },
+          { text: "When you said {echoNpc}, it felt like trying to carry groceries in the rain.", next: "responseHumor" },
+          { text: "Hearing {echoNpc} makes me think I should slow down and breathe.", next: "responseHurry" },
         ],
       },
-      drones: {
-        text: "They circle the old yard. Avoid the blue ones.",
-        options: [{ text: "Thanks.", next: "bye" }],
+      responseTragic: {
+        text:
+          "I hear you about {echoPlayer}. I’ve been there and it still hurts.",
+        options: [],
       },
-      bye: { text: "Catch you in the neon.", options: [{ text: "Close" }] },
+      responseHumor: {
+        text:
+          "That {echoPlayer} moment? Yeah, that’s the universe slipping on a banana peel.",
+        options: [],
+      },
+      responseHurry: {
+        text:
+          "You mentioned {echoPlayer}. Take the slow way if you can—it helps.",
+        options: [],
+      },
     },
   },
   mira: {
     name: "Mira Sol",
     nodes: {
       start: {
-        text: "I've charted a safe route through the alleys.",
+        text: "Hi. How are you feeling?",
         options: [
-          { text: "Show me.", next: "route" },
-          { text: "Any rumors?", next: "rumors" },
-          { text: "Not now.", next: "bye" },
+          { text: "Honestly, I’m worn out.", next: "doing" },
+          { text: "Pretty good, just thinking a lot.", next: "doing" },
+          { text: "I’m focused, but my head’s loud.", next: "doing" },
         ],
       },
-      route: {
-        text: "Follow the cyan lamps. Avoid the red haze.",
-        options: [{ text: "Got it.", next: "bye" }],
+      doing: {
+        text:
+          "I’m in the middle of helping my neighbor move because her back is shot. " +
+          "My kid spilled juice on my last clean shirt, so I’m wearing this. " +
+          "What have you been up to?",
+        options: [
+          { text: "About {echoNpc}, I’ve been trying to show up for people.", next: "responseWarm" },
+          { text: "When you said {echoNpc}, it felt like carrying a backpack full of bricks.", next: "responseHumor" },
+          { text: "Hearing {echoNpc} makes me want to call someone I miss.", next: "responseRomantic" },
+        ],
       },
-      rumors: {
-        text: "Someone is selling fake keycards nearby.",
-        options: [{ text: "Thanks.", next: "bye" }],
+      responseWarm: {
+        text:
+          "I hear you about {echoPlayer}. Small kindnesses add up, even when it doesn’t feel like it.",
+        options: [],
       },
-      bye: { text: "Stay quiet out there.", options: [{ text: "Close" }] },
+      responseHumor: {
+        text:
+          "That {echoPlayer} vibe? It’s like tripping over your own shoelaces in public.",
+        options: [],
+      },
+      responseRomantic: {
+        text:
+          "You mentioned {echoPlayer}. That’s brave—some calls are harder than the rest.",
+        options: [],
+      },
     },
   },
   vex: {
     name: "Vex Orin",
     nodes: {
       start: {
-        text: "Looking for a blade that cuts light?",
+        text: "Yo. How are you doing today?",
         options: [
-          { text: "Show me.", next: "blade" },
-          { text: "Any jobs?", next: "jobs" },
-          { text: "No.", next: "bye" },
+          { text: "I’m okay, just broke and tired.", next: "doing" },
+          { text: "Not great. Things are piling up.", next: "doing" },
+          { text: "I’m hanging in there, I guess.", next: "doing" },
         ],
       },
-      blade: {
-        text: "Find the ghost merchant under the bridge.",
-        options: [{ text: "I'll check.", next: "bye" }],
+      doing: {
+        text:
+          "I’m trying to figure out if I should quit my second job. " +
+          "My roommate ate my leftovers again and I’m still mad about it. " +
+          "What have you been up to?",
+        options: [
+          { text: "About {echoNpc}, I’ve been counting my wins no matter how small.", next: "responseSarcasm" },
+          { text: "When you said {echoNpc}, it felt like chasing a bus that’s already gone.", next: "responseAnger" },
+          { text: "Hearing {echoNpc} makes me want to take a long walk.", next: "responseWit" },
+        ],
       },
-      jobs: {
-        text: "Hack the relay tower and I pay double.",
-        options: [{ text: "Consider it done.", next: "bye" }],
+      responseSarcasm: {
+        text:
+          "You mentioned {echoPlayer}. Yeah, we’re all out here collecting tiny victories.",
+        options: [],
       },
-      bye: { text: "Stay sharp.", options: [{ text: "Close" }] },
+      responseAnger: {
+        text:
+          "That {echoPlayer} energy? I get it. Just don’t burn yourself out.",
+        options: [],
+      },
+      responseWit: {
+        text:
+          "I hear you about {echoPlayer}. A long walk fixes more than people admit.",
+        options: [],
+      },
     },
   },
   lux: {
     name: "Lux",
     nodes: {
       start: {
-        text: "You glow. The city notices.",
+        text: "Hey there. How are you holding up?",
         options: [
-          { text: "Who are you?", next: "who" },
-          { text: "Teach me magic.", next: "magic" },
-          { text: "Goodbye.", next: "bye" },
+          { text: "I’m alright, just distracted.", next: "doing" },
+          { text: "I’m tired. It’s been a week.", next: "doing" },
+          { text: "I’m okay, but my heart’s heavy.", next: "doing" },
         ],
       },
-      who: {
-        text: "Just a whisper in the neon. Keep moving.",
-        options: [{ text: "Alright.", next: "bye" }],
+      doing: {
+        text:
+          "I’m stuck deciding if I should stay in this relationship. " +
+          "We keep arguing about little things that feel huge. " +
+          "What have you been up to?",
+        options: [
+          { text: "About {echoNpc}, I’ve been trying to be honest even when it’s awkward.", next: "responseWit" },
+          { text: "When you said {echoNpc}, it felt like carrying an umbrella in a storm.", next: "responseRomantic" },
+          { text: "Hearing {echoNpc} makes me want a quiet night and warm food.", next: "responseHurry" },
+        ],
       },
-      magic: {
-        text: "Start with Lumina Thread. Feel the current.",
-        options: [{ text: "Thanks.", next: "bye" }],
+      responseWit: {
+        text:
+          "I hear you about {echoPlayer}. Honest is hard, but it saves time.",
+        options: [],
       },
-      bye: { text: "Return when the lights flicker.", options: [{ text: "Close" }] },
+      responseRomantic: {
+        text:
+          "You mentioned {echoPlayer}. That’s sweet—and kind of scary too.",
+        options: [],
+      },
+      responseHurry: {
+        text:
+          "That {echoPlayer} feeling? I’m right there with you. Rest if you can.",
+        options: [],
+      },
     },
   },
   zed: {
     name: "Zed-9",
     nodes: {
       start: {
-        text: "Protocol says you owe me a favor.",
+        text: "Hello. How are you doing?",
         options: [
-          { text: "What favor?", next: "favor" },
-          { text: "I'm busy.", next: "bye" },
-          { text: "Override protocol.", next: "override" },
+          { text: "I’m stable, just exhausted.", next: "doing" },
+          { text: "Complicated. There’s a lot going on.", next: "doing" },
+          { text: "I’m okay, but my nerves are shot.", next: "doing" },
         ],
       },
-      favor: {
-        text: "Recover my memory shard from the yard.",
-        options: [{ text: "I'll look.", next: "bye" }],
+      doing: {
+        text:
+          "I’m coordinating a care check for a neighbor who hasn’t been outside in days. " +
+          "Also, my cat knocked over a plant and now my floor is a swamp. " +
+          "What have you been up to?",
+        options: [
+          { text: "About {echoNpc}, I’ve been trying to show up for family.", next: "responseHurry" },
+          { text: "When you said {echoNpc}, it felt like walking a tightrope in slow motion.", next: "responseAnger" },
+          { text: "Hearing {echoNpc} makes me want to laugh and cry at the same time.", next: "responseDrunk" },
+        ],
       },
-      override: {
-        text: "Denied. Try again later.",
-        options: [{ text: "Close" }],
+      responseHurry: {
+        text:
+          "I hear you about {echoPlayer}. Showing up counts more than you think.",
+        options: [],
       },
-      bye: { text: "Awaiting compliance.", options: [{ text: "Close" }] },
+      responseAnger: {
+        text:
+          "That {echoPlayer} edge? It’s real. Take a breath before it takes you.",
+        options: [],
+      },
+      responseDrunk: {
+        text:
+          "You mentioned {echoPlayer}. Honestly, same. Life’s a weird drink.",
+        options: [],
+      },
     },
   },
 };
@@ -210,14 +317,39 @@ const DialoguePanel: React.FC<{
 }> = ({ npcId, onClose }) => {
   const [nodeId, setNodeId] = useState("start");
   const [isClosing, setIsClosing] = useState(false);
+  const [lastNpcLine, setLastNpcLine] = useState("");
+  const [lastPlayerLine, setLastPlayerLine] = useState("");
   const tree = npcId ? NPC_DIALOGUE[npcId] : null;
   const node = tree?.nodes[nodeId];
   const visibleOptions = node ? node.options.filter((opt) => opt.next) : [];
   const isTerminal = !!node && visibleOptions.length === 0;
+  const npcLineForEcho = lastNpcLine || node?.text || "";
+  const echoNpcWord = pickEchoWord(npcLineForEcho);
+  const echoPlayerWord = pickEchoWord(lastPlayerLine);
+  const renderedText =
+    nodeId === "start" || !node
+      ? node?.text ?? ""
+      : node.text.replace(/\{echoPlayer\}/g, echoPlayerWord);
+  const displayOptions = useMemo(() => {
+    if (!node) return [];
+    return visibleOptions.map((opt, idx) => {
+      const seed = hashSeed(`${npcId ?? ""}:${nodeId}:${idx}`);
+      const useMetaphor = seed % 2 === 0;
+      const base = opt.text.includes("{echoNpc}")
+        ? opt.text.replace(/\{echoNpc\}/g, echoNpcWord)
+        : opt.text;
+      const text = useMetaphor
+        ? `${base} It feels like ${echoNpcWord} is a storm you can't see coming.`
+        : `${base} I keep thinking about ${echoNpcWord}.`;
+      return { ...opt, text };
+    });
+  }, [echoNpcWord, node, nodeId, npcId, visibleOptions]);
 
   useEffect(() => {
     setNodeId("start");
     setIsClosing(false);
+    setLastNpcLine("");
+    setLastPlayerLine("");
   }, [npcId]);
 
   useEffect(() => {
@@ -235,7 +367,7 @@ const DialoguePanel: React.FC<{
     fadeTimer = window.setTimeout(() => {
       setIsClosing(true);
       closeTimer = window.setTimeout(() => onClose(), 450);
-    }, 1000);
+    }, 5000);
     return () => {
       if (fadeTimer) window.clearTimeout(fadeTimer);
       if (closeTimer) window.clearTimeout(closeTimer);
@@ -247,16 +379,29 @@ const DialoguePanel: React.FC<{
     const onKey = (evt: KeyboardEvent) => {
       if (!/^[1-4]$/.test(evt.key)) return;
       const idx = parseInt(evt.key, 10) - 1;
-      const option = visibleOptions[idx];
+      const option = displayOptions[idx];
       if (!option?.next) return;
+      if (npcId) {
+        window.dispatchEvent(
+          new CustomEvent("dialogue-choice", { detail: { npcId, text: option.text } })
+        );
+      }
+      setLastPlayerLine(option.text);
       setNodeId(option.next);
       setIsClosing(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [node, visibleOptions]);
+  }, [displayOptions, node, npcId]);
+
+  useEffect(() => {
+    if (!node) return;
+    setLastNpcLine(renderedText);
+  }, [nodeId, renderedText]);
+
 
   if (!tree || !node) return null;
+
   const portraitSrc = npcId ? NPC_PORTRAITS[npcId] : undefined;
 
   return (
@@ -314,14 +459,20 @@ const DialoguePanel: React.FC<{
         <div className="dialogue-header">
           <span className="dialogue-name">{tree.name}</span>
         </div>
-        <div className="dialogue-body">{node.text}</div>
+        <div className="dialogue-body">{renderedText}</div>
         <div className="dialogue-options">
-          {visibleOptions.map((opt) => (
+          {displayOptions.map((opt) => (
             <button
               key={opt.text}
               className="dialogue-option"
               onClick={() => {
                 if (opt.next) {
+                  if (npcId) {
+                    window.dispatchEvent(
+                      new CustomEvent("dialogue-choice", { detail: { npcId, text: opt.text } })
+                    );
+                  }
+                  setLastPlayerLine(opt.text);
                   setNodeId(opt.next);
                   setIsClosing(false);
                 }
@@ -354,6 +505,7 @@ const HUDInner: React.FC = () => {
   const { setActiveTab, setActiveSlot, addInventoryItem } = useHUD();
   const [activeNpc, setActiveNpc] = useState<string | null>(null);
   const [hudPanelOpen, setHudPanelOpen] = useState(false);
+  const [rpgPanelOpen, setRpgPanelOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -395,14 +547,34 @@ const HUDInner: React.FC = () => {
     return () => window.removeEventListener("hud-panel-state", onPanelState as EventListener);
   }, []);
 
+  useEffect(() => {
+    const onRpgPanel = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ open?: boolean }>).detail;
+      if (typeof detail?.open === "boolean") {
+        setRpgPanelOpen(detail.open);
+      } else {
+        setRpgPanelOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("rpg-panel", onRpgPanel as EventListener);
+    return () => window.removeEventListener("rpg-panel", onRpgPanel as EventListener);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("rpg-panel-state", { detail: { open: rpgPanelOpen } }));
+  }, [rpgPanelOpen]);
+
   const closeHudPanels = () => {
     setActiveTab(null);
+    setRpgPanelOpen(false);
     window.dispatchEvent(new CustomEvent("hud-close"));
   };
 
+  const overlayOpen = hudPanelOpen || rpgPanelOpen;
+
   return (
     <div className="hud-container" aria-hidden={false}>
-      {hudPanelOpen && (
+      {overlayOpen && (
         <button
           type="button"
           className="hud-overlay"
@@ -414,16 +586,20 @@ const HUDInner: React.FC = () => {
       <MenuTabs />
       <JournalPanel />
       <DialoguePanel npcId={activeNpc} onClose={() => setActiveNpc(null)} />
+      <RpgSystemsPanel open={rpgPanelOpen} onClose={() => setRpgPanelOpen(false)} />
       <DebugPanel />
+      <PerformanceMonitor />
       {/* Hotbar removed from UI per request */}
     </div>
   );
 };
 
 const HUD: React.FC = () => (
-  <HUDProvider>
-    <HUDInner />
-  </HUDProvider>
+  <RpgProvider>
+    <HUDProvider>
+      <HUDInner />
+    </HUDProvider>
+  </RpgProvider>
 );
 
 export default HUD;
