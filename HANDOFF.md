@@ -8,100 +8,282 @@
 - World sub-systems (fog, birds, etc.): `src/components/world/*`.
 
 ## Key runtime components
-- `BabylonWorld.tsx`
-  - Owns scene, camera, lights, fog, player, world meshes, perf toggles.
-  - Listens to debug CustomEvents for settings updates (see events list).
-  - Fog master animation: `fogOpacityMaster` is driven by a timer; it stays 0 for 10s on load, then oscillates with a slow sine. This master is multiplied into all fog layers and scene fog density.
-  - Mobile performance staging: on touch devices, perf settings default off and are enabled every 3s in a staged order (borderFog -> windowFlicker -> gargoyles -> collisions -> glow -> postFx).
-  - Player halo (black ground disc) is rendered under the player via a DynamicTexture; controllable by `player-halo-settings`.
-  - HUD close event (`hud-close`) triggers pointer lock on desktop (non-touch).
 
-- `HUD.tsx`
-  - Renders the HUD and a transparent overlay button to close any open HUD panel. Overlay is only shown when a panel is open and dispatches `hud-close`.
+### `BabylonWorld.tsx`
+- Owns scene, camera, lights, fog, player, world meshes, perf toggles.
+- Listens to debug CustomEvents for settings updates (see events list).
+- Fog master animation: `fogOpacityRef` is used to modulate scene fog density; fog sphere settings are driven by `fog-sphere-settings`.
+- Mobile performance staging: on touch devices, perf settings default off and are enabled every 3s in a staged order:
+  - `windowFlicker` → `gargoyles` → `collisions` → `glow` → `postFx`.
+- Player:
+  - Camera: `UniversalCamera` in `WorldSceneController`, referenced via `cameraRef`.
+  - Walk input: `walkInputActive` + `walkInputActiveRef`.
+- HUD close event (`hud-close`) triggers pointer lock on desktop (non-touch).
 
-- `MenuTabs.tsx`
-  - Left-side icon stack with a power button. Emits `power-toggle` (expand/collapse) and `hud-panel-state` (open/closed). Adds blue sparkles behind icons.
+### `WorldSceneController.tsx` (main Babylon scene logic)
+- Responsible for:
+  - Creating engine and scene (`Engine`, `Scene`).
+  - Setting up camera, collisions, and first-person movement.
+  - Lighting: hemispheric lights, moon directional + spot, glow layer.
+  - Ground PBR material.
+  - Procedural buildings and LOD.
+  - Neon signs and billboards.
+  - Drones, cats, pickups, NPCs, drones, airplanes with trails.
+  - Post-processing pipeline (FXAA, depth of field, color curves).
+  - Touch controls (walk/look zones) and hints/sparkles.
+  - Various Debug/CustomEvents (performance, star settings, asset toggles, realism settings, etc.).
 
-- `DebugPanel.tsx`
-  - Master debug GUI. Toggle with `g`. Emits all settings via CustomEvents.
-  - Contains sections for camera, lighting, fog layers, stars, post-FX, performance, asset toggles, realism extras, and player halo.
+Key notes:
+- Touch controls:
+  - `interactZone`, `walkZone`, `lookZone`, `walkLabelZone` are created only on touch devices.
+  - Sparkles and hint animations are capped (`Math.min(count, isTouchDevice ? 8 : 18)`) and cleaned up on unmount.
+- Building system:
+  - Uses `BuildingInfo` via `buildingInfosRef`.
+  - Building geometry: boxes with varied shapes (tower, squat, slab, etc.), plus optional neon panels and frames.
+  - `createBuildingMaterial` uses a dynamic texture for windows with randomized lit/off patterns.
+  - Materials and the neon frame texture are cached:
+    - `cachedBuildingMatsRef` stores building materials.
+    - `cachedNeonFrameTex` stores a shared neon frame `DynamicTexture`.
+  - `rebuildBuildings`:
+    - Disposes only meshes and neon meshes, reuses materials/textures.
+    - Applies building tiling via `applyBuildingTiling()`.
+    - Writes new `BuildingInfo[]` into `buildingInfosRef` and `setBuildingInfos`.
+    - Updates `ShootingStars` min/max height based on tallest building.
+  - LOD metadata:
+    - Each building (`b`) gets `_lodData = { collider, neonPanels: [...] }`.
+    - A `lodObserver` in `scene.onBeforeRenderObservable`:
+      - Computes distance from camera.
+      - Disables building colliders when very far (`dist > veryFarBuildingDistance`).
+      - Hides neon panels when far (`dist > farBuildingDistance`).
+      - Dims emissive windows for very far buildings.
+- Ground:
+  - PBR material with asphalt textures.
+  - On touch devices:
+    - No bump/metallic maps (`isTouchDevice` guard).
+  - Tiling: `groundTiling = isTouchDevice ? 40 : 70`.
+- PostFX:
+  - Uses `DefaultRenderingPipeline` with:
+    - `fxaaEnabled = !isTouchDevice`.
+    - `depthOfFieldEnabled = !isTouchDevice`.
+    - Color curves configured via `ColorCurves`.
+  - `applyPostFx` applies debug panel changes:
+    - Toggles pipeline enabled state.
+    - Adjusts DoF and color curves.
+  - On touch:
+    - Reduces DoF blur.
+    - Reduces glow intensity.
+    - Slightly reduces fog density.
+- Neon billboards:
+  - Textured via `createNeonSignTexture`.
+  - Bulbs:
+    - Instanced from a single `bulbSource` sphere:
+      - `bulbSource.createInstance(...)`.
+    - Fewer bulbs on touch (spacing increased).
+    - Added to glow layer via `glowLayer.addExcludedMesh(top as unknown as Mesh)` to satisfy TS types.
+- Movement:
+  - WASD + mouse look.
+  - Eye height: `eyeHeight = 2`.
+  - Gravity/jump integration:
+    - Uses raycast (`scene.pickWithRay`) to find ground height.
+    - Clamps camera Y to groundY + eyeHeight.
+    - `verticalVel` updated with gravity and jump, clamped on ground contact.
+  - Walk input from custom touch zones is merged into movement vector.
 
-- `WorldSounds.tsx`
-  - Manages SFX + music. Uses Babylon `Sound` with HTMLAudio fallback.
-  - Playlist tracks: Miss Misery, Sycamore, Synthwave, Drop the Game, After Dark, Dark All Day, Earthquake, Flight of the Navigator.
-  - Music volume is controlled by `musicGain` (default 0.3). HTML and Babylon audio both follow it.
-  - Power button sounds (expand/collapse) are wired to `sfx_poweron.m4a` and `sfx_poweroff.m4a`.
+### `HUD.tsx`
+- Renders HUD panels and a transparent overlay button to close any open HUD panel.
+- Overlay only visible when a panel is open; dispatches `hud-close`.
 
-- World subcomponents
-  - Fog: `TopFog.tsx`, `MiddleFog.tsx`, `BottomFog.tsx`, `BorderFog.tsx`, `GroundFog.tsx` (mesh-based, opacity + timeScale animations).
-  - Stars: `CityStars.tsx` (opacity animation + positioning).
-  - Windows: `BuildingWindowFlicker.tsx` (per-building flicker with random colors).
-  - Trees: `TreeField.tsx` (procedural tree placement + variation).
-  - Other systems: `BirdFlocks.tsx`, `NewspaperDrift.tsx`, `CloudLayer.tsx`, `GargoyleStatues.tsx`, `RealismExtras.tsx`, `TrainSystem.tsx`, `RainSystem.tsx` (some may be disabled by perf toggles).
+### `MenuTabs.tsx`
+- Left-hand vertical icon bar with a power button.
+- Emits:
+  - `power-toggle` (expanded/collapsed state).
+  - `hud-panel-state` (panel open/closed).
+- Adds sparkles behind icons via CSS/JS.
+
+### `DebugPanel.tsx`
+- Debug GUI toggled with `g`.
+- Emits many settings via CustomEvents:
+  - Camera, light, building, fog layers, stars, post-FX, performance, asset toggles, realism settings, player halo.
+- Central control for the scene’s parameters.
+
+### `WorldSounds.tsx`
+- Uses Babylon `Sound` plus HTML `<audio>` fallback.
+- Manages ambient SFX and a music playlist.
+- `musicGain` controls volume for both systems.
+- Power toggle sfx for HUD power icon.
+
+### World subcomponents (`src/components/world`)
+- Fog:
+  - `FogSphere.tsx`: sphere-based fog overlay controlled via `fogSphereSettings`.
+- Stars:
+  - `CityStars.tsx`: starfield with glow/fade.
+  - `ShootingStars.tsx`: shooting star system.
+- Buildings:
+  - `BuildingWindowFlicker.tsx`: randomized emissive window flicker.
+- Trees:
+  - `TreeField.tsx`: procedural tree placements based on building layout and sign positions.
+- RealismExtras:
+  - `AmbientOcclusionDecals`, `PuddleDecals`, `LightCones`, `SkylineBackdrop`, `CameraBob`, `FootstepZones`, `SteamVents`, `MovingShadows`, `DebrisScatter`, `TrafficLights`, `StreetSigns`, `SirenSweep`, `Banners`, `NightColorGrade`, `AlleyRumble`, `LODManager`, `VegetationSway`, `AlleyFog`.
+- Other systems (some disabled or not visible in TS snippet):
+  - `CloudLayer.tsx` (removed from BabylonWorld usage).
+  - `GargoyleStatues.tsx`, `BirdFlocks.tsx`, `NewspaperDrift.tsx`, etc.
 
 ## Settings/events (CustomEvent bus)
-Emitted by `DebugPanel.tsx` and consumed in `BabylonWorld.tsx`:
+
+Emitted (mostly) by `DebugPanel.tsx` and consumed in `BabylonWorld.tsx` / `WorldSceneController.tsx`:
+
 - `camera-start-update`
 - `light-settings`
 - `building-settings`
-- `top-fog-settings`
-- `middle-fog-settings`
-- `bottom-fog-settings`
 - `performance-settings`
 - `star-settings`
-- `player-halo-settings`
-- `cloud-settings`
+- `fog-sphere-settings`
 - `postfx-settings`
 - `asset-toggles`
 - `realism-settings`
-
-Other HUD/audio events:
-- `hud-close` (close panels + relock pointer on desktop)
-- `hud-panel-state` (panel open/closed state)
-- `power-toggle` (power icon expand/collapse, plays sfx)
-- `music-visibility` (music HUD visibility/panel position)
+- `atmosphere-props-settings`
+- `performance-master`
+- `tree-positions`
+- `walk-input`
+- `jump-input`
+- `npc-dialogue-open`
+- `npc-dialogue-close`
+- `npc-dialogue`
+- `player-heading`
+- `player-move`
+- `pickup-item`
+- `hud-close`
+- `hud-panel-state`
+- `power-toggle`
+- `music-visibility`
+- `interact-input`
+- `look-input`
+- `camera-info`
+- `minimap-data`
+- `export-world` (see UE integration section)
 
 ## Debug panel defaults (from `DebugPanel.tsx`)
-- Lighting: hemi 0.6, ambient 2.65, moon 1.4, moon spotlight angle 1.32, glow 0.7, fog enabled.
-- Buildings: seed 4864, count 800, scale 1.4.
-- Top fog: opacity 0.02, blur 2, height 164, radius 1200.
-- Middle fog: opacity 0.02, blur 7, height 74.
-- Bottom fog: opacity 0.0, blur 6, height 2.
-- Stars: count 55, radius 200, height 165�440, scale 0.8.
-- Performance: glow/postFx/collisions/windowFlicker/borderFog/gargoyles true.
-- Asset toggles: glowSculptures, cats, neonBillboards true; clouds false; airplanes true.
+- Lighting:
+  - Hemi: 0.6
+  - Ambient: 2.65
+  - Moon: 1.4
+  - Moon spotlight angle: 1.32
+  - Glow intensity: 0.7
+  - Fog enabled.
+- Buildings:
+  - Seed: 4864
+  - Count: 800
+  - Scale: 1.4
+- Fog sphere:
+  - Opacity: 0.2
+  - Blur: 20
+  - Radius: 3000
+  - FadeTop: 0.68
+  - FadeBottom: 0
+  - OffsetY: -215
+  - Color: `Color3(0.42, 0.46, 0.55)`
+- Stars:
+  - Count: 55
+  - Radius: 200
+  - MinHeight: 165
+  - MaxHeight: 440
+  - Scale: 0.8
+- Shooting stars:
+  - Count: 4
+  - Radius: 800
+  - MinHeight: 260
+  - MaxHeight: 520
+  - Scale: 0.5
+- Performance:
+  - `glow`, `postFx`, `collisions`, `windowFlicker`, `gargoyles` true (desktop).
+  - On touch devices, start off and re-enable in stages via `performance-master`.
+- Asset toggles (default in `BabylonWorld.tsx`):
+  - `glowSculptures`: true
+  - `cats`: true
+  - `neonBillboards`: true
+  - `clouds`: false (CloudLayer removed from scene)
+  - `airplanes`: true
+- Realism extras:
+  - Most booleans true by default (aoDecals, puddles, lightCones, skyline, cameraBob, footstepZones, steamVents, movingShadows, debris, trafficLights, streetSigns, sirenSweep, banners, nightGrade, vegetationSway, alleyFog).
+  - `alleyRumble`: false by default.
 
 ## Controls (current)
 - Debug GUI: `g`.
-- Border fog panel: `f`.
-- Ground fog panel: `u`.
-- Building panel: `b`.
-- Performance panel: `o`.
-- Sky effects panel: `k`.
-- HUD panel hotkeys: number keys and `i` for Items (see `HUD.tsx`).
+- Panels:
+  - Building panel: `b`.
+  - Performance panel: `o`.
+  - Sky effects panel: `k`.
+- HUD:
+  - Panel hotkeys: number keys and `i` for Items (see `HUD.tsx`).
+- First-person:
+  - WASD + mouse look on desktop.
+  - Touch:
+    - Left lower half: Walk (walkZone).
+    - Right lower half: Look (lookZone).
+    - Top half: Interact (interactZone).
 
-## Assets of note
-- Textures: `public/textures/*` (asphalt, sky, moon, etc.).
-- Ads: `public/ads/small/*.jpg`.
-- Models: `public/models/*.glb` (cat.glb, bird.glb, etc.).
-- Sounds: `public/sounds/*.m4a` including power sfx, music tracks, ambient/cat/wind/footsteps.
+## Assets
+- Textures:
+  - `public/textures/*` (asphalt, galaxy sky, moon, etc.).
+  - Ground: cracked asphalt textures.
+  - Sky: `/textures/sky_galaxy.png`.
+  - Moon: `/textures/moon.jpg`.
+- Ads:
+  - `public/ads/small/*.jpg`.
+- Models:
+  - `public/models/cat.glb`, `bird.glb`, `RiggedFigure.glb`, `CesiumMan.glb`, etc.
+- Sounds:
+  - `public/sounds/*.m4a`, including power sfx, ambient loops, and music tracks.
 
 ## Known behavior
-- Fog uses Babylon scene fog (`Scene.FOGMODE_EXP2`) only; top/middle/bottom/border fog meshes are removed.
-- NPC dialogue: options are expanded with `{echoNpc}` using a seeded 50/50 metaphor vs reference; NPC replies use `{echoPlayer}` from the last player choice. Terminal dialogue auto-closes after 5 seconds (`DialoguePanel` in `src/components/hud/HUD.tsx`).
-- On mobile, heavy systems are off by default and re-enable in stages every 3 seconds.
-- Menu icon sparkles are purely CSS (`HUD.css`).
+- Fog:
+  - Uses Babylon scene `FOGMODE_EXP2` plus `FogSphere` overlay.
+  - Fog density is modulated by `fogOpacityRef` and `fog-sphere-settings`.
+- NPC dialogue:
+  - NPCs are simple meshes spawned via `MeshBuilder.CreateCylinder` and replaced/overlayed with loaded GLBs.
+  - `npc-dialogue-open` / `npc-dialogue-close` events manage dialogue UI; auto-close after some time in HUD (not detailed in excerpt).
+- Mobile:
+  - Heavy systems off at start and re-enable via staged `performance-master` event.
+  - Touch zones and hints only for `isTouchDevice`.
 
 ## Build/dev
 - Build: `npm run build`.
-- Dev: `npm run dev -- --host` for LAN testing.
+- Dev: `npm run dev` (with Vite).
+- Entry HTML:
+  - `index.html` uses `<title>Ames Belmont</title>`.
 
-## Recent decisions
-- Audio and HUD are expected to work without prompts on mobile after first gesture.
-- Asset budget target: 40 MB (future incoming GLB set).
+---
 
-## TODO for next agent
-- Place 24+ new GLB models (<=40 MB total) with labels in front of the player.
-- Add additional sci-fi/cyberpunk set dressing (100+ elements) and wire toggles in debug GUI.
-- Confirm fog timing expectations (currently 10s delay + oscillation) match desired behavior.
+## UE Integration (WIP)
 
+Goal: Use `BabylonWorld` as the authoring scene and bring the city layout into Unreal Engine 5.6 for further work (lighting, cinematics, etc.).
+
+### Data export from BabylonWorld
+
+**File:** `src/world/BabylonWorld.tsx`
+
+**Export hook:**
+
+```ts
+useEffect(() => {
+  const onExportWorld = () => {
+    const buildings = buildingInfos.map((info) => ({
+      x: info.mesh.position.x,
+      y: info.mesh.position.y,
+      z: info.mesh.position.z,
+      width: info.width,
+      depth: info.depth,
+      height: info.height,
+    }));
+
+    const exportData = {
+      buildings,
+      roads: { xRoads, zRoads },
+    };
+
+    console.log("[EXPORT WORLD]", JSON.stringify(exportData, null, 2));
+  };
+
+  window.addEventListener("export-world", onExportWorld as EventListener);
+  return () => window.removeEventListener("export-world", onExportWorld as EventListener);
+}, [buildingInfos, xRoads, zRoads]);
