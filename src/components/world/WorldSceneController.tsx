@@ -27,8 +27,6 @@ import {
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
-import { EngineInstrumentation } from "@babylonjs/core/Instrumentation/engineInstrumentation";
-import { SceneInstrumentation } from "@babylonjs/core/Instrumentation/sceneInstrumentation";
 import type { BuildingInfo } from "../../world/types";
 
 export type WorldSceneControllerProps = {
@@ -104,75 +102,6 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     setSceneInstance(scene);
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
 
-    const sceneInstrumentation = new SceneInstrumentation(scene);
-    sceneInstrumentation.captureFrameTime = true;
-    sceneInstrumentation.captureRenderTime = true;
-    sceneInstrumentation.captureActiveMeshesEvaluationTime = true;
-    sceneInstrumentation.captureParticlesRenderTime = true;
-    sceneInstrumentation.captureSpritesRenderTime = true;
-    sceneInstrumentation.captureAnimationsTime = true;
-
-    const engineInstrumentation = new EngineInstrumentation(engine);
-    engineInstrumentation.captureGPUFrameTime = true;
-
-    const perfInterval = window.setInterval(() => {
-      const fps = engine.getFps();
-      const frameTime = sceneInstrumentation.frameTimeCounter?.current ?? 0;
-      const renderTime = sceneInstrumentation.renderTimeCounter?.current ?? 0;
-      const gpuTime = engineInstrumentation.gpuFrameTimeCounter?.current ?? 0;
-      const activeMeshes = scene.getActiveMeshes().length;
-      const vertices = scene.getTotalVertices();
-      const drawCalls =
-        typeof (engine as any).getDrawCalls === "function"
-          ? (engine as any).getDrawCalls()
-          : sceneInstrumentation.drawCallsCounter?.current ?? 0;
-      const textures = scene.textures.length;
-      const materials = scene.materials.length;
-      const lights = scene.lights.length;
-      const particles = scene.particleSystems.length;
-      const animations = sceneInstrumentation.animationsTimeCounter?.current ?? 0;
-      const sprites = sceneInstrumentation.spritesRenderTimeCounter?.current ?? 0;
-
-      const budget = {
-        frameMs: 16.67,
-        renderMs: 16.67,
-        gpuMs: 16.67,
-        activeMeshes: 500,
-        vertices: 2000000,
-        drawCalls: 2000,
-        textures: 256,
-        materials: 256,
-        lights: 16,
-        particles: 2000,
-        animationsMs: 8,
-        spritesMs: 4,
-      };
-
-      const entries = [
-        { label: "Frame time", value: `${frameTime.toFixed(2)} ms`, percent: (frameTime / budget.frameMs) * 100 },
-        { label: "Render time", value: `${renderTime.toFixed(2)} ms`, percent: (renderTime / budget.renderMs) * 100 },
-        { label: "GPU time", value: `${gpuTime.toFixed(2)} ms`, percent: (gpuTime / budget.gpuMs) * 100 },
-        { label: "Draw calls", value: `${drawCalls}`, percent: (drawCalls / budget.drawCalls) * 100 },
-        { label: "Active meshes", value: `${activeMeshes}`, percent: (activeMeshes / budget.activeMeshes) * 100 },
-        { label: "Vertices", value: `${Math.round(vertices / 1000)}k`, percent: (vertices / budget.vertices) * 100 },
-        { label: "Textures", value: `${textures}`, percent: (textures / budget.textures) * 100 },
-        { label: "Materials", value: `${materials}`, percent: (materials / budget.materials) * 100 },
-        { label: "Lights", value: `${lights}`, percent: (lights / budget.lights) * 100 },
-        { label: "Particles", value: `${particles}`, percent: (particles / budget.particles) * 100 },
-        { label: "Animations", value: `${animations.toFixed(2)} ms`, percent: (animations / budget.animationsMs) * 100 },
-        { label: "Sprites", value: `${sprites.toFixed(2)} ms`, percent: (sprites / budget.spritesMs) * 100 },
-      ];
-
-      window.dispatchEvent(
-        new CustomEvent("perf-snapshot", {
-          detail: {
-            fps,
-            updatedAt: Date.now(),
-            entries,
-          },
-        })
-      );
-    }, 1000);
 
     // First-person camera
     const loadCameraStart = () => {
@@ -2523,9 +2452,6 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       try { window.removeEventListener("blur", onWindowBlur); } catch {}
       try { document.removeEventListener("visibilitychange", onVisibilityChange); } catch {}
       try { document.body.removeChild(debugOverlay); } catch {}
-      try { window.clearInterval(perfInterval); } catch {}
-      try { sceneInstrumentation.dispose(); } catch {}
-      try { engineInstrumentation.dispose(); } catch {}
       if (adTimer !== null) {
         try { window.clearInterval(adTimer); } catch {}
       }
