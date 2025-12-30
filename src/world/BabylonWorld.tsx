@@ -303,6 +303,29 @@ const BabylonWorld: React.FC = () => {
   }, [buildingInfos, signPositions, xRoads, zRoads]);
 
 
+  useEffect(() => {
+    const onExportWorld = () => {
+      const buildings = buildingInfos.map((info) => ({
+        x: info.mesh.position.x,
+        y: info.mesh.position.y,
+        z: info.mesh.position.z,
+        width: info.width,
+        depth: info.depth,
+        height: info.height,
+      }));
+
+      const exportData = {
+        buildings,
+        roads: { xRoads, zRoads },
+      };
+
+      console.log("[EXPORT WORLD]", JSON.stringify(exportData, null, 2));
+    };
+
+    window.addEventListener("export-world", onExportWorld as EventListener);
+    return () => window.removeEventListener("export-world", onExportWorld as EventListener);
+  }, [buildingInfos, xRoads, zRoads]);
+
   return (
     <>
       <WorldSceneController
