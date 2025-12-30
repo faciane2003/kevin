@@ -1,6 +1,6 @@
 // File: src/world/BabylonWorld.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Scene, UniversalCamera, Vector3, GlowLayer, StandardMaterial } from "@babylonjs/core";
+import { Scene, UniversalCamera, Vector3, GlowLayer, StandardMaterial, Color3 } from "@babylonjs/core";
 import WorldSounds from "../components/sounds/WorldSounds";
 import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
 import GargoyleStatues from "../components/world/GargoyleStatues";
@@ -8,6 +8,7 @@ import TreeField from "../components/world/TreeField";
 import CloudLayer from "../components/world/CloudLayer";
 import CityStars from "../components/world/CityStars";
 import ShootingStars from "../components/world/ShootingStars";
+import FogSphere from "../components/world/FogSphere";
 import { AtmosphereProps } from "../components/world/AtmosphereProps";
 import WorldSceneController from "../components/world/WorldSceneController";
 import {
@@ -61,10 +62,10 @@ const BabylonWorld: React.FC = () => {
   const [starSettings, setStarSettings] = useState({
     enabled: true,
     count: 55,
-    radius: 3900,
-    minHeight: 0,
-    maxHeight: 80,
-    scale: 0.6,
+    radius: 200,
+    minHeight: 165,
+    maxHeight: 440,
+    scale: 0.8,
   });
   const [shootingStarSettings, setShootingStarSettings] = useState({
     enabled: true,
@@ -74,6 +75,18 @@ const BabylonWorld: React.FC = () => {
     maxHeight: 520,
     scale: 0.5,
   });
+  const [fogSphereSettings, setFogSphereSettings] = useState(() => ({
+    enabled: true,
+    opacity: 0.2,
+    blur: 20,
+    radius: 3000,
+    fadeTop: 0.68,
+    fadeBottom: 0,
+    offsetX: 0,
+    offsetY: -215,
+    offsetZ: 0,
+    color: new Color3(0.42, 0.46, 0.55),
+  }));
   const [assetToggles, setAssetToggles] = useState({
     glowSculptures: true,
     cats: true,
@@ -168,6 +181,52 @@ const BabylonWorld: React.FC = () => {
     };
     window.addEventListener("performance-master", onPerfMaster as EventListener);
     return () => window.removeEventListener("performance-master", onPerfMaster as EventListener);
+  }, []);
+
+  useEffect(() => {
+    const onStarSettings = (event: Event) => {
+      const detail = (event as CustomEvent<typeof starSettings>).detail;
+      if (!detail) return;
+      setStarSettings((prev) => ({ ...prev, ...detail }));
+    };
+    window.addEventListener("star-settings", onStarSettings as EventListener);
+    return () => window.removeEventListener("star-settings", onStarSettings as EventListener);
+  }, []);
+
+  useEffect(() => {
+    const onShootingStarSettings = (event: Event) => {
+      const detail = (event as CustomEvent<typeof shootingStarSettings>).detail;
+      if (!detail) return;
+      setShootingStarSettings((prev) => ({ ...prev, ...detail }));
+    };
+    window.addEventListener("shooting-star-settings", onShootingStarSettings as EventListener);
+    return () =>
+      window.removeEventListener("shooting-star-settings", onShootingStarSettings as EventListener);
+  }, []);
+
+  useEffect(() => {
+    const onFogSphere = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        enabled?: boolean;
+        opacity?: number;
+        blur?: number;
+        radius?: number;
+        fadeTop?: number;
+        fadeBottom?: number;
+        offsetX?: number;
+        offsetY?: number;
+        offsetZ?: number;
+        color?: string;
+      }>).detail;
+      if (!detail) return;
+      setFogSphereSettings((prev) => ({
+        ...prev,
+        ...detail,
+        color: detail.color ? Color3.FromHexString(detail.color) : prev.color,
+      }));
+    };
+    window.addEventListener("fog-sphere-settings", onFogSphere as EventListener);
+    return () => window.removeEventListener("fog-sphere-settings", onFogSphere as EventListener);
   }, []);
 
 
@@ -288,6 +347,7 @@ const BabylonWorld: React.FC = () => {
         />
       ) : null}
       {assetToggles.clouds ? <CloudLayer scene={sceneInstance} /> : null}
+      <FogSphere scene={sceneInstance} settings={fogSphereSettings} />
       {starSettings.enabled ? (
         <CityStars
           scene={sceneInstance}

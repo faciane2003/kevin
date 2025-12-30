@@ -43,7 +43,6 @@ export type WorldSceneControllerProps = {
   setWalkInputActive: React.Dispatch<React.SetStateAction<boolean>>;
   walkInputActiveRef: React.MutableRefObject<boolean>;
   setPerfSettings: React.Dispatch<React.SetStateAction<any>>;
-  setCloudMaskSettings: React.Dispatch<React.SetStateAction<any>>;
   setPostFxSettings: React.Dispatch<React.SetStateAction<any>>;
   setAssetToggles: React.Dispatch<React.SetStateAction<any>>;
   setAtmosphereProps: React.Dispatch<React.SetStateAction<any>>;
@@ -74,7 +73,6 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     setWalkInputActive,
     walkInputActiveRef,
     setPerfSettings,
-    setCloudMaskSettings,
     setPostFxSettings,
     setAssetToggles,
     setAtmosphereProps,

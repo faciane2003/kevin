@@ -1,6 +1,47 @@
 ﻿import React, { useEffect, useState } from "react";
 import "./HUD.css";
 
+type DebugDefaults = {
+  lighting?: LightSettings;
+  buildings?: BuildingSettings;
+  fogSphere?: FogSphereSettings;
+  stars?: StarSettings;
+  shootingStars?: ShootingStarSettings;
+  postFx?: PostFxSettings;
+  assets?: AssetToggles;
+  realism?: RealismSettings;
+  atmosphereProps?: AtmospherePropsSettings;
+  performance?: PerfSettings;
+  cameraStart?: {
+    pos: { x: number; y: number; z: number };
+    target: { x: number; y: number; z: number };
+  };
+};
+
+const DEBUG_DEFAULTS_KEY = "debug-defaults";
+
+const loadStoredDefaults = (): DebugDefaults | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DEBUG_DEFAULTS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DebugDefaults;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const saveStoredDefaults = (payload: Record<string, unknown>) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DEBUG_DEFAULTS_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage failures (private mode, quota, etc).
+  }
+};
+
 type LightSettings = {
   hemi: number;
   ambient: number;
@@ -43,13 +84,26 @@ type StarSettings = {
   scale: number;
 };
 
-type CloudMaskSettings = {
+type ShootingStarSettings = {
+  enabled: boolean;
+  count: number;
+  radius: number;
+  minHeight: number;
+  maxHeight: number;
   scale: number;
-  scaleX: number;
-  scaleY: number;
-  feather: number;
-  invert: boolean;
-  lockScale: boolean;
+};
+
+type FogSphereSettings = {
+  enabled: boolean;
+  opacity: number;
+  blur: number;
+  radius: number;
+  fadeTop: number;
+  fadeBottom: number;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  color: string;
 };
 
 
@@ -76,7 +130,6 @@ type AssetToggles = {
   glowSculptures: boolean;
   cats: boolean;
   neonBillboards: boolean;
-  clouds: boolean;
   airplanes: boolean;
 };
 
@@ -95,7 +148,6 @@ type RealismSettings = {
   sirenSweep: boolean;
   banners: boolean;
   nightGrade: boolean;
-  alleyRumble: boolean;
   lod: boolean;
   vegetationSway: boolean;
   alleyFog: boolean;
@@ -113,22 +165,22 @@ type AtmospherePropsSettings = {
 };
 
 const DEFAULT_LIGHTS: LightSettings = {
-  hemi: 0,
-  ambient: 3,
-  moon: 0.5,
-  moonSpotIntensity: 5,
-  moonSpotAngle: 1.32,
-  moonSpotX: 340,
-  moonSpotY: 717,
-  moonSpotZ: -130,
-  moonSpotYaw: -93,
-  moonSpotPitch: -47,
-  glow: 0.2,
+  hemi: 0.85,
+  ambient: 0.2,
+  moon: 2.5,
+  moonSpotIntensity: 6,
+  moonSpotAngle: 1.01,
+  moonSpotX: 826,
+  moonSpotY: 914,
+  moonSpotZ: 279,
+  moonSpotYaw: -103,
+  moonSpotPitch: -33,
+  glow: 0.4,
   fogEnabled: true,
-  fogDensity: 0.0045,
-  fogIntensity: 0.2,
-  fogHeightFalloff: 0.001,
-  fogColor: "#282f3e",
+  fogDensity: 0.002,
+  fogIntensity: 0.6,
+  fogHeightFalloff: 0.003,
+  fogColor: "#202228",
 };
 
 const DEFAULT_BUILDINGS: BuildingSettings = {
@@ -147,28 +199,41 @@ const DEFAULT_PERF: PerfSettings = {
 
 const DEFAULT_STARS: StarSettings = {
   enabled: true,
-  count: 55,
+  count: 10,
   radius: 200,
   minHeight: 165,
   maxHeight: 440,
   scale: 0.8,
 };
 
-const DEFAULT_CLOUD_MASK: CloudMaskSettings = {
-  scale: 0.55,
-  scaleX: 0.8,
-  scaleY: 0.7,
-  feather: 0.98,
-  invert: false,
-  lockScale: false,
+const DEFAULT_SHOOTING_STARS: ShootingStarSettings = {
+  enabled: true,
+  count: 4,
+  radius: 800,
+  minHeight: 260,
+  maxHeight: 520,
+  scale: 0.5,
+};
+
+const DEFAULT_FOG_SPHERE: FogSphereSettings = {
+  enabled: true,
+  opacity: 0.2,
+  blur: 20,
+  radius: 3000,
+  fadeTop: 0.68,
+  fadeBottom: 0,
+  offsetX: 0,
+  offsetY: -215,
+  offsetZ: 0,
+  color: "#6b758c",
 };
 
 
 const DEFAULT_POSTFX: PostFxSettings = {
   enabled: true,
   depthOfFieldEnabled: false,
-  depthOfFieldFocusDistance: 10250,
-  depthOfFieldFStop: 2,
+  depthOfFieldFocusDistance: 10000,
+  depthOfFieldFStop: 1,
   depthOfFieldBlurLevel: 2,
   colorGradingEnabled: true,
   globalHue: 41,
@@ -187,7 +252,6 @@ const DEFAULT_ASSETS: AssetToggles = {
   glowSculptures: true,
   cats: true,
   neonBillboards: true,
-  clouds: false,
   airplanes: true,
 };
 
@@ -206,7 +270,6 @@ const DEFAULT_REALISM: RealismSettings = {
   sirenSweep: true,
   banners: true,
   nightGrade: true,
-  alleyRumble: false,
   lod: true,
   vegetationSway: true,
   alleyFog: true,
@@ -228,8 +291,9 @@ const SECTION_KEYS = [
   "lighting",
   "moonSpotlight",
   "fog",
+  "fogSphere",
   "stars",
-  "cloudMask",
+  "shootingStars",
   "postFx",
   "buildings",
   "performance",
@@ -242,10 +306,11 @@ const SECTION_KEYS = [
 type SectionKey = typeof SECTION_KEYS[number];
 
 const DebugPanel: React.FC = () => {
+  const storedDefaults = loadStoredDefaults();
   const [open, setOpen] = useState(false);
   const [expandAll, setExpandAll] = useState(false);
   const [perfMaster, setPerfMaster] = useState(1);
-  const [perfMasterLocked, setPerfMasterLocked] = useState(false);
+  const [perfMasterLocked, setPerfMasterLocked] = useState(true);
   const [fps, setFps] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>(() => {
     const initial = {} as Record<SectionKey, boolean>;
@@ -259,9 +324,14 @@ const DebugPanel: React.FC = () => {
     target: { x: number; y: number; z: number };
   } | null>(null);
   const [syncCameraStart, setSyncCameraStart] = useState(false);
-  const [lights, setLights] = useState<LightSettings>(DEFAULT_LIGHTS);
-  const [buildings, setBuildings] = useState<BuildingSettings>(DEFAULT_BUILDINGS);
+  const [lights, setLights] = useState<LightSettings>(
+    () => storedDefaults?.lighting ?? DEFAULT_LIGHTS
+  );
+  const [buildings, setBuildings] = useState<BuildingSettings>(
+    () => storedDefaults?.buildings ?? DEFAULT_BUILDINGS
+  );
   const [perf, setPerf] = useState<PerfSettings>(() => {
+    if (storedDefaults?.performance) return storedDefaults.performance;
     const isTouch =
       typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
     if (!isTouch) return DEFAULT_PERF;
@@ -273,13 +343,25 @@ const DebugPanel: React.FC = () => {
       gargoyles: false,
     };
   });
-  const [stars, setStars] = useState<StarSettings>(DEFAULT_STARS);
-  const [cloudMask, setCloudMask] = useState<CloudMaskSettings>(DEFAULT_CLOUD_MASK);
-  const [postFx, setPostFx] = useState<PostFxSettings>(DEFAULT_POSTFX);
-  const [assets, setAssets] = useState<AssetToggles>(DEFAULT_ASSETS);
-  const [realism, setRealism] = useState<RealismSettings>(DEFAULT_REALISM);
-  const [atmosphereProps, setAtmosphereProps] =
-    useState<AtmospherePropsSettings>(DEFAULT_ATMOSPHERE_PROPS);
+  const [stars, setStars] = useState<StarSettings>(() => storedDefaults?.stars ?? DEFAULT_STARS);
+  const [shootingStars, setShootingStars] = useState<ShootingStarSettings>(
+    () => storedDefaults?.shootingStars ?? DEFAULT_SHOOTING_STARS
+  );
+  const [fogSphere, setFogSphere] = useState<FogSphereSettings>(
+    () => storedDefaults?.fogSphere ?? DEFAULT_FOG_SPHERE
+  );
+  const [postFx, setPostFx] = useState<PostFxSettings>(
+    () => storedDefaults?.postFx ?? DEFAULT_POSTFX
+  );
+  const [assets, setAssets] = useState<AssetToggles>(
+    () => storedDefaults?.assets ?? DEFAULT_ASSETS
+  );
+  const [realism, setRealism] = useState<RealismSettings>(
+    () => storedDefaults?.realism ?? DEFAULT_REALISM
+  );
+  const [atmosphereProps, setAtmosphereProps] = useState<AtmospherePropsSettings>(
+    () => storedDefaults?.atmosphereProps ?? DEFAULT_ATMOSPHERE_PROPS
+  );
   const [rpgPanelOpen, setRpgPanelOpen] = useState(false);
 
   const setAllSections = (value: boolean) => {
@@ -397,10 +479,14 @@ const DebugPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent("star-settings", { detail: stars }));
   }, [stars]);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("shooting-star-settings", { detail: shootingStars }));
+  }, [shootingStars]);
+
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("cloud-settings", { detail: cloudMask }));
-  }, [cloudMask]);
+    window.dispatchEvent(new CustomEvent("fog-sphere-settings", { detail: fogSphere }));
+  }, [fogSphere]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("postfx-settings", { detail: postFx }));
@@ -431,14 +517,16 @@ const DebugPanel: React.FC = () => {
     const payload: Record<string, unknown> = {
       lighting: lights,
       buildings,
+      fogSphere,
       stars,
-      cloudMask,
+      shootingStars,
       postFx,
       assets,
       realism,
       atmosphereProps,
       performance: perf,
     };
+    saveStoredDefaults(payload);
     if (syncCameraStart && cameraInfo) {
       payload.cameraStart = cameraInfo;
     }
@@ -661,6 +749,56 @@ const DebugPanel: React.FC = () => {
       )}
 
       {renderSection(
+        "fogSphere",
+        "Fog Sphere",
+        <>
+          <label className="light-row">
+            <span>Enabled</span>
+            <input
+              type="checkbox"
+              checked={fogSphere.enabled}
+              onChange={(e) => setFogSphere((prev) => ({ ...prev, enabled: e.target.checked }))}
+            />
+          </label>
+          {(
+            [
+              ["opacity", "Opacity", 0, 0.2, 0.005],
+              ["blur", "Blur", 0, 20, 1],
+              ["radius", "Radius", 200, 3000, 50],
+              ["fadeTop", "Fade Top", 0, 1, 0.02],
+              ["fadeBottom", "Fade Bottom", 0, 1, 0.02],
+              ["offsetX", "Offset X", -2000, 2000, 5],
+              ["offsetY", "Offset Y", -2000, 2000, 5],
+              ["offsetZ", "Offset Z", -2000, 2000, 5],
+            ] as Array<[keyof FogSphereSettings, string, number, number, number]>
+          ).map(([key, label, min, max, step]) => (
+            <label key={key} className="light-row">
+              <span>{label}</span>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={fogSphere[key] as number}
+                onChange={(e) =>
+                  setFogSphere((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                }
+              />
+              <span className="light-value">{(fogSphere[key] as number).toFixed(2)}</span>
+            </label>
+          ))}
+          <label className="light-row">
+            <span>Color</span>
+            <input
+              type="color"
+              value={fogSphere.color}
+              onChange={(e) => setFogSphere((prev) => ({ ...prev, color: e.target.value }))}
+            />
+          </label>
+        </>
+      )}
+
+      {renderSection(
         "stars",
         "Stars",
         <>
@@ -703,18 +841,28 @@ const DebugPanel: React.FC = () => {
         </>
       )}
 
-
       {renderSection(
-        "cloudMask",
-        "Cloud Mask",
+        "shootingStars",
+        "Shooting Stars",
         <>
+          <label className="light-row">
+            <span>Enabled</span>
+            <input
+              type="checkbox"
+              checked={shootingStars.enabled}
+              onChange={(e) =>
+                setShootingStars((prev) => ({ ...prev, enabled: e.target.checked }))
+              }
+            />
+          </label>
           {(
             [
-              ["scale", "Scale", 0.2, 3, 0.05],
-              ["scaleX", "Scale X", 0.2, 3, 0.05],
-              ["scaleY", "Scale Y", 0.2, 3, 0.05],
-              ["feather", "Feather", 0, 0.98, 0.02],
-            ] as Array<[keyof CloudMaskSettings, string, number, number, number]>
+              ["count", "Count", 0, 30, 1],
+              ["radius", "Radius", 200, 2000, 50],
+              ["minHeight", "Min Y", 50, 800, 10],
+              ["maxHeight", "Max Y", 80, 1200, 10],
+              ["scale", "Scale", 0.1, 5, 0.1],
+            ] as Array<[keyof ShootingStarSettings, string, number, number, number]>
           ).map(([key, label, min, max, step]) => (
             <label key={key} className="light-row">
               <span>{label}</span>
@@ -723,32 +871,17 @@ const DebugPanel: React.FC = () => {
                 min={min}
                 max={max}
                 step={step}
-                value={cloudMask[key] as number}
+                value={shootingStars[key] as number}
                 onChange={(e) =>
-                  setCloudMask((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                  setShootingStars((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
                 }
               />
-              <span className="light-value">{(cloudMask[key] as number).toFixed(2)}</span>
+              <span className="light-value">{(shootingStars[key] as number).toFixed(2)}</span>
             </label>
           ))}
-          <label className="light-row">
-            <span>Invert</span>
-            <input
-              type="checkbox"
-              checked={cloudMask.invert}
-              onChange={(e) => setCloudMask((prev) => ({ ...prev, invert: e.target.checked }))}
-            />
-          </label>
-          <label className="light-row">
-            <span>Lock Ratio</span>
-            <input
-              type="checkbox"
-              checked={cloudMask.lockScale}
-              onChange={(e) => setCloudMask((prev) => ({ ...prev, lockScale: e.target.checked }))}
-            />
-          </label>
         </>
       )}
+
 
       {renderSection(
         "postFx",
@@ -921,7 +1054,6 @@ const DebugPanel: React.FC = () => {
               ["glowSculptures", "Glow Sculptures"],
               ["cats", "Cats"],
               ["neonBillboards", "Neon Billboards"],
-              ["clouds", "Clouds"],
               ["airplanes", "Airplanes"],
             ] as Array<[keyof AssetToggles, string]>
           ).map(([key, label]) => (
@@ -957,7 +1089,6 @@ const DebugPanel: React.FC = () => {
               ["sirenSweep", "Siren Sweep"],
               ["banners", "Banners"],
               ["nightGrade", "Night Color Grade"],
-              ["alleyRumble", "Alley Rumble"],
               ["lod", "LOD Manager"],
               ["vegetationSway", "Vegetation Sway"],
               ["alleyFog", "Alley Fog"],
