@@ -271,9 +271,10 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     };
 
     const onHudItemClick = (evt: Event) => {
-      const detail = (evt as CustomEvent<{ label?: string }>).detail;
-      if (!detail?.label) return;
-      if (detail.label !== "Rollerblades") return;
+      const { detail } = evt as CustomEvent<{ label?: string }>;
+      const { label } = detail ?? {};
+      if (!label) return;
+      if (label !== "Rollerblades") return;
       sprintModeRef.current = !sprintModeRef.current;
       spawnFootSparkles(
         sprintModeRef.current ? new Color4(1, 0.84, 0.2, 1) : new Color4(0.3, 0.6, 1, 1)
@@ -325,8 +326,9 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     copyDebugButton.addEventListener("click", async () => {
       const pos = camera.position;
       const target = camera.getTarget();
+      const { x: posX, y: posY, z: posZ } = pos;
       const text =
-        `pos: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})\n` +
+        `pos: (${posX.toFixed(2)}, ${posY.toFixed(2)}, ${posZ.toFixed(2)})\n` +
         `target: (${target.x.toFixed(2)}, ${target.y.toFixed(2)}, ${target.z.toFixed(2)})`;
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
@@ -362,13 +364,16 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     };
     window.addEventListener("npc-dialogue", onDialogueOpen as EventListener);
     const onCameraStartUpdate = (evt: Event) => {
-      const detail = (evt as CustomEvent<{
+      const { detail } = evt as CustomEvent<{
         pos?: { x: number; y: number; z: number };
         target?: { x: number; y: number; z: number };
-      }>).detail;
-      if (!detail?.pos || !detail?.target) return;
-      camera.position.set(detail.pos.x, detail.pos.y, detail.pos.z);
-      camera.setTarget(new Vector3(detail.target.x, detail.target.y, detail.target.z));
+      }>;
+      const { pos, target } = detail ?? {};
+      if (!pos || !target) return;
+      const { x: px, y: py, z: pz } = pos;
+      const { x: tx, y: ty, z: tz } = target;
+      camera.position.set(px, py, pz);
+      camera.setTarget(new Vector3(tx, ty, tz));
       try {
         window.localStorage.setItem("cameraStart", JSON.stringify(detail));
       } catch {}
@@ -553,7 +558,8 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         el.style.overflow = "visible";
         el.style.position = "fixed";
         const baseColor = "rgba(56,226,111,0.95)";
-        for (let i = 0; i < count; i += 1) {
+        const cappedCount = Math.min(count, isTouchDevice ? 8 : 18);
+        for (let i = 0; i < cappedCount; i += 1) {
           const sparkle = document.createElement("span");
           sparkle.style.position = "absolute";
           const size = 3 + Math.random() * 3;
@@ -565,21 +571,20 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
           sparkle.style.left = `${35 + Math.random() * 30}%`;
           sparkle.style.top = `${20 + Math.random() * 30}%`;
           el.appendChild(sparkle);
-          hintAnimations.push(
-            sparkle.animate(
-              [
-                { transform: "translate(0,0) scale(0.6)", opacity: 0 },
-                { transform: "translate(6px,-22px) scale(1)", opacity: 1 },
-                { transform: "translate(-6px,12px) scale(0.7)", opacity: 0 },
-              ],
-              {
-                duration: 2000 + Math.random() * 3000,
-                iterations: Infinity,
-                easing: "ease-in-out",
-                delay: Math.random() * 800,
-              }
-            )
+          const anim = sparkle.animate(
+            [
+              { transform: "translate(0,0) scale(0.6)", opacity: 0 },
+              { transform: "translate(6px,-22px) scale(1)", opacity: 1 },
+              { transform: "translate(-6px,12px) scale(0.7)", opacity: 0 },
+            ],
+            {
+              duration: 2000 + Math.random() * 3000,
+              iterations: Infinity,
+              easing: "ease-in-out",
+              delay: Math.random() * 800,
+            }
           );
+          hintAnimations.push(anim);
         }
       };
 
@@ -860,34 +865,40 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_B%20copy.jpg",
       scene
     );
-    groundMat.bumpTexture = new Texture(
-      "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_N.jpg",
-      scene
-    );
-    groundMat.bumpTexture.level = 1.25;
-    groundMat.metallicTexture = new Texture(
-      "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_ORM.jpg",
-      scene
-    );
-    groundMat.useAmbientOcclusionFromMetallicTextureRed = true;
-    groundMat.useRoughnessFromMetallicTextureGreen = true;
-    groundMat.useMetallnessFromMetallicTextureBlue = true;
+
+    if (!isTouchDevice) {
+      groundMat.bumpTexture = new Texture(
+        "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_N.jpg",
+        scene
+      );
+      groundMat.bumpTexture.level = 1.25;
+      groundMat.metallicTexture = new Texture(
+        "/textures/cracked_asphalt_sivodcfa_1k_ue_low/Textures/T_sivodcfa_1K_ORM.jpg",
+        scene
+      );
+      groundMat.useAmbientOcclusionFromMetallicTextureRed = true;
+      groundMat.useRoughnessFromMetallicTextureGreen = true;
+      groundMat.useMetallnessFromMetallicTextureBlue = true;
+    }
+
     groundMat.metallic = 1;
     groundMat.roughness = 1;
+
+    const groundTiling = isTouchDevice ? 40 : 70;
     if (groundMat.albedoTexture) {
       const albedoTex = groundMat.albedoTexture as Texture;
-      albedoTex.uScale = 70;
-      albedoTex.vScale = 70;
+      albedoTex.uScale = groundTiling;
+      albedoTex.vScale = groundTiling;
     }
     if (groundMat.bumpTexture) {
       const bumpTex = groundMat.bumpTexture as Texture;
-      bumpTex.uScale = 70;
-      bumpTex.vScale = 70;
+      bumpTex.uScale = groundTiling;
+      bumpTex.vScale = groundTiling;
     }
     if (groundMat.metallicTexture) {
       const ormTex = groundMat.metallicTexture as Texture;
-      ormTex.uScale = 70;
-      ormTex.vScale = 70;
+      ormTex.uScale = groundTiling;
+      ormTex.vScale = groundTiling;
     }
     ground.material = groundMat;
     ground.checkCollisions = true;
@@ -913,6 +924,38 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       scene.fogColor = fogSettings.color;
     });
 
+    const lodObserver = scene.onBeforeRenderObservable.add(() => {
+      if (!camera) return;
+      const camPos = (camera as any).globalPosition || camera.position;
+      for (const mesh of buildingMeshes) {
+        const lodData = (mesh as any)._lodData;
+        if (!lodData) continue;
+
+        const dx = mesh.position.x - camPos.x;
+        const dz = mesh.position.z - camPos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        const collider: Mesh | undefined = lodData.collider;
+        const neonPanels: Mesh[] = lodData.neonPanels || [];
+
+        const isVeryFar = dist > veryFarBuildingDistance;
+        const isFar = dist > farBuildingDistance;
+
+        if (collider) {
+          collider.checkCollisions = !isVeryFar && perfSettings.collisions;
+        }
+
+        for (const panel of neonPanels) {
+          panel.setEnabled(!isFar);
+        }
+
+        const mat = mesh.material as StandardMaterial | null;
+        if (mat?.emissiveTexture) {
+          mat.emissiveColor = isVeryFar ? new Color3(0, 0, 0) : new Color3(0.2, 0.2, 0.2);
+        }
+      }
+    });
+
     // Post-processing: glow, depth of field, motion blur, color grading
     const glowLayer = new GlowLayer("glow", scene, { blurKernelSize: 32 });
     glowLayerRef.current = glowLayer;
@@ -925,9 +968,9 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       scene,
       [camera]
     );
-    pipeline.fxaaEnabled = true;
+    pipeline.fxaaEnabled = !isTouchDevice;
     pipeline.bloomEnabled = false;
-    pipeline.depthOfFieldEnabled = false;
+    pipeline.depthOfFieldEnabled = !isTouchDevice;
     pipeline.depthOfFieldBlurLevel = 2;
     if (pipeline.depthOfField) {
       pipeline.depthOfField.focusDistance = 12000;
@@ -982,10 +1025,11 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     };
     applyPostFx(postFxSettings);
 
-    // Slightly reduce quality on touch devices
+    // Reduce quality on touch devices
     if (isTouchDevice) {
       pipeline.depthOfFieldBlurLevel = 1;
-      glowLayer.intensity = 0.2;
+      glowLayer.intensity = 0.18;
+      scene.fogDensity *= 0.8;
     }
 
     const onLightSettings = (evt: Event) => {
@@ -1043,19 +1087,8 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       }
     };
     window.addEventListener("performance-settings", onPerfSettings as EventListener);
-    const onCloudSettings = (evt: Event) => {
-      const detail = (evt as CustomEvent<any>).detail;
-      if (!detail) return;
-      setCloudMaskSettings((prev: any) => ({
-        scale: typeof detail.scale === "number" ? detail.scale : prev.scale,
-        scaleX: typeof detail.scaleX === "number" ? detail.scaleX : prev.scaleX,
-        scaleY: typeof detail.scaleY === "number" ? detail.scaleY : prev.scaleY,
-        feather: typeof detail.feather === "number" ? detail.feather : prev.feather,
-        invert: typeof detail.invert === "boolean" ? detail.invert : prev.invert,
-        lockScale: typeof detail.lockScale === "boolean" ? detail.lockScale : prev.lockScale,
-      }));
-    };
-    window.addEventListener("cloud-settings", onCloudSettings as EventListener);
+    // Cloud settings handler removed (setCloudMaskSettings is not in scope here).
+    // If you reintroduce cloud masks, wire a handler here via props/context and add/remove the event listener.
     const onPostFxSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -1121,9 +1154,9 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       planeTrailsRef.current.forEach((trail) => {
         if (trail?.setEnabled) trail.setEnabled(nextToggles.airplanes);
       });
-      };
-      window.addEventListener("asset-toggles", onAssetToggles as EventListener);
-      const onAtmosphereProps = (evt: Event) => {
+    };
+    window.addEventListener("asset-toggles", onAssetToggles as EventListener);
+    const onAtmosphereProps = (evt: Event) => {
         const detail = (evt as CustomEvent<any>).detail;
         if (!detail) return;
         setAtmosphereProps((prev: any) => ({
@@ -1153,16 +1186,33 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     };
     window.addEventListener("walk-input", onWalkInput as EventListener);
     const onStarSettings = (evt: Event) => {
-      const detail = (evt as CustomEvent<any>).detail;
+      const { detail } = evt as CustomEvent<any>;
       if (!detail) return;
-      setStarSettings((prev: any) => ({
-        enabled: typeof detail.enabled === "boolean" ? detail.enabled : prev.enabled,
-        count: typeof detail.count === "number" ? detail.count : prev.count,
-        radius: typeof detail.radius === "number" ? detail.radius : prev.radius,
-        minHeight: typeof detail.minHeight === "number" ? detail.minHeight : prev.minHeight,
-        maxHeight: typeof detail.maxHeight === "number" ? detail.maxHeight : prev.maxHeight,
-        scale: typeof detail.scale === "number" ? detail.scale : prev.scale,
-      }));
+      setStarSettings((prev: any) => {
+        const {
+          enabled,
+          count,
+          radius,
+          minHeight,
+          maxHeight,
+          scale,
+        } = detail as {
+          enabled?: boolean;
+          count?: number;
+          radius?: number;
+          minHeight?: number;
+          maxHeight?: number;
+          scale?: number;
+        };
+        return {
+          enabled: typeof enabled === "boolean" ? enabled : prev.enabled,
+          count: typeof count === "number" ? count : prev.count,
+          radius: typeof radius === "number" ? radius : prev.radius,
+          minHeight: typeof minHeight === "number" ? minHeight : prev.minHeight,
+          maxHeight: typeof maxHeight === "number" ? maxHeight : prev.maxHeight,
+          scale: typeof scale === "number" ? scale : prev.scale,
+        };
+      });
     };
     window.addEventListener("star-settings", onStarSettings as EventListener);
     const onBuildingSettings = (evt: Event) => {
@@ -1171,7 +1221,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       if (typeof detail.seed === "number") buildingSeedState.value = detail.seed;
       if (typeof detail.count === "number") buildingCountState.value = detail.count;
       if (typeof detail.scale === "number") buildingScaleState.value = detail.scale;
-      rebuildBuildings(buildingSeedState.value, buildingCountState.value, buildingScaleState.value);
+      scheduleRebuildBuildings();
     };
     window.addEventListener("building-settings", onBuildingSettings as EventListener);
     const onTreePositions = (evt: Event) => {
@@ -1261,6 +1311,10 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     let buildingNeonMeshes: Mesh[] = [];
     let buildingNeonMats: StandardMaterial[] = [];
     let neonFrameTex: DynamicTexture | null = null;
+
+    // Cache reusable building materials and neon frame texture across rebuilds
+    const cachedBuildingMatsRef = { current: [] as StandardMaterial[] };
+    let cachedNeonFrameTex: DynamicTexture | null = null;
     const makeRng = (seed: number) => {
       let t = seed >>> 0;
       return () => {
@@ -1287,19 +1341,18 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       });
     };
 
+    const farBuildingDistance = 600;
+    const veryFarBuildingDistance = 900;
+
     const rebuildBuildings = (seed: number, count: number, scale: number) => {
+      // Dispose meshes only; reuse cached materials/textures
       buildingMeshes.forEach((mesh) => mesh.dispose());
       buildingMeshes = [];
-      buildingMats.forEach((mat) => mat.dispose(true, true));
-      buildingMats = [];
       buildingNeonMeshes.forEach((mesh) => mesh.dispose());
       buildingNeonMeshes = [];
       buildingNeonMats.forEach((mat) => mat.dispose(true, true));
       buildingNeonMats = [];
-      if (neonFrameTex) {
-        neonFrameTex.dispose();
-        neonFrameTex = null;
-      }
+
       const rand = makeRng(seed);
       const newBuildingInfos: BuildingInfo[] = [];
       const isNearSign = (x: number, z: number) =>
@@ -1308,23 +1361,30 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
           const dz = z - s.z;
           return dx * dx + dz * dz < 20 * 20;
         });
-      buildingMats = [
-        createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#c9c9c9", "#10131a", rand),
-        createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0d12", rand),
-        createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#c9c9c9", "#0a0d12", rand),
-        createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", rand),
-      ];
-      neonFrameTex = new DynamicTexture("neonFrameTex", { width: 256, height: 256 }, scene, false);
-      const frameCtx = neonFrameTex.getContext() as CanvasRenderingContext2D;
-      frameCtx.clearRect(0, 0, 256, 256);
-      frameCtx.strokeStyle = "rgba(0, 0, 0, 0.9)";
-      frameCtx.lineWidth = 24;
-      frameCtx.strokeRect(18, 18, 220, 220);
-      frameCtx.strokeStyle = "rgba(255, 209, 102, 1)";
-      frameCtx.lineWidth = 10;
-      frameCtx.strokeRect(24, 24, 208, 208);
-      neonFrameTex.update();
-      neonFrameTex.hasAlpha = true;
+      if (cachedBuildingMatsRef.current.length === 0) {
+        cachedBuildingMatsRef.current = [
+          createBuildingMaterial("buildingMat_brick", "/textures/building_brick.jpg", "#c9c9c9", "#10131a", rand),
+          createBuildingMaterial("buildingMat_concrete", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0d12", rand),
+          createBuildingMaterial("buildingMat_modern", "/textures/building_facade.jpg", "#c9c9c9", "#0a0d12", rand),
+          createBuildingMaterial("buildingMat_sand", "/textures/building_concrete.jpg", "#c9c9c9", "#0a0b10", rand),
+        ];
+      }
+      buildingMats = cachedBuildingMatsRef.current;
+
+      if (!cachedNeonFrameTex) {
+        cachedNeonFrameTex = new DynamicTexture("neonFrameTex", { width: 256, height: 256 }, scene, false);
+        const frameCtx = cachedNeonFrameTex.getContext() as CanvasRenderingContext2D;
+        frameCtx.clearRect(0, 0, 256, 256);
+        frameCtx.strokeStyle = "rgba(0, 0, 0, 0.9)";
+        frameCtx.lineWidth = 24;
+        frameCtx.strokeRect(18, 18, 220, 220);
+        frameCtx.strokeStyle = "rgba(255, 209, 102, 1)";
+        frameCtx.lineWidth = 10;
+        frameCtx.strokeRect(24, 24, 208, 208);
+        cachedNeonFrameTex.update();
+        cachedNeonFrameTex.hasAlpha = true;
+      }
+      neonFrameTex = cachedNeonFrameTex;
       const neonFrameMat = new StandardMaterial("neonFrameMat", scene);
       neonFrameMat.diffuseTexture = neonFrameTex;
       neonFrameMat.opacityTexture = neonFrameTex;
@@ -1444,6 +1504,13 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         collider.checkCollisions = true;
         collider.parent = b;
         collider.position = new Vector3(0, 0, 0);
+
+        // Attach LOD metadata: collider + neon panels for this building
+        (b as any)._lodData = {
+          collider,
+          neonPanels: buildingNeonMeshes.filter((m) => m.parent === b),
+        };
+
         buildingMeshes.push(b);
         newBuildingInfos.push({ mesh: b, width: w, depth: d, height: h });
       }
@@ -1468,6 +1535,21 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     const buildingSeedState = { value: 4864 };
     const buildingCountState = { value: 800 };
     const buildingScaleState = { value: 1.4 };
+    let rebuildBuildingsTimer: number | null = null;
+
+    const scheduleRebuildBuildings = () => {
+      if (rebuildBuildingsTimer != null) {
+        window.clearTimeout(rebuildBuildingsTimer);
+      }
+      rebuildBuildingsTimer = window.setTimeout(() => {
+        rebuildBuildings(
+          buildingSeedState.value,
+          buildingCountState.value,
+          buildingScaleState.value
+        );
+      }, 120);
+    };
+
     rebuildBuildings(buildingSeedState.value, buildingCountState.value, buildingScaleState.value);
 
 
@@ -1510,32 +1592,37 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
 
       const halfW = width / 2;
       const halfH = height / 2;
-      const spacing = 4;
+      const baseSpacing = 4;
+      const spacing = isTouchDevice ? baseSpacing * 1.5 : baseSpacing;
+
+      // Single source mesh, instances for all bulbs
+      const bulbSource = MeshBuilder.CreateSphere(`${namePrefix}_bulb_src`, { diameter: 1.1 }, scene);
+      bulbSource.material = bulbMat;
+      bulbSource.isVisible = false;
+
       let idx = 0;
       for (let x = -halfW; x <= halfW; x += spacing) {
-        const top = MeshBuilder.CreateSphere(`${namePrefix}_bulb_top_${idx}`, { diameter: 1.1 }, scene);
-        top.material = bulbMat;
+        const top = bulbSource.createInstance(`${namePrefix}_bulb_top_${idx}`);
         top.parent = sign;
         top.position = new Vector3(x, halfH, zOffset);
-        glowLayer.addExcludedMesh(top);
-        const bottom = MeshBuilder.CreateSphere(`${namePrefix}_bulb_bottom_${idx}`, { diameter: 1.1 }, scene);
-        bottom.material = bulbMat;
+        glowLayer.addExcludedMesh(top as unknown as Mesh);
+
+        const bottom = bulbSource.createInstance(`${namePrefix}_bulb_bottom_${idx}`);
         bottom.parent = sign;
         bottom.position = new Vector3(x, -halfH, zOffset);
-        glowLayer.addExcludedMesh(bottom);
+        glowLayer.addExcludedMesh(bottom as unknown as Mesh);
         idx += 1;
       }
       for (let y = -halfH + spacing; y <= halfH - spacing; y += spacing) {
-        const left = MeshBuilder.CreateSphere(`${namePrefix}_bulb_left_${idx}`, { diameter: 1.1 }, scene);
-        left.material = bulbMat;
+        const left = bulbSource.createInstance(`${namePrefix}_bulb_left_${idx}`);
         left.parent = sign;
         left.position = new Vector3(-halfW, y, zOffset);
-        glowLayer.addExcludedMesh(left);
-        const right = MeshBuilder.CreateSphere(`${namePrefix}_bulb_right_${idx}`, { diameter: 1.1 }, scene);
-        right.material = bulbMat;
+        glowLayer.addExcludedMesh(left as unknown as Mesh);
+
+        const right = bulbSource.createInstance(`${namePrefix}_bulb_right_${idx}`);
         right.parent = sign;
         right.position = new Vector3(halfW, y, zOffset);
-        glowLayer.addExcludedMesh(right);
+        glowLayer.addExcludedMesh(right as unknown as Mesh);
         idx += 1;
       }
     };
@@ -2050,10 +2137,11 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       tail.checkCollisions = false;
       tail.position = new Vector3(-2.8, 0.7, 0);
 
+      const { minX, maxX, minZ, maxZ } = planeBounds;
       const center = new Vector3(
-        planeBounds.minX + Math.random() * (planeBounds.maxX - planeBounds.minX),
+        minX + Math.random() * (maxX - minX),
         0,
-        planeBounds.minZ + Math.random() * (planeBounds.maxZ - planeBounds.minZ)
+        minZ + Math.random() * (maxZ - minZ)
       );
       const radius = 420 + i * 40;
       const angle = Math.random() * Math.PI * 2;
@@ -2176,8 +2264,9 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
             if (!meta?.id) continue;
             const last = npcCooldowns.get(meta.id) || 0;
             if (now - last < 5000) continue;
-            const dx = camera.position.x - npc.mesh.position.x;
-            const dz = camera.position.z - npc.mesh.position.z;
+            const { x: camX, z: camZ } = camera.position;
+            const dx = camX - npc.mesh.position.x;
+            const dz = camZ - npc.mesh.position.z;
             if (dx * dx + dz * dz <= maxDistSq) {
               npcCooldowns.set(meta.id, now);
               npcDialogueState.active = true;
@@ -2201,17 +2290,20 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
 
       const pos = camera.position;
       const target = camera.getTarget();
+      const { x: posXNum, y: posYNum, z: posZNum } = pos;
       debugOverlay.textContent =
-        `pos: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})\n` +
+        `pos: (${posXNum.toFixed(2)}, ${posYNum.toFixed(2)}, ${posZNum.toFixed(2)})\n` +
         `target: (${target.x.toFixed(2)}, ${target.y.toFixed(2)}, ${target.z.toFixed(2)})`;
       const nowTs = performance.now();
       if (nowTs - lastCameraUiUpdate > 250) {
         lastCameraUiUpdate = nowTs;
+        const { x: posX, y: posY, z: posZ } = pos;
+        const { x: targetX, y: targetY, z: targetZ } = target;
         window.dispatchEvent(
           new CustomEvent("camera-info", {
             detail: {
-              pos: { x: pos.x, y: pos.y, z: pos.z },
-              target: { x: target.x, y: target.y, z: target.z },
+              pos: { x: posX, y: posY, z: posZ },
+              target: { x: targetX, y: targetY, z: targetZ },
             },
           })
         );
@@ -2260,7 +2352,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       })
     );
     const onJumpInput = (evt: Event) => {
-      const detail = (evt as CustomEvent<{ active: boolean }>).detail;
+      const { detail } = evt as CustomEvent<{ active: boolean }>;
       if (detail?.active) jumpRequested = true;
     };
     window.addEventListener("jump-input", onJumpInput as EventListener);
@@ -2375,7 +2467,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         }
 
         verticalVel += gravity * dt;
-        proposedPos.y = proposedPos.y + verticalVel * dt;
+        proposedPos.y += verticalVel * dt;
 
         const minY = groundY + eyeHeight;
         if (proposedPos.y <= minY) {
@@ -2411,7 +2503,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
       try { window.removeEventListener("performance-settings", onPerfSettings as EventListener); } catch {}
-      try { window.removeEventListener("cloud-settings", onCloudSettings as EventListener); } catch {}
+      // Cloud settings handler has been removed (onCloudSettings no longer exists here).
       try { window.removeEventListener("postfx-settings", onPostFxSettings as EventListener); } catch {}
       try { window.removeEventListener("asset-toggles", onAssetToggles as EventListener); } catch {}
       try { window.removeEventListener("atmosphere-props-settings", onAtmosphereProps as EventListener); } catch {}
@@ -2466,7 +2558,8 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         try { shape.material?.dispose(); } catch {}
         try { shape.dispose(); } catch {}
       });
-      try { scene.onBeforeRenderObservable.remove(fogObserver); } catch {}
+      try { scene.onBeforeRenderObservable.remove(fogObserver);
+      scene.onBeforeRenderObservable.remove(lodObserver); } catch {}
       scene.dispose();
       engine.dispose();
       setSceneInstance(null);
