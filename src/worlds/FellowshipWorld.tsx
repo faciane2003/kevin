@@ -6,6 +6,8 @@ import {
   DynamicTexture,
   Engine,
   HemisphericLight,
+  ActionManager,
+  ExecuteCodeAction,
   Mesh,
   MeshBuilder,
   Scene,
@@ -41,11 +43,16 @@ const FellowshipWorld: React.FC = () => {
     camera.speed = 0.6;
     camera.angularSensibility = 4000;
     camera.minZ = 0.1;
+    camera.keysUp = [87];
+    camera.keysDown = [83];
+    camera.keysLeft = [65];
+    camera.keysRight = [68];
     scene.collisionsEnabled = true;
     camera.checkCollisions = true;
     camera.applyGravity = true;
     camera.ellipsoid = new Vector3(0.9, 1.3, 0.9);
     camera.ellipsoidOffset = new Vector3(0, 1.3, 0);
+    scene.gravity = new Vector3(0, -0.6, 0);
 
     const light = new HemisphericLight("galleryLight", new Vector3(0, 1, 0), scene);
     light.intensity = 0.9;
@@ -76,6 +83,7 @@ const FellowshipWorld: React.FC = () => {
       wall.position = position;
       wall.rotation.y = rotationY;
       wall.checkCollisions = true;
+      wall.isPickable = false;
       const wallMat = new StandardMaterial(`${name}Mat`, scene);
       wallMat.diffuseColor = new Color3(0.08, 0.08, 0.1);
       wallMat.specularColor = new Color3(0, 0, 0);
@@ -98,7 +106,7 @@ const FellowshipWorld: React.FC = () => {
       mat.diffuseTexture = texture;
       mat.emissiveTexture = texture;
       mat.specularColor = new Color3(0.1, 0.1, 0.1);
-      mat.backFaceCulling = false;
+      mat.backFaceCulling = true;
       plane.material = mat;
       createdMeshes.push(plane);
       createdMaterials.push(mat);
@@ -107,9 +115,9 @@ const FellowshipWorld: React.FC = () => {
     const createReturnDoor = (roomDepth: number) => {
       const door = MeshBuilder.CreateBox("returnDoor", { width: 3.5, height: 5.5, depth: 0.3 }, scene);
       door.position = new Vector3(0, 2.75, roomDepth / 2 - 0.4);
-      door.rotation.y = Math.PI;
+      door.rotation.y = 0;
       door.isPickable = true;
-      door.checkCollisions = false;
+      door.checkCollisions = true;
       const doorMat = new StandardMaterial("returnDoorMat", scene);
       doorMat.diffuseColor = new Color3(0.05, 0.08, 0.12);
       doorMat.emissiveColor = new Color3(0.15, 0.25, 0.4);
@@ -117,9 +125,9 @@ const FellowshipWorld: React.FC = () => {
       createdMeshes.push(door);
       createdMaterials.push(doorMat);
 
-      const sign = MeshBuilder.CreatePlane("returnDoorSign", { width: 6, height: 1.2 }, scene);
+      const sign = MeshBuilder.CreatePlane("returnDoorSign", { width: 6.5, height: 1.4 }, scene);
       sign.position = new Vector3(0, 6.2, roomDepth / 2 - 0.2);
-      sign.rotation.y = Math.PI;
+      sign.rotation.y = 0;
       sign.isPickable = false;
       const signTex = new DynamicTexture("returnDoorSignTex", { width: 512, height: 128 }, scene, true);
       const signCtx = signTex.getContext();
@@ -127,15 +135,15 @@ const FellowshipWorld: React.FC = () => {
       signCtx.fillStyle = "rgba(0,0,0,0.6)";
       signCtx.fillRect(0, 0, 512, 128);
       signCtx.fillStyle = "#e6f3ff";
-      signCtx.font = "bold 48px Consolas, Menlo, monospace";
+      signCtx.font = "bold 54px Consolas, Menlo, monospace";
       signCtx.textAlign = "center";
       signCtx.textBaseline = "middle";
-      signCtx.fillText("Return", 256, 64);
+      signCtx.fillText("Jacuzzi City", 256, 64);
       signTex.update();
       const signMat = new StandardMaterial("returnDoorSignMat", scene);
       signMat.diffuseTexture = signTex;
       signMat.emissiveTexture = signTex;
-      signMat.backFaceCulling = false;
+      signMat.backFaceCulling = true;
       sign.material = signMat;
       createdMeshes.push(sign);
       createdMaterials.push(signMat);
@@ -183,14 +191,46 @@ const FellowshipWorld: React.FC = () => {
 
       createWall("galleryWallNorth", wallWidth, roomHeight, new Vector3(0, roomHeight / 2, -roomDepth / 2), 0);
       createWall("galleryWallSouth", wallWidth, roomHeight, new Vector3(0, roomHeight / 2, roomDepth / 2), Math.PI);
-      createWall("galleryWallEast", wallWidth, roomHeight, new Vector3(roomWidth / 2, roomHeight / 2, 0), -Math.PI / 2);
-      createWall("galleryWallWest", wallWidth, roomHeight, new Vector3(-roomWidth / 2, roomHeight / 2, 0), Math.PI / 2);
+      createWall("galleryWallEast", wallWidth, roomHeight, new Vector3(roomWidth / 2, roomHeight / 2, 0), Math.PI / 2);
+      createWall("galleryWallWest", wallWidth, roomHeight, new Vector3(-roomWidth / 2, roomHeight / 2, 0), -Math.PI / 2);
+
+      const guardHeight = roomHeight;
+      const guardThickness = 0.6;
+      const guardDepth = roomDepth + guardThickness;
+      const guardWidth = roomWidth + guardThickness;
+      const guardNorth = MeshBuilder.CreateBox(
+        "galleryGuardNorth",
+        { width: guardWidth, height: guardHeight, depth: guardThickness },
+        scene
+      );
+      guardNorth.position = new Vector3(0, guardHeight / 2, -roomDepth / 2 - guardThickness / 2);
+      guardNorth.checkCollisions = true;
+      guardNorth.visibility = 0;
+      guardNorth.isPickable = false;
+      const guardSouth = guardNorth.clone("galleryGuardSouth");
+      guardSouth.position = new Vector3(0, guardHeight / 2, roomDepth / 2 + guardThickness / 2);
+      guardSouth.checkCollisions = true;
+      guardSouth.isPickable = false;
+      const guardEast = MeshBuilder.CreateBox(
+        "galleryGuardEast",
+        { width: guardThickness, height: guardHeight, depth: guardDepth },
+        scene
+      );
+      guardEast.position = new Vector3(roomWidth / 2 + guardThickness / 2, guardHeight / 2, 0);
+      guardEast.checkCollisions = true;
+      guardEast.visibility = 0;
+      guardEast.isPickable = false;
+      const guardWest = guardEast.clone("galleryGuardWest");
+      guardWest.position = new Vector3(-roomWidth / 2 - guardThickness / 2, guardHeight / 2, 0);
+      guardWest.checkCollisions = true;
+      guardWest.isPickable = false;
+      createdMeshes.push(guardNorth, guardSouth, guardEast, guardWest);
 
       const wallCenters = [
         { origin: new Vector3(0, 2.5, -roomDepth / 2 + 0.1), rot: 0 },
         { origin: new Vector3(0, 2.5, roomDepth / 2 - 0.1), rot: Math.PI },
-        { origin: new Vector3(roomWidth / 2 - 0.1, 2.5, 0), rot: -Math.PI / 2 },
-        { origin: new Vector3(-roomWidth / 2 + 0.1, 2.5, 0), rot: Math.PI / 2 },
+        { origin: new Vector3(roomWidth / 2 - 0.1, 2.5, 0), rot: Math.PI / 2 },
+        { origin: new Vector3(-roomWidth / 2 + 0.1, 2.5, 0), rot: -Math.PI / 2 },
       ];
 
       items.forEach((item, index) => {
@@ -235,7 +275,7 @@ const FellowshipWorld: React.FC = () => {
 
       createReturnDoor(roomDepth);
 
-      camera.position = new Vector3(0, 2, -roomDepth / 2 + 6);
+      camera.position = new Vector3(0, 2, roomDepth / 2 - 6);
       camera.setTarget(new Vector3(0, 2, 0));
     };
 
