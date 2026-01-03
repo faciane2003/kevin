@@ -45,6 +45,7 @@ const saveStoredDefaults = (payload: Record<string, unknown>) => {
 type LightSettings = {
   hemi: number;
   ambient: number;
+  moonlightEnabled: boolean;
   moon: number;
   moonSpotIntensity: number;
   moonSpotAngle: number;
@@ -167,6 +168,7 @@ type AtmospherePropsSettings = {
 const DEFAULT_LIGHTS: LightSettings = {
   hemi: 0.85,
   ambient: 0.2,
+  moonlightEnabled: false,
   moon: 2.5,
   moonSpotIntensity: 6,
   moonSpotAngle: 1.01,
@@ -325,7 +327,7 @@ const DebugPanel: React.FC = () => {
   } | null>(null);
   const [syncCameraStart, setSyncCameraStart] = useState(false);
   const [lights, setLights] = useState<LightSettings>(
-    () => storedDefaults?.lighting ?? DEFAULT_LIGHTS
+    () => ({ ...DEFAULT_LIGHTS, ...(storedDefaults?.lighting ?? {}) })
   );
   const [buildings, setBuildings] = useState<BuildingSettings>(
     () => storedDefaults?.buildings ?? DEFAULT_BUILDINGS
@@ -644,6 +646,16 @@ const DebugPanel: React.FC = () => {
         "lighting",
         "Lighting",
         <>
+          <label className="light-row">
+            <span>Moonlight</span>
+            <input
+              type="checkbox"
+              checked={lights.moonlightEnabled}
+              onChange={(e) =>
+                setLights((prev) => ({ ...prev, moonlightEnabled: e.target.checked }))
+              }
+            />
+          </label>
           {(
             [
               ["hemi", "Hemi", 0, 3, 0.05],

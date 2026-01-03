@@ -724,9 +724,11 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     moon.position = new Vector3(700, 450, -130);
     moon.isPickable = false;
 
+    const moonlightEnabled = false;
+    let moonlightEnabled = false;
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
-    moonLight.intensity = 0.5;
+    moonLight.intensity = moonlightEnabled ? 0.5 : 0;
     moonLight.diffuse = new Color3(0.7, 0.8, 1.0);
 
     const moonSpotPos = new Vector3(340, 717, -130);
@@ -738,7 +740,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       2,
       scene
     );
-    moonSpot.intensity = 5;
+    moonSpot.intensity = moonlightEnabled ? 5 : 0;
     moonSpot.diffuse = new Color3(0.85, 0.9, 1.0);
 
     let moonSpotYaw = -93;
@@ -966,6 +968,9 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       if (!detail) return;
       if (typeof detail.hemi === "number") hemi.intensity = detail.hemi;
       if (typeof detail.ambient === "number") ambientLight.intensity = detail.ambient;
+      if (typeof detail.moonlightEnabled === "boolean") {
+        moonlightEnabled = detail.moonlightEnabled;
+      }
       if (typeof detail.moon === "number") moonLight.intensity = detail.moon;
       if (typeof detail.moonSpotIntensity === "number") moonSpot.intensity = detail.moonSpotIntensity;
       if (typeof detail.moonSpotAngle === "number") moonSpot.angle = detail.moonSpotAngle;
@@ -979,6 +984,10 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       if (typeof detail.moonSpotPitch === "number") {
         moonSpotPitch = detail.moonSpotPitch;
         updateMoonSpotDirection();
+      }
+      if (!moonlightEnabled) {
+        moonLight.intensity = 0;
+        moonSpot.intensity = 0;
       }
       if (typeof detail.glow === "number") glowLayer.intensity = detail.glow;
       if (typeof detail.fogEnabled === "boolean") fogSettings.enabled = detail.fogEnabled;

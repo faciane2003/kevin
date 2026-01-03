@@ -4,6 +4,7 @@ import "./HUD.css";
 type LightSettings = {
   hemi: number;
   ambient: number;
+  moonlightEnabled: boolean;
   moon: number;
   moonSpotIntensity: number;
   moonSpotAngle: number;
@@ -23,6 +24,7 @@ type LightSettings = {
 const DEFAULTS: LightSettings = {
   hemi: 0.75,
   ambient: 1.2,
+  moonlightEnabled: false,
   moon: 1.3,
   moonSpotIntensity: 5,
   moonSpotAngle: 1.32,
@@ -103,6 +105,14 @@ const LightControlPanel: React.FC = () => {
           <button onClick={() => setOpen(false)}>Close</button>
         </div>
       </div>
+      <label className="light-row">
+        <span>Moonlight</span>
+        <input
+          type="checkbox"
+          checked={settings.moonlightEnabled}
+          onChange={(e) => onToggle("moonlightEnabled", e.target.checked)}
+        />
+      </label>
       {(
         [
           ["hemi", "Hemi", 0, 2.5, 0.05],
