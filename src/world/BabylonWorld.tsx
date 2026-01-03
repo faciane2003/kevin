@@ -5,6 +5,7 @@ import WorldSounds from "../components/sounds/WorldSounds";
 import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
 import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
+import CloudLayer from "../components/world/CloudLayer";
 import CityStars from "../components/world/CityStars";
 import ShootingStars from "../components/world/ShootingStars";
 import FogSphere from "../components/world/FogSphere";
@@ -90,7 +91,7 @@ const BabylonWorld: React.FC = () => {
     glowSculptures: true,
     cats: true,
     neonBillboards: true,
-    clouds: false,
+    clouds: true,
     airplanes: true,
   });
   const [atmosphereProps, setAtmosphereProps] = useState({
@@ -145,7 +146,7 @@ const BabylonWorld: React.FC = () => {
     shadowsDensity: 44,
     shadowsSaturation: 20,
   });
-  // Cloud mask settings state removed (no longer used here).
+  const [, setCloudMaskSettings] = useState({});
   const effectivePerfSettings = useMemo(
     () => ({
       glow: perfSettings.glow && perfMaster >= 0.2,
@@ -173,10 +174,9 @@ const BabylonWorld: React.FC = () => {
 
   useEffect(() => {
     const onPerfMaster = (event: Event) => {
-      const { detail } = event as CustomEvent<{ value?: number }>;
-      const { value } = detail ?? {};
-      if (typeof value === "number") {
-        setPerfMaster(Math.max(0.1, Math.min(1, value)));
+      const detail = (event as CustomEvent<{ value?: number }>).detail;
+      if (typeof detail?.value === "number") {
+        setPerfMaster(Math.max(0.1, Math.min(1, detail.value)));
       }
     };
     window.addEventListener("performance-master", onPerfMaster as EventListener);
@@ -185,7 +185,7 @@ const BabylonWorld: React.FC = () => {
 
   useEffect(() => {
     const onStarSettings = (event: Event) => {
-      const { detail } = event as CustomEvent<typeof starSettings>;
+      const detail = (event as CustomEvent<typeof starSettings>).detail;
       if (!detail) return;
       setStarSettings((prev) => ({ ...prev, ...detail }));
     };
@@ -195,7 +195,7 @@ const BabylonWorld: React.FC = () => {
 
   useEffect(() => {
     const onShootingStarSettings = (event: Event) => {
-      const { detail } = event as CustomEvent<typeof shootingStarSettings>;
+      const detail = (event as CustomEvent<typeof shootingStarSettings>).detail;
       if (!detail) return;
       setShootingStarSettings((prev) => ({ ...prev, ...detail }));
     };
@@ -206,7 +206,7 @@ const BabylonWorld: React.FC = () => {
 
   useEffect(() => {
     const onFogSphere = (event: Event) => {
-      const { detail } = event as CustomEvent<{
+      const detail = (event as CustomEvent<{
         enabled?: boolean;
         opacity?: number;
         blur?: number;
@@ -217,7 +217,7 @@ const BabylonWorld: React.FC = () => {
         offsetY?: number;
         offsetZ?: number;
         color?: string;
-      }>;
+      }>).detail;
       if (!detail) return;
       setFogSphereSettings((prev) => ({
         ...prev,
@@ -303,29 +303,6 @@ const BabylonWorld: React.FC = () => {
   }, [buildingInfos, signPositions, xRoads, zRoads]);
 
 
-  useEffect(() => {
-    const onExportWorld = () => {
-      const buildings = buildingInfos.map((info) => ({
-        x: info.mesh.position.x,
-        y: info.mesh.position.y,
-        z: info.mesh.position.z,
-        width: info.width,
-        depth: info.depth,
-        height: info.height,
-      }));
-
-      const exportData = {
-        buildings,
-        roads: { xRoads, zRoads },
-      };
-
-      console.log("[EXPORT WORLD]", JSON.stringify(exportData, null, 2));
-    };
-
-    window.addEventListener("export-world", onExportWorld as EventListener);
-    return () => window.removeEventListener("export-world", onExportWorld as EventListener);
-  }, [buildingInfos, xRoads, zRoads]);
-
   return (
     <>
       <WorldSceneController
@@ -340,6 +317,7 @@ const BabylonWorld: React.FC = () => {
         setWalkInputActive={setWalkInputActive}
         walkInputActiveRef={walkInputActiveRef}
         setPerfSettings={setPerfSettings}
+        
         setPostFxSettings={setPostFxSettings}
         setAssetToggles={setAssetToggles}
         setAtmosphereProps={setAtmosphereProps}
@@ -368,6 +346,7 @@ const BabylonWorld: React.FC = () => {
           offDurationMs={10000}
         />
       ) : null}
+      {assetToggles.clouds ? <CloudLayer scene={sceneInstance} /> : null}
       <FogSphere scene={sceneInstance} settings={fogSphereSettings} />
       {starSettings.enabled ? (
         <CityStars
