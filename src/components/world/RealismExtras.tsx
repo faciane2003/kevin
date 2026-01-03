@@ -578,7 +578,7 @@ type VegetationSwayProps = {
 export const VegetationSway: React.FC<VegetationSwayProps> = ({
   scene,
   enabled,
-  amount = 0.03,
+  amount = 0.15,
   speed = 0.6,
 }) => {
   useEffect(() => {

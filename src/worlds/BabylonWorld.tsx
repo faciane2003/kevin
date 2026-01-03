@@ -78,7 +78,7 @@ const BabylonWorld: React.FC = () => {
   });
   const [shootingStarSettings, setShootingStarSettings] = useState({
     enabled: true,
-    count: 4,
+    count: 2,
     radius: 800,
     minHeight: 260,
     maxHeight: 520,

@@ -209,7 +209,7 @@ const DEFAULT_STARS: StarSettings = {
 
 const DEFAULT_SHOOTING_STARS: ShootingStarSettings = {
   enabled: true,
-  count: 4,
+  count: 2,
   radius: 800,
   minHeight: 260,
   maxHeight: 520,

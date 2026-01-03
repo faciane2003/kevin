@@ -20,6 +20,7 @@ import {
   Vector3,
   VideoTexture,
 } from "@babylonjs/core";
+import { GLTF2Export } from "@babylonjs/serializers";
 
 type FellowshipManifest = {
   images?: string[];
@@ -536,6 +537,30 @@ const FellowshipWorld: React.FC = () => {
       scene.render();
     });
 
+    const onExportGlb = () => {
+      GLTF2Export.GLBAsync(scene, "fellowship-world", { exportWithoutWaitingForScene: true })
+        .then((result) => {
+          const file = result.glTFFiles["fellowship-world.glb"];
+          if (file) {
+            const blob = typeof file === "string" ? new Blob([file]) : file;
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "fellowship-world.glb";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            return;
+          }
+          result.downloadFiles();
+        })
+        .catch((err) => {
+          console.error("[export glb] failed", err);
+        });
+    };
+    window.addEventListener("export-glb", onExportGlb as EventListener);
+
     const requestLock = () => {
       canvasRef.current?.requestPointerLock?.();
     };
@@ -546,6 +571,7 @@ const FellowshipWorld: React.FC = () => {
     return () => {
       disposed = true;
       try { canvasRef.current?.removeEventListener("click", requestLock); } catch {}
+      window.removeEventListener("export-glb", onExportGlb as EventListener);
       window.removeEventListener("resize", onResize);
       createdMeshes.forEach((mesh) => mesh.dispose());
       createdMaterials.forEach((mat) => mat.dispose());

@@ -9,6 +9,16 @@ function App() {
   const [activeWorld, setActiveWorld] = useState<"babylon" | "fellowship">("babylon");
   const [transitionVisible, setTransitionVisible] = useState(false);
   const [transitionFading, setTransitionFading] = useState(false);
+  const [wakeVisible, setWakeVisible] = useState(true);
+  const [wakeFading, setWakeFading] = useState(false);
+  const triggerWakeFade = () => {
+    if (!wakeVisible || wakeFading) return;
+    setWakeFading(true);
+    window.setTimeout(() => {
+      setWakeVisible(false);
+      setWakeFading(false);
+    }, 1400);
+  };
 
   useEffect(() => {
     const onWorldSwitch = (event: Event) => {
@@ -33,6 +43,7 @@ function App() {
     const onWorldReady = (event: Event) => {
       const detail = (event as CustomEvent<{ world?: string }>).detail;
       if (detail?.world !== "babylon") return;
+      triggerWakeFade();
       if (!transitionVisible) return;
       setTransitionFading(true);
       window.setTimeout(() => {
@@ -42,12 +53,26 @@ function App() {
     };
     window.addEventListener("world-ready", onWorldReady as EventListener);
     return () => window.removeEventListener("world-ready", onWorldReady as EventListener);
-  }, [transitionVisible]);
+  }, [transitionVisible, wakeVisible, wakeFading]);
+
+  useEffect(() => {
+    if (!wakeVisible) return;
+    if ((window as any).__babylonReady) {
+      triggerWakeFade();
+      const timer = window.setTimeout(() => {}, 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [wakeVisible, wakeFading]);
 
   return (
     <div className="app-container">
       {activeWorld === "babylon" ? <BabylonWorld /> : <FellowshipWorld />}
       <HUD />
+      {wakeVisible ? (
+        <div className={`world-transition ${wakeFading ? "fade-out" : ""}`}>
+          Waking up...
+        </div>
+      ) : null}
       {transitionVisible ? (
         <div className={`world-transition ${transitionFading ? "fade-out" : ""}`}>
           Exiting the building...

@@ -102,8 +102,22 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     (scene as any).maxSimultaneousLights = 4;
     setSceneInstance(scene);
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
-    scene.executeWhenReady(() => {
-      window.dispatchEvent(new CustomEvent("world-ready", { detail: { world: "babylon" } }));
+    let readySent = false;
+    let stableFrames = 0;
+    const readyObserver = scene.onBeforeRenderObservable.add(() => {
+      if (readySent) return;
+      const waiting = scene.getWaitingItemsCount();
+      const isReady = scene.isReady();
+      if (waiting === 0 && isReady) {
+        stableFrames += 1;
+      } else {
+        stableFrames = 0;
+      }
+      if (stableFrames >= 30) {
+        readySent = true;
+        (window as any).__babylonReady = true;
+        window.dispatchEvent(new CustomEvent("world-ready", { detail: { world: "babylon" } }));
+      }
     });
 
 
@@ -727,6 +741,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     moon.material = moonMat;
     moon.position = new Vector3(700, 450, -130);
     moon.isPickable = false;
+    const moonSafeRadius = 240;
 
     let moonlightEnabled = false;
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
@@ -2327,9 +2342,19 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
             if (p.center.z < planeBounds.minZ) p.center.z = planeBounds.maxZ;
 
             p.angle += p.speed * dt;
-            const px = p.center.x + Math.cos(p.angle) * p.radius;
-            const pz = p.center.z + Math.sin(p.angle) * p.radius;
-            const flightY = Math.max(Math.min(p.height, planeCeiling), minPlaneHeight);
+            let px = p.center.x + Math.cos(p.angle) * p.radius;
+            let pz = p.center.z + Math.sin(p.angle) * p.radius;
+            let flightY = Math.max(Math.min(p.height, planeCeiling), minPlaneHeight);
+            const dx = px - moon.position.x;
+            const dy = flightY - moon.position.y;
+            const dz = pz - moon.position.z;
+            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist < moonSafeRadius) {
+              const scale = moonSafeRadius / Math.max(dist, 0.001);
+              px = moon.position.x + dx * scale;
+              flightY = moon.position.y + dy * scale;
+              pz = moon.position.z + dz * scale;
+            }
             p.root.position.set(px, flightY, pz);
             p.root.rotation.y = -p.angle + Math.PI / 2;
 
