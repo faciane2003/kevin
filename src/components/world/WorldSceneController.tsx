@@ -102,6 +102,9 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     (scene as any).maxSimultaneousLights = 4;
     setSceneInstance(scene);
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
+    scene.executeWhenReady(() => {
+      window.dispatchEvent(new CustomEvent("world-ready", { detail: { world: "babylon" } }));
+    });
 
 
     // First-person camera
@@ -120,8 +123,8 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       }
     };
     const savedStart = loadCameraStart();
-    let startPos = new Vector3(-313.81870170047546, 2, -39.08133107852521);
-    let startTarget = new Vector3(-274.8244376788494, 8.78146578152467, -44.905542683113254);
+    let startPos = new Vector3(-448.9918797028794, 2, 166.75881239074846);
+    let startTarget = new Vector3(-412.54643712993385, 12.962425971562043, 154.4292996056369);
     if (savedStart?.pos && savedStart?.target) {
       startPos = new Vector3(savedStart.pos.x, savedStart.pos.y, savedStart.pos.z);
       startTarget = new Vector3(savedStart.target.x, savedStart.target.y, savedStart.target.z);
@@ -1141,7 +1144,8 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         .then((result) => {
           const file = result.glTFFiles["jacuzzi-city.glb"];
           if (file) {
-            const url = URL.createObjectURL(file);
+            const blob = typeof file === "string" ? new Blob([file]) : file;
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
             link.download = "jacuzzi-city.glb";
@@ -1510,6 +1514,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         buildingNeonMats.push(mat);
         return mat;
       });
+      const enableBuildingNeonPanels = false;
       for (let i = 0; i < count; i++) {
         const shapeRoll = rand();
         let w = 0;
@@ -1549,7 +1554,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
         b.material = buildingMats[Math.floor(rand() * buildingMats.length)];
         b.isPickable = false;
         b.checkCollisions = true;
-        if (rand() < 0.15) {
+        if (enableBuildingNeonPanels && rand() < 0.15) {
           const face = Math.floor(rand() * 4);
           const panelWidth = Math.max(6 * scale, Math.min(w * 0.9, 26 * scale));
           const panelHeight = Math.max(4 * scale, Math.min(h * 0.25, 12 * scale));

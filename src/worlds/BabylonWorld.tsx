@@ -22,7 +22,6 @@ import FogSphere from "../components/world/FogSphere";
 import { AtmosphereProps } from "../components/world/AtmosphereProps";
 import WorldSceneController from "../components/world/WorldSceneController";
 import {
-  AlleyFog,
   AlleyRumble,
   AmbientOcclusionDecals,
   Banners,
@@ -132,7 +131,6 @@ const BabylonWorld: React.FC = () => {
     alleyRumble: false,
     lod: true,
     vegetationSway: true,
-    alleyFog: true,
   });
   const [perfMaster, setPerfMaster] = useState(1);
   const cameraRef = useRef<UniversalCamera | null>(null);
@@ -156,7 +154,6 @@ const BabylonWorld: React.FC = () => {
     shadowsDensity: 44,
     shadowsSaturation: 20,
   });
-  const [, setCloudMaskSettings] = useState({});
   const effectivePerfSettings = useMemo(
     () => ({
       glow: perfSettings.glow && perfMaster >= 0.2,
@@ -314,12 +311,52 @@ const BabylonWorld: React.FC = () => {
 
   useEffect(() => {
     if (!sceneInstance) return;
+    if (!buildingInfos.length) return;
     const door = MeshBuilder.CreateBox(
       "fellowshipDoor",
       { width: 4, height: 6, depth: 0.3 },
       sceneInstance
     );
-    door.position = new Vector3(-300, 3, -20);
+    const doorAnchor = new Vector3(-363.5620353494066, 0, 153.52140253706548);
+    const nearestBuilding = buildingInfos.reduce((best, info) => {
+      const dx = info.mesh.position.x - doorAnchor.x;
+      const dz = info.mesh.position.z - doorAnchor.z;
+      const dist = dx * dx + dz * dz;
+      if (!best || dist < best.dist) {
+        return { info, dist };
+      }
+      return best;
+    }, null as null | { info: BuildingInfo; dist: number });
+    const building = nearestBuilding?.info;
+    let doorForward = new Vector3(0, 0, 1);
+    if (building) {
+      const yaw = building.mesh.rotation.y;
+      const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      const right = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+      const faceCandidates = [
+        { center: building.mesh.position.add(forward.scale(building.depth / 2)), normal: forward },
+        { center: building.mesh.position.subtract(forward.scale(building.depth / 2)), normal: forward.scale(-1) },
+        { center: building.mesh.position.add(right.scale(building.width / 2)), normal: right },
+        { center: building.mesh.position.subtract(right.scale(building.width / 2)), normal: right.scale(-1) },
+      ];
+      let bestFace = faceCandidates[0];
+      let bestDist = Number.POSITIVE_INFINITY;
+      faceCandidates.forEach((face) => {
+        const dx = face.center.x - doorAnchor.x;
+        const dz = face.center.z - doorAnchor.z;
+        const dist = dx * dx + dz * dz;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestFace = face;
+        }
+      });
+      doorForward = bestFace.normal;
+      door.position = bestFace.center.add(doorForward.scale(0.16));
+    } else {
+      door.position = doorAnchor.clone();
+    }
+    door.position.y = 3;
+    door.rotation.y = Math.atan2(doorForward.x, doorForward.z) + Math.PI;
     door.isPickable = true;
     door.checkCollisions = false;
     const doorMat = new StandardMaterial("fellowshipDoorMat", sceneInstance);
@@ -332,11 +369,12 @@ const BabylonWorld: React.FC = () => {
       { width: 6.5, height: 1.4 },
       sceneInstance
     );
-    sign.position = new Vector3(door.position.x, door.position.y + 4.2, door.position.z + 0.4);
+    sign.position = door.position.add(new Vector3(0, 4.2, 0)).add(doorForward.scale(0.4));
+    sign.rotation.y = door.rotation.y;
     sign.isPickable = false;
 
     const signTex = new DynamicTexture("fellowshipDoorSignTex", { width: 512, height: 128 }, sceneInstance, true);
-    const signCtx = signTex.getContext();
+    const signCtx = signTex.getContext() as CanvasRenderingContext2D;
     signCtx.clearRect(0, 0, 512, 128);
     signCtx.fillStyle = "rgba(0,0,0,0.6)";
     signCtx.fillRect(0, 0, 512, 128);
@@ -367,7 +405,7 @@ const BabylonWorld: React.FC = () => {
       signMat.dispose();
       signTex.dispose();
     };
-  }, [sceneInstance]);
+  }, [sceneInstance, buildingInfos]);
 
 
   return (
@@ -485,12 +523,9 @@ const BabylonWorld: React.FC = () => {
         enabled={realismSettings.vegetationSway}
         amount={0.09}
       />
-      <AlleyFog scene={sceneInstance} enabled={realismSettings.alleyFog} />
       <AtmosphereProps scene={sceneInstance} settings={atmosphereProps} />
     </>
   );
 };
 
 export default BabylonWorld;
-
-

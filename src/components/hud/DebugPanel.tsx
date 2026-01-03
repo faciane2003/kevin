@@ -151,7 +151,6 @@ type RealismSettings = {
   nightGrade: boolean;
   lod: boolean;
   vegetationSway: boolean;
-  alleyFog: boolean;
 };
 
 type AtmospherePropsSettings = {
@@ -274,7 +273,6 @@ const DEFAULT_REALISM: RealismSettings = {
   nightGrade: true,
   lod: true,
   vegetationSway: true,
-  alleyFog: true,
 };
 
 const DEFAULT_ATMOSPHERE_PROPS: AtmospherePropsSettings = {
@@ -1108,7 +1106,6 @@ const DebugPanel: React.FC = () => {
               ["nightGrade", "Night Color Grade"],
               ["lod", "LOD Manager"],
               ["vegetationSway", "Vegetation Sway"],
-              ["alleyFog", "Alley Fog"],
             ] as Array<[keyof RealismSettings, string]>
           ).map(([key, label]) => (
             <label key={key} className="light-row">
