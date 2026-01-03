@@ -564,6 +564,10 @@ const DebugPanel: React.FC = () => {
     document.body.removeChild(textarea);
   };
 
+  const exportGlb = () => {
+    window.dispatchEvent(new CustomEvent("export-glb"));
+  };
+
   if (!open) return null;
 
   return (
@@ -579,6 +583,7 @@ const DebugPanel: React.FC = () => {
           <span>Expand</span>
         </label>
         <div style={{ display: "flex", gap: "6px" }}>
+          <button onClick={exportGlb}>Export GLB</button>
           <button onClick={copyAll}>Copy All</button>
           <button onClick={() => setOpen(false)}>Close</button>
         </div>

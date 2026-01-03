@@ -27,6 +27,7 @@ import {
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
+import { GLTF2Export } from "@babylonjs/serializers";
 import type { BuildingInfo } from "../../worlds/types";
 
 export type WorldSceneControllerProps = {
@@ -724,7 +725,6 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     moon.position = new Vector3(700, 450, -130);
     moon.isPickable = false;
 
-    const moonlightEnabled = false;
     let moonlightEnabled = false;
     const moonLight = new DirectionalLight("moonLight", new Vector3(0.4, -1, 0.2), scene);
     moonLight.position = moon.position;
@@ -1000,6 +1000,156 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
       }
     };
     window.addEventListener("light-settings", onLightSettings as EventListener);
+    const onExportGlb = () => {
+      const scrubbed: Array<{
+        target: any;
+        key: string;
+        hadOwn: boolean;
+        descriptor?: PropertyDescriptor;
+        value: any;
+      }> = [];
+      const scrubbedMethods: Array<{ target: any; key: string; value: any }> = [];
+      let exportFallbackTexture: DynamicTexture | null = null;
+      const collectPropertyNames = (obj: any) => {
+        const names = new Set<string>();
+        let current = obj;
+        for (let depth = 0; depth < 3; depth += 1) {
+          if (!current || current === Object.prototype) break;
+          Object.getOwnPropertyNames(current).forEach((name) => names.add(name));
+          current = Object.getPrototypeOf(current);
+        }
+        return names;
+      };
+      const isTextureKey = (key: string) => /texture$/i.test(key);
+      const getFallbackTexture = () => {
+        if (exportFallbackTexture) return exportFallbackTexture;
+        exportFallbackTexture = new DynamicTexture("exportFallbackTexture", { width: 1, height: 1 }, scene, false);
+        const ctx = exportFallbackTexture.getContext();
+        ctx.fillStyle = "rgba(255,255,255,1)";
+        ctx.fillRect(0, 0, 1, 1);
+        exportFallbackTexture.update();
+        return exportFallbackTexture;
+      };
+      const setFallbackTexture = (target: any, key: string, value: any) => {
+        const hadOwn = Object.prototype.hasOwnProperty.call(target, key);
+        const descriptor = Object.getOwnPropertyDescriptor(target, key);
+        scrubbed.push({ target, key, hadOwn, descriptor, value });
+        const fallback = getFallbackTexture();
+        try {
+          target[key] = fallback;
+          return;
+        } catch {}
+        try {
+          Object.defineProperty(target, key, {
+            value: fallback,
+            writable: true,
+            configurable: true,
+            enumerable: true,
+          });
+        } catch {}
+      };
+      const scrubMaterials = () => {
+        scene.materials.forEach((mat) => {
+          const target = mat as any;
+          const keys = collectPropertyNames(target);
+          keys.forEach((key) => {
+            if (!isTextureKey(key)) return;
+            let value: any;
+            try {
+              value = target[key];
+            } catch {
+              return;
+            }
+            if (value === null) {
+              setFallbackTexture(target, key, value);
+              return;
+            }
+            if (value && typeof value.getInternalTexture === "function") {
+              try {
+                const internal = value.getInternalTexture();
+                if (!internal) {
+                  setFallbackTexture(target, key, value);
+                }
+              } catch {
+                setFallbackTexture(target, key, value);
+              }
+            }
+          });
+
+          if (Array.isArray(target.subMaterials) && target.subMaterials.some((m: any) => m == null)) {
+            scrubbed.push({
+              target,
+              key: "subMaterials",
+              hadOwn: Object.prototype.hasOwnProperty.call(target, "subMaterials"),
+              descriptor: Object.getOwnPropertyDescriptor(target, "subMaterials"),
+              value: target.subMaterials,
+            });
+            target.subMaterials = target.subMaterials.filter((m: any) => m != null);
+          }
+          if (typeof target.getActiveTextures === "function") {
+            scrubbedMethods.push({ target, key: "getActiveTextures", value: target.getActiveTextures });
+            target.getActiveTextures = () => {
+              try {
+                const active = scrubbedMethods[scrubbedMethods.length - 1].value.call(target) ?? [];
+                return active.filter((tex: any) => tex != null);
+              } catch {
+                return [];
+              }
+            };
+          }
+        });
+      };
+      const restoreMaterials = () => {
+        scrubbed.forEach(({ target, key, hadOwn, descriptor, value }) => {
+          if (!hadOwn) {
+            try {
+              delete target[key];
+              return;
+            } catch {}
+          }
+          if (descriptor) {
+            try {
+              Object.defineProperty(target, key, descriptor);
+              return;
+            } catch {}
+          }
+          try {
+            target[key] = value;
+          } catch {}
+        });
+        scrubbedMethods.forEach(({ target, key, value }) => {
+          try {
+            target[key] = value;
+          } catch {}
+        });
+        if (exportFallbackTexture) {
+          exportFallbackTexture.dispose();
+          exportFallbackTexture = null;
+        }
+      };
+      scrubMaterials();
+      GLTF2Export.GLBAsync(scene, "jacuzzi-city", { exportWithoutWaitingForScene: true })
+        .then((result) => {
+          const file = result.glTFFiles["jacuzzi-city.glb"];
+          if (file) {
+            const url = URL.createObjectURL(file);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "jacuzzi-city.glb";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            return;
+          }
+          result.downloadFiles();
+        })
+        .catch((err) => {
+          console.error("[export glb] failed", err);
+        })
+        .finally(restoreMaterials);
+    };
+    window.addEventListener("export-glb", onExportGlb as EventListener);
     const onPerfSettings = (evt: Event) => {
       const detail = (evt as CustomEvent<any>).detail;
       if (!detail) return;
@@ -2440,6 +2590,7 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     return () => {
       try { canvasRef.current?.removeEventListener("click", requestLock as any); } catch {}
       try { window.removeEventListener("light-settings", onLightSettings as EventListener); } catch {}
+      try { window.removeEventListener("export-glb", onExportGlb as EventListener); } catch {}
       try { window.removeEventListener("performance-settings", onPerfSettings as EventListener); } catch {}
       // Cloud settings handler has been removed (onCloudSettings no longer exists here).
       try { window.removeEventListener("postfx-settings", onPostFxSettings as EventListener); } catch {}
