@@ -27,7 +27,7 @@ import {
   ActionManager,
   ExecuteCodeAction,
 } from "@babylonjs/core";
-import type { BuildingInfo } from "../../world/types";
+import type { BuildingInfo } from "../../worlds/types";
 
 export type WorldSceneControllerProps = {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;

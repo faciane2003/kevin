@@ -1,4 +1,4 @@
-// File: src/world/ForestScene.tsx
+// File: src/worlds/ForestScene.tsx
 import { Engine, Scene, MeshBuilder, UniversalCamera, HemisphericLight, ActionManager, ExecuteCodeAction, Vector3 } from '@babylonjs/core';
 import { useEffect, useRef } from 'react';
 

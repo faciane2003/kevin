@@ -1,5 +1,5 @@
 // File: src/App.tsx
-import BabylonWorld from "./world/BabylonWorld";
+import BabylonWorld from "./worlds/BabylonWorld";
 import HUD from "./components/hud/HUD";
 import "./App.css";
 

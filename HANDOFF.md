@@ -2,7 +2,7 @@
 
 ## Project overview
 - React + Babylon.js (Vite) project in `c:\Users\Ames\Desktop\Projects\kevin`.
-- Main scene bootstrap: `src/world/BabylonWorld.tsx` (creates engine, scene, camera, lighting, world content, input).
+- Main scene bootstrap: `src/worlds/BabylonWorld.tsx` (creates engine, scene, camera, lighting, world content, input).
 - HUD/menus: `src/components/hud/HUD.tsx`, `src/components/hud/MenuTabs.tsx`, `src/components/hud/JournalPanel.tsx`, `src/components/hud/StatsBars.tsx`.
 - Audio: `src/components/sounds/WorldSounds.tsx`.
 - World sub-systems (fog, birds, etc.): `src/components/world/*`.
@@ -260,7 +260,7 @@ Goal: Use `BabylonWorld` as the authoring scene and bring the city layout into U
 
 ### Data export from BabylonWorld
 
-**File:** `src/world/BabylonWorld.tsx`
+**File:** `src/worlds/BabylonWorld.tsx`
 
 **Export hook:**
 

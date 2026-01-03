@@ -1,11 +1,10 @@
-// File: src/world/BabylonWorld.tsx
+// File: src/worlds/BabylonWorld.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Scene, UniversalCamera, Vector3, GlowLayer, StandardMaterial, Color3 } from "@babylonjs/core";
 import WorldSounds from "../components/sounds/WorldSounds";
 import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
 import GargoyleStatues from "../components/world/GargoyleStatues";
 import TreeField from "../components/world/TreeField";
-import CloudLayer from "../components/world/CloudLayer";
 import CityStars from "../components/world/CityStars";
 import ShootingStars from "../components/world/ShootingStars";
 import FogSphere from "../components/world/FogSphere";
@@ -346,7 +345,6 @@ const BabylonWorld: React.FC = () => {
           offDurationMs={10000}
         />
       ) : null}
-      {assetToggles.clouds ? <CloudLayer scene={sceneInstance} /> : null}
       <FogSphere scene={sceneInstance} settings={fogSphereSettings} />
       {starSettings.enabled ? (
         <CityStars
@@ -426,8 +424,6 @@ const BabylonWorld: React.FC = () => {
 };
 
 export default BabylonWorld;
-
-
 
 
 
