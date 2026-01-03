@@ -1066,9 +1066,18 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
             }
             if (value && typeof value.getInternalTexture === "function") {
               try {
-                const internal = value.getInternalTexture();
+                let internal = value.getInternalTexture();
+                if (!internal && value instanceof DynamicTexture) {
+                  value.update(true);
+                  internal = value.getInternalTexture();
+                }
                 if (!internal) {
-                  setFallbackTexture(target, key, value);
+                  const className = value.getClassName?.();
+                  if (className === "RenderTargetTexture") {
+                    setFallbackTexture(target, key, value);
+                  } else {
+                    setFallbackTexture(target, key, value);
+                  }
                 }
               } catch {
                 setFallbackTexture(target, key, value);

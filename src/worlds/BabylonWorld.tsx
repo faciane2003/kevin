@@ -1,6 +1,17 @@
 // File: src/worlds/BabylonWorld.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Scene, UniversalCamera, Vector3, GlowLayer, StandardMaterial, Color3 } from "@babylonjs/core";
+import {
+  ActionManager,
+  Color3,
+  DynamicTexture,
+  ExecuteCodeAction,
+  GlowLayer,
+  MeshBuilder,
+  Scene,
+  StandardMaterial,
+  UniversalCamera,
+  Vector3,
+} from "@babylonjs/core";
 import WorldSounds from "../components/sounds/WorldSounds";
 import BuildingWindowFlicker from "../components/world/BuildingWindowFlicker";
 import GargoyleStatues from "../components/world/GargoyleStatues";
@@ -301,6 +312,63 @@ const BabylonWorld: React.FC = () => {
     );
   }, [buildingInfos, signPositions, xRoads, zRoads]);
 
+  useEffect(() => {
+    if (!sceneInstance) return;
+    const door = MeshBuilder.CreateBox(
+      "fellowshipDoor",
+      { width: 4, height: 6, depth: 0.3 },
+      sceneInstance
+    );
+    door.position = new Vector3(-300, 3, -20);
+    door.isPickable = true;
+    door.checkCollisions = false;
+    const doorMat = new StandardMaterial("fellowshipDoorMat", sceneInstance);
+    doorMat.diffuseColor = new Color3(0.05, 0.06, 0.08);
+    doorMat.emissiveColor = new Color3(0.1, 0.2, 0.35);
+    door.material = doorMat;
+
+    const sign = MeshBuilder.CreatePlane(
+      "fellowshipDoorSign",
+      { width: 6.5, height: 1.4 },
+      sceneInstance
+    );
+    sign.position = new Vector3(door.position.x, door.position.y + 4.2, door.position.z + 0.4);
+    sign.isPickable = false;
+
+    const signTex = new DynamicTexture("fellowshipDoorSignTex", { width: 512, height: 128 }, sceneInstance, true);
+    const signCtx = signTex.getContext();
+    signCtx.clearRect(0, 0, 512, 128);
+    signCtx.fillStyle = "rgba(0,0,0,0.6)";
+    signCtx.fillRect(0, 0, 512, 128);
+    signCtx.fillStyle = "#e6f3ff";
+    signCtx.font = "bold 54px Consolas, Menlo, monospace";
+    signCtx.textAlign = "center";
+    signCtx.textBaseline = "middle";
+    signCtx.fillText("Fellowship", 256, 64);
+    signTex.update();
+
+    const signMat = new StandardMaterial("fellowshipDoorSignMat", sceneInstance);
+    signMat.diffuseTexture = signTex;
+    signMat.emissiveTexture = signTex;
+    signMat.backFaceCulling = false;
+    sign.material = signMat;
+
+    door.actionManager = door.actionManager || new ActionManager(sceneInstance);
+    door.actionManager.registerAction(
+      new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+        window.dispatchEvent(new CustomEvent("world-switch", { detail: { world: "fellowship" } }));
+      })
+    );
+
+    return () => {
+      door.dispose();
+      sign.dispose();
+      doorMat.dispose();
+      signMat.dispose();
+      signTex.dispose();
+    };
+  }, [sceneInstance]);
+
 
   return (
     <>
@@ -424,6 +492,5 @@ const BabylonWorld: React.FC = () => {
 };
 
 export default BabylonWorld;
-
 
 
