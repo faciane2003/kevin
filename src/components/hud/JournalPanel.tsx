@@ -138,6 +138,11 @@ const JournalPanel: React.FC = () => {
       glow: "rgba(201,155,255,0.75)",
       glowSoft: "rgba(201,155,255,0.45)",
     },
+    Skills: {
+      base: "rgba(201,155,255,0.95)",
+      glow: "rgba(201,155,255,0.75)",
+      glowSoft: "rgba(201,155,255,0.45)",
+    },
     Tech: {
       base: "rgba(255,141,224,0.95)",
       glow: "rgba(255,141,224,0.75)",
@@ -183,6 +188,9 @@ const JournalPanel: React.FC = () => {
             "--sparkle-color": sparkle.base,
             "--sparkle-glow": sparkle.glow,
             "--sparkle-glow-soft": sparkle.glowSoft,
+            "--hud-accent": sparkle.base,
+            "--hud-accent-glow": sparkle.glow,
+            "--hud-accent-soft": sparkle.glowSoft,
             left: `${panelPos.left}px`,
             top: `${panelPos.top}px`,
           } as React.CSSProperties

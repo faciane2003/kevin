@@ -101,14 +101,14 @@ const WorldSceneController: React.FC<WorldSceneControllerProps> = (props) => {
     const scene = new Scene(engine);
     (scene as any).maxSimultaneousLights = 4;
     setSceneInstance(scene);
+    (window as any).__babylonReady = false;
     scene.clearColor = new Color4(0.03, 0.04, 0.08, 1);
     let readySent = false;
     let stableFrames = 0;
-    const readyObserver = scene.onBeforeRenderObservable.add(() => {
+    scene.onBeforeRenderObservable.add(() => {
       if (readySent) return;
-      const waiting = scene.getWaitingItemsCount();
       const isReady = scene.isReady();
-      if (waiting === 0 && isReady) {
+      if (isReady) {
         stableFrames += 1;
       } else {
         stableFrames = 0;

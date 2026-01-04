@@ -7,6 +7,7 @@ import {
   ExecuteCodeAction,
   GlowLayer,
   MeshBuilder,
+  PointerEventTypes,
   Scene,
   StandardMaterial,
   UniversalCamera,
@@ -391,14 +392,22 @@ const BabylonWorld: React.FC = () => {
     signMat.backFaceCulling = false;
     sign.material = signMat;
 
+    const switchToFellowship = () => {
+      window.dispatchEvent(new CustomEvent("world-switch", { detail: { world: "fellowship" } }));
+    };
     door.actionManager = door.actionManager || new ActionManager(sceneInstance);
-    door.actionManager.registerAction(
-      new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
-        window.dispatchEvent(new CustomEvent("world-switch", { detail: { world: "fellowship" } }));
-      })
-    );
+    door.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, switchToFellowship));
+    const pointerObserver = sceneInstance.onPointerObservable.add((pointerInfo) => {
+      if (pointerInfo.type !== PointerEventTypes.POINTERTAP) return;
+      const picked = pointerInfo.pickInfo?.pickedMesh;
+      if (!picked) return;
+      if (picked === door || picked === sign) {
+        switchToFellowship();
+      }
+    });
 
     return () => {
+      if (pointerObserver) sceneInstance.onPointerObservable.remove(pointerObserver);
       door.dispose();
       sign.dispose();
       doorMat.dispose();
