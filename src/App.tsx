@@ -70,12 +70,12 @@ function App() {
       <HUD />
       {wakeVisible ? (
         <div className={`world-transition ${wakeFading ? "fade-out" : ""}`}>
-          Waking up...
+          Wake up
         </div>
       ) : null}
       {transitionVisible ? (
         <div className={`world-transition ${transitionFading ? "fade-out" : ""}`}>
-          Exiting the building...
+          Exiting
         </div>
       ) : null}
     </div>

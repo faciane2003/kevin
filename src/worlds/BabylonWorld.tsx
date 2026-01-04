@@ -3,13 +3,18 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActionManager,
   Color3,
+  Color4,
   DynamicTexture,
   ExecuteCodeAction,
   GlowLayer,
+  Mesh,
   MeshBuilder,
+  ParticleSystem,
   PointerEventTypes,
   Scene,
+  SpotLight,
   StandardMaterial,
+  TransformNode,
   UniversalCamera,
   Vector3,
 } from "@babylonjs/core";
@@ -28,7 +33,6 @@ import {
   Banners,
   CameraBob,
   DebrisScatter,
-  FootstepZones,
   LightCones,
   LODManager,
   MovingShadows,
@@ -36,7 +40,6 @@ import {
   PuddleDecals,
   SirenSweep,
   SkylineBackdrop,
-  SteamVents,
   StreetSigns,
   TrafficLights,
   VegetationSway,
@@ -329,10 +332,10 @@ const BabylonWorld: React.FC = () => {
       return best;
     }, null as null | { info: BuildingInfo; dist: number });
     const building = nearestBuilding?.info;
-    let doorForward = new Vector3(0, 0, 1);
-    if (building) {
-      const yaw = building.mesh.rotation.y;
-      const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      let doorForward = new Vector3(0, 0, 1);
+      if (building) {
+        const yaw = building.mesh.rotation.y;
+        const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
       const right = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
       const faceCandidates = [
         { center: building.mesh.position.add(forward.scale(building.depth / 2)), normal: forward },
@@ -351,46 +354,172 @@ const BabylonWorld: React.FC = () => {
           bestFace = face;
         }
       });
-      doorForward = bestFace.normal;
-      door.position = bestFace.center.add(doorForward.scale(0.16));
-    } else {
-      door.position = doorAnchor.clone();
-    }
-    door.position.y = 3;
+        doorForward = bestFace.normal;
+        building.mesh.setEnabled(false);
+        building.mesh.isPickable = false;
+        building.mesh.checkCollisions = false;
+      }
+      door.position = doorAnchor.clone().add(doorForward.scale(0.6));
+      door.position.y = 3;
     door.rotation.y = Math.atan2(doorForward.x, doorForward.z) + Math.PI;
     door.isPickable = true;
     door.checkCollisions = false;
     const doorMat = new StandardMaterial("fellowshipDoorMat", sceneInstance);
-    doorMat.diffuseColor = new Color3(0.05, 0.06, 0.08);
-    doorMat.emissiveColor = new Color3(0.1, 0.2, 0.35);
+    doorMat.diffuseColor = new Color3(0.35, 0.35, 0.38);
+    doorMat.specularColor = new Color3(0.1, 0.1, 0.1);
     door.material = doorMat;
 
-    const sign = MeshBuilder.CreatePlane(
-      "fellowshipDoorSign",
-      { width: 6.5, height: 1.4 },
+    const lineTex = new DynamicTexture("fellowshipDoorLinesTex", { width: 512, height: 512 }, sceneInstance, true);
+    const lineCtx = lineTex.getContext() as CanvasRenderingContext2D;
+    lineCtx.clearRect(0, 0, 512, 512);
+    lineCtx.strokeStyle = "rgba(120,255,160,0.9)";
+    lineCtx.lineWidth = 8;
+    for (let y = 60; y < 512; y += 68) {
+      lineCtx.beginPath();
+      lineCtx.moveTo(30, y);
+      lineCtx.lineTo(482, y);
+      lineCtx.stroke();
+    }
+    lineTex.update();
+    const linePlane = MeshBuilder.CreatePlane("fellowshipDoorLines", { width: 3.7, height: 5.5 }, sceneInstance);
+    linePlane.position = door.position.add(doorForward.scale(0.18));
+    linePlane.rotation.y = door.rotation.y;
+    linePlane.isPickable = false;
+    const lineMat = new StandardMaterial("fellowshipDoorLinesMat", sceneInstance);
+    lineMat.diffuseTexture = lineTex;
+    lineMat.emissiveTexture = lineTex;
+    lineMat.opacityTexture = lineTex;
+    lineMat.emissiveColor = new Color3(0.35, 1, 0.6);
+    lineMat.backFaceCulling = false;
+    linePlane.material = lineMat;
+
+    const letterMeshes: Mesh[] = [];
+    const letterTextures: DynamicTexture[] = [];
+    const letterMaterials: StandardMaterial[] = [];
+    const letterOscillators: Array<{ mesh: Mesh; baseY: number; phase: number; speed: number; amp: number }> = [];
+    const lines = ["Speak Friend", "And Enter"];
+    const textFacing = doorForward.scale(-1);
+    const textRight = new Vector3(textFacing.z, 0, -textFacing.x);
+    textRight.normalize();
+    const scale = 3;
+    const baseTextPos = door.position.add(new Vector3(0, 8.5, 0)).add(doorForward.scale(1.2));
+    const runeTex = new DynamicTexture("fellowshipRuneParticleTex", { width: 64, height: 64 }, sceneInstance, true);
+    const runeCtx = runeTex.getContext() as CanvasRenderingContext2D;
+    const runeGradient = runeCtx.createRadialGradient(32, 32, 4, 32, 32, 30);
+    runeGradient.addColorStop(0, "rgba(255,240,180,1)");
+    runeGradient.addColorStop(0.5, "rgba(255,170,60,0.85)");
+    runeGradient.addColorStop(1, "rgba(255,140,40,0)");
+    runeCtx.clearRect(0, 0, 64, 64);
+    runeCtx.fillStyle = runeGradient;
+    runeCtx.fillRect(0, 0, 64, 64);
+    runeTex.update();
+
+    const runeEmitter = new TransformNode("fellowshipRuneEmitter", sceneInstance);
+    runeEmitter.position = baseTextPos.add(new Vector3(0, -0.9, 0));
+    runeEmitter.rotation.y = Math.atan2(textFacing.x, textFacing.z);
+    const runeParticles = new ParticleSystem("fellowshipRuneParticles", 220, sceneInstance);
+    runeParticles.particleTexture = runeTex;
+    runeParticles.emitter = runeEmitter as any;
+    runeParticles.minEmitBox = new Vector3(-3.6 * scale, -0.8 * scale, -0.6 * scale);
+    runeParticles.maxEmitBox = new Vector3(3.6 * scale, 0.8 * scale, 0.6 * scale);
+    runeParticles.color1 = new Color4(1, 0.95, 0.65, 0.5);
+    runeParticles.color2 = new Color4(1, 0.8, 0.35, 0.5);
+    runeParticles.colorDead = new Color4(1, 0.75, 0.2, 0);
+    runeParticles.minSize = 0.08 * scale;
+    runeParticles.maxSize = 0.18 * scale;
+    runeParticles.minLifeTime = 1.2;
+    runeParticles.maxLifeTime = 2.6;
+    runeParticles.emitRate = 45;
+    runeParticles.blendMode = ParticleSystem.BLENDMODE_ADD;
+    runeParticles.gravity = new Vector3(0, 0.12, 0);
+    runeParticles.minEmitPower = 0.2;
+    runeParticles.maxEmitPower = 0.5;
+    runeParticles.updateSpeed = 0.01;
+    runeParticles.start();
+
+    const doorSpot = new SpotLight(
+      "fellowshipDoorSpot",
+      baseTextPos.add(new Vector3(0, 6, 0)).add(textFacing.scale(2.5)),
+      new Vector3(0, -1, 0),
+      Math.PI / 4,
+      2,
       sceneInstance
     );
-    sign.position = door.position.add(new Vector3(0, 4.2, 0)).add(doorForward.scale(0.4));
-    sign.rotation.y = door.rotation.y;
-    sign.isPickable = false;
+    doorSpot.intensity = 1.2;
+    doorSpot.diffuse = new Color3(0.95, 0.85, 0.55);
+    const spaceWidth = 0.45 * scale;
+    const getLetterWidth = (char: string) => (char === "." ? 0.28 * scale : 0.62 * scale);
+    const letterHeight = 0.55 * scale;
+    const lineSpacing = 0.95 * scale;
+    let letterIndex = 0;
 
-    const signTex = new DynamicTexture("fellowshipDoorSignTex", { width: 512, height: 128 }, sceneInstance, true);
-    const signCtx = signTex.getContext() as CanvasRenderingContext2D;
-    signCtx.clearRect(0, 0, 512, 128);
-    signCtx.fillStyle = "rgba(0,0,0,0.6)";
-    signCtx.fillRect(0, 0, 512, 128);
-    signCtx.fillStyle = "#e6f3ff";
-    signCtx.font = "bold 54px Consolas, Menlo, monospace";
-    signCtx.textAlign = "center";
-    signCtx.textBaseline = "middle";
-    signCtx.fillText("Fellowship", 256, 64);
-    signTex.update();
+    lines.forEach((text, lineIndex) => {
+      const widths = Array.from(text).map((char) => (char === " " ? spaceWidth : getLetterWidth(char)));
+      const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+      let cursor = -totalWidth / 2;
+      const lineBase = baseTextPos.add(new Vector3(0, -lineIndex * lineSpacing, 0));
 
-    const signMat = new StandardMaterial("fellowshipDoorSignMat", sceneInstance);
-    signMat.diffuseTexture = signTex;
-    signMat.emissiveTexture = signTex;
-    signMat.backFaceCulling = false;
-    sign.material = signMat;
+      Array.from(text).forEach((char) => {
+        if (char === " ") {
+          cursor += spaceWidth;
+          return;
+        }
+        const letterWidth = getLetterWidth(char);
+        const plane = MeshBuilder.CreatePlane(
+          `fellowshipLetter_${letterIndex}`,
+          { width: letterWidth, height: letterHeight },
+          sceneInstance
+        );
+        plane.position = lineBase.add(textRight.scale(cursor + letterWidth / 2));
+        plane.rotation.y = Math.atan2(textFacing.x, textFacing.z);
+        plane.isPickable = true;
+
+        const tex = new DynamicTexture(
+          `fellowshipLetterTex_${letterIndex}`,
+          { width: 256, height: 128 },
+          sceneInstance,
+          true
+        );
+        const ctx = tex.getContext() as CanvasRenderingContext2D;
+        ctx.clearRect(0, 0, 256, 128);
+        ctx.font = '72px "Brush Script MT", "Segoe Script", "Snell Roundhand", cursive';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(90,255,140,0.8)";
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = "#6bff8d";
+        ctx.fillText(char, 128, 72);
+        tex.update();
+
+        const mat = new StandardMaterial(`fellowshipLetterMat_${letterIndex}`, sceneInstance);
+        mat.diffuseTexture = tex;
+        mat.emissiveTexture = tex;
+        mat.opacityTexture = tex;
+        mat.emissiveColor = new Color3(0.4, 1, 0.6);
+        mat.backFaceCulling = false;
+        plane.material = mat;
+
+        letterMeshes.push(plane);
+        letterTextures.push(tex);
+        letterMaterials.push(mat);
+        letterOscillators.push({
+          mesh: plane,
+          baseY: plane.position.y,
+          phase: letterIndex * 0.6,
+          speed: 1.1 + (letterIndex % 4) * 0.15,
+          amp: 0.18 + (letterIndex % 3) * 0.05,
+        });
+        cursor += letterWidth;
+        letterIndex += 1;
+      });
+    });
+
+    const letterObserver = sceneInstance.onBeforeRenderObservable.add(() => {
+      const t = performance.now() / 1000;
+      letterOscillators.forEach(({ mesh, baseY, phase, speed, amp }) => {
+        mesh.position.y = baseY + Math.sin(t * speed + phase) * amp;
+      });
+    });
 
     const switchToFellowship = () => {
       window.dispatchEvent(new CustomEvent("world-switch", { detail: { world: "fellowship" } }));
@@ -401,18 +530,26 @@ const BabylonWorld: React.FC = () => {
       if (pointerInfo.type !== PointerEventTypes.POINTERTAP) return;
       const picked = pointerInfo.pickInfo?.pickedMesh;
       if (!picked) return;
-      if (picked === door || picked === sign) {
+      if (picked === door || picked === linePlane || letterMeshes.includes(picked as Mesh)) {
         switchToFellowship();
       }
     });
 
     return () => {
       if (pointerObserver) sceneInstance.onPointerObservable.remove(pointerObserver);
+      sceneInstance.onBeforeRenderObservable.remove(letterObserver);
       door.dispose();
-      sign.dispose();
+      letterMeshes.forEach((mesh) => mesh.dispose());
       doorMat.dispose();
-      signMat.dispose();
-      signTex.dispose();
+      linePlane.dispose();
+      lineMat.dispose();
+      lineTex.dispose();
+      letterMaterials.forEach((mat) => mat.dispose());
+      letterTextures.forEach((tex) => tex.dispose());
+      runeParticles.dispose();
+      runeTex.dispose();
+      runeEmitter.dispose();
+      doorSpot.dispose();
     };
   }, [sceneInstance, buildingInfos]);
 
@@ -512,12 +649,6 @@ const BabylonWorld: React.FC = () => {
         camera={cameraRef.current}
         enabled={realismSettings.cameraBob && walkInputActive}
       />
-      <FootstepZones
-        scene={sceneInstance}
-        camera={cameraRef.current}
-        enabled={realismSettings.footstepZones}
-      />
-      <SteamVents scene={sceneInstance} enabled={realismSettings.steamVents} />
       <MovingShadows scene={sceneInstance} enabled={realismSettings.movingShadows} />
       <DebrisScatter scene={sceneInstance} enabled={realismSettings.debris} />
       <TrafficLights scene={sceneInstance} enabled={realismSettings.trafficLights} />
